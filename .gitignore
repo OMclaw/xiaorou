@@ -1,0 +1,41 @@
+# API Keys & Secrets (NEVER commit these)
+.env
+*.env
+*.key
+*.secret
+openclaw.json
+openclaw.json.bak
+credentials/
+
+# Generated assets
+assets/*.jpg
+assets/selfie_*.png
+# 保留默认角色图
+!assets/default-character.png
+
+# Logs
+*.log
+logs/
+
+# Memory
+memory/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node modules
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
