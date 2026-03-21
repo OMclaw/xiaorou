@@ -1,14 +1,16 @@
 #!/bin/bash
-# aevia.sh - 主入口（聊天 + 自拍）
+# aevia.sh - 主入口（聊天 + 自拍 + 语音）
 #
 # 功能:
 #   - 情感聊天：使用 Qwen3.5-plus 模型
 #   - 自拍生成：调用 selfie.py 生成图生图自拍
+#   - 语音消息：使用 CosyVoice 生成语音（TTS）
 #   - 自动加载 OpenClaw 配置
 #
 # 使用示例:
 #   bash scripts/aevia.sh "早安"
 #   bash scripts/aevia.sh "发张自拍" feishu
+#   bash scripts/aevia.sh "发语音：早上好" feishu
 #
 # 安全提示:
 #   - API Key 从环境变量或配置文件安全加载
@@ -139,17 +141,67 @@ fi
 USER_INPUT=$(sanitize_input "$USER_INPUT_RAW")
 CHANNEL=$(validate_channel "$CHANNEL_RAW")
 
-# 判断是否为图片请求（自拍模式）
-if echo "$USER_INPUT" | grep -qiE "(照片 | 图片 | 自拍 | 发张 | 看看你 | 穿 | 穿搭 | 全身 | 镜子|pic|photo|selfie)"; then
+# 临时文件清理陷阱
+TEMP_FILES=()
+cleanup() {
+  for f in "${TEMP_FILES[@]}"; do
+    [ -f "$f" ] && rm -f "$f"
+  done
+}
+trap cleanup EXIT
+
+# ============================================
+# 语音模式检测
+# ============================================
+if echo "$USER_INPUT" | grep -qiE "(发语音 | 语音消息 | 说句话 | 语音回复|voice|tts)"; then
+  info "🎙️ 语音模式"
+  
+  # 提取实际要说的内容（移除触发词）
+  SPEECH_TEXT=$(echo "$USER_INPUT" | sed -E 's/^(发语音 [:：]?|语音消息 [:：]?|说句话 [:：]?|语音回复 [:：]?)//i' | xargs)
+  
+  # 如果没有指定内容，使用默认问候
+  if [ -z "$SPEECH_TEXT" ]; then
+    SPEECH_TEXT="你好呀，我是小柔~"
+  fi
+  
+  # 生成临时文件路径
+  TEMP_AUDIO=$(mktemp --suffix=.mp3)
+  TEMP_FILES+=("$TEMP_AUDIO")
+  
+  # 调用 TTS 脚本
+  if python3 "$SCRIPT_DIR/tts.py" "$SPEECH_TEXT" "$TEMP_AUDIO"; then
+    info "✓ 语音生成成功"
+    
+    # 发送到频道
+    if [ -n "$CHANNEL" ]; then
+      # 使用 openclaw message 发送音频文件
+      openclaw message send --action send --channel "$CHANNEL" --media "$TEMP_AUDIO" --filename "voice.mp3" || {
+        warn "发送语音失败"
+      }
+    else
+      info "语音文件已生成：$TEMP_AUDIO"
+    fi
+  else
+    error "语音生成失败"
+  fi
+
+# ============================================
+# 自拍模式检测
+# ============================================
+elif echo "$USER_INPUT" | grep -qiE "(照片 | 图片 | 自拍 | 发张 | 看看你 | 穿 | 穿搭 | 全身 | 镜子|pic|photo|selfie)"; then
   info "📸 自拍模式"
   # 添加默认配文，调用自拍生成脚本
   python3 "$SCRIPT_DIR/selfie.py" "$USER_INPUT" "$CHANNEL" "给你看看我现在的样子~"
+
+# ============================================
+# 聊天模式（默认）
+# ============================================
 else
   info "💬 聊天模式"
   
   # 使用参数化方式传递用户输入（避免命令注入）
   TEMP_JSON_FILE=$(mktemp)
-  trap "rm -f $TEMP_JSON_FILE" EXIT
+  TEMP_FILES+=("$TEMP_JSON_FILE")
   
   # 构建 JSON 请求（使用临时文件避免日志泄露）
   cat > "$TEMP_JSON_FILE" <<EOF

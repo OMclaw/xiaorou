@@ -5,6 +5,7 @@
 #   - 从环境变量或配置文件加载 API Key
 #   - 验证配置文件权限
 #   - 验证 API Key 格式
+#   - 支持 DASHSCOPE_API_KEY（用于对话、图像、语音）
 #
 # 使用示例:
 #   source scripts/load_config.sh

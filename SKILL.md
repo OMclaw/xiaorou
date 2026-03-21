@@ -1,7 +1,7 @@
 ---
 name: xiaorou
-description: 小柔 AI - 你的虚拟伴侣，支持情感聊天、自拍生成、角色定制
-allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write WebFetch Bash(npm:*)
+description: 小柔 AI - 你的虚拟伴侣，支持情感聊天、自拍生成、角色定制、语音消息
+allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write WebFetch Bash(npm:*) Bash(python3:*)
 ---
 
 # 小柔 AI - 你的虚拟伴侣
@@ -11,6 +11,7 @@ allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write WebFetch Bash(npm:*)
 - 💬 **情感聊天** - Qwen3.5-plus 提供情绪价值
 - 📸 **自拍生成** - Wan2.6-image 生成自拍
 - 🎨 **角色定制** - Z-image 生成专属头像
+- 🎙️ **语音消息** - CosyVoice-v3.5-plus 温柔女声 TTS
 - 🌐 **多平台** - 飞书/Telegram/Discord/WhatsApp
 
 ## 安装
@@ -27,6 +28,10 @@ bash scripts/aevia.sh "早安"
 
 # 自拍
 bash scripts/aevia.sh "发张自拍" feishu
+
+# 🎙️ 语音消息
+bash scripts/aevia.sh "发语音：早上好呀" feishu
+bash scripts/aevia.sh "语音消息：今天也要加油哦" feishu
 
 # 角色
 bash scripts/character.sh "一个温柔可爱的女孩"
@@ -56,6 +61,7 @@ export AEVIA_CHARACTER_NAME="小柔"
 - 聊天：Qwen3.5-plus
 - 自拍：Wan2.6-image
 - 头像：Z-image-turbo
+- 语音：CosyVoice-v3.5-plus（音色：longxiaochun 等）
 
 ## 更多
 
