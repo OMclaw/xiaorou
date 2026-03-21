@@ -32,7 +32,7 @@ from typing import Optional, Tuple
 # 导入 dashscope SDK
 try:
     import dashscope
-    from dashscope.audio.tts_v2 import SpeechSynthesizer
+    from dashscope.audio.tts_v2 import SpeechSynthesizer, AudioFormat
 except ImportError:
     print("❌ 缺少依赖：dashscope", file=sys.stderr)
     print("   请运行：pip3 install dashscope", file=sys.stderr)
@@ -229,8 +229,18 @@ def text_to_speech(
             logger.info(f"正在生成语音 (尝试 {attempt}/{retries})...")
             logger.debug(f"请求参数：model={model}, voice={voice}, text_length={len(text)}")
             
-            # 创建 SpeechSynthesizer
-            synthesizer = SpeechSynthesizer(model=model, voice=voice)
+            # 根据输出文件扩展名选择格式
+            if output_path.endswith('.opus'):
+                # 使用 OGG_OPUS 格式（24kHz, 32kbps）
+                audio_format = AudioFormat.OGG_OPUS_24KHZ_MONO_32KBPS
+            elif output_path.endswith('.wav'):
+                audio_format = AudioFormat.WAV_24000HZ_MONO_16BIT
+            else:
+                # 默认 MP3 格式
+                audio_format = AudioFormat.MP3_24000HZ_MONO_256KBPS
+            
+            # 创建 SpeechSynthesizer，指定输出格式
+            synthesizer = SpeechSynthesizer(model=model, voice=voice, format=audio_format)
             
             # 调用 API 生成语音
             audio = synthesizer.call(text)
