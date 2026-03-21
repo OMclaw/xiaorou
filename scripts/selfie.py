@@ -367,7 +367,7 @@ def call_image_api(image_path: Path, prompt: str, api_key: str) -> str:
 
 def send_to_channel(image_url: str, caption: str, channel: str) -> bool:
     """
-    发送图片到指定频道
+    发送图片到指定频道（使用飞书图片消息格式）
     
     Args:
         image_url: 图片 URL
@@ -379,10 +379,39 @@ def send_to_channel(image_url: str, caption: str, channel: str) -> bool:
     """
     try:
         logger.info(f"📤 发送到：{channel}")
-        os.system(f'openclaw message send --action send --channel "{channel}" --message "{caption}" --media "{image_url}"')
-        return True
+        
+        # 下载图片到本地
+        import requests
+        temp_file = '/tmp/openclaw/selfie_' + str(int(time.time())) + '.jpg'
+        os.makedirs('/tmp/openclaw', exist_ok=True)
+        
+        resp = requests.get(image_url)
+        with open(temp_file, 'wb') as f:
+            f.write(resp.content)
+        
+        # 使用 openclaw message 发送（飞书会自动识别为图片）
+        import subprocess
+        result = subprocess.run([
+            'openclaw', 'message', 'send',
+            '--action', 'send',
+            '--channel', channel,
+            '--message', caption,
+            '--media', temp_file
+        ], capture_output=True, text=True)
+        
+        # 清理临时文件
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+        
+        if result.returncode == 0:
+            logger.info(f"✓ 图片发送成功")
+            return True
+        else:
+            logger.error(f"发送失败：{result.stderr}")
+            return False
+            
     except Exception as e:
-        logger.error(f"发送失败：{e}")
+        logger.error(f"发送异常：{e}")
         return False
 
 
