@@ -13,15 +13,16 @@ AI 驱动的虚拟伴侣，支持情感聊天、自拍生成、角色定制。
 ## 🚀 快速安装
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/OMclaw/xiaorou/main/install-aevia.sh | bash
-```
-
-或手动安装：
-
-```bash
 cd ~/.openclaw/workspace/skills
 git clone https://github.com/OMclaw/xiaorou.git
 cd xiaorou && bash install.sh
+```
+
+**更新：**
+
+```bash
+cd ~/.openclaw/workspace/skills/xiaorou
+git pull && bash install.sh
 ```
 
 ## 💬 使用示例
@@ -46,11 +47,11 @@ bash scripts/character.sh "一个温柔可爱的亚洲女孩"
 xiaorou/
 ├── README.md
 ├── SKILL.md
-├── install.sh
-├── install-aevia.sh
+├── install.sh              # 安装脚本
 ├── scripts/
-│   ├── aevia.sh         # 主入口（聊天 + 自拍）
-│   └── character.sh     # 角色头像生成
+│   ├── aevia.sh           # 主入口（聊天 + 自拍）
+│   ├── selfie.py          # 自拍生成（核心）
+│   └── character.sh       # 角色头像生成
 └── assets/
     └── default-character.png
 ```
