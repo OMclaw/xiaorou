@@ -7,7 +7,7 @@ AI 驱动的虚拟伴侣，支持情感聊天、自拍生成、角色定制。
 - 💬 **情感聊天** - Qwen3.5-plus 提供情绪价值
 - 📸 **自拍生成** - Wan2.6-image 生成各种场景的自拍
 - 🎨 **角色定制** - Z-image 生成专属头像
-- 🎙️ **语音消息** - CosyVoice-v3.5-plus 温柔女声 TTS
+- 🎙️ **语音消息** - CosyVoice-v3-flash 温柔女声 TTS
 - 🌐 **多平台** - 支持飞书/Telegram/Discord/WhatsApp
 - 🔧 **自动配置** - 自动读取 OpenClaw API Key
 
@@ -20,7 +20,6 @@ cd xiaorou && bash install.sh
 ```
 
 **更新：**
-
 ```bash
 cd ~/.openclaw/workspace/skills/xiaorou
 git pull && bash install.sh
@@ -54,6 +53,7 @@ xiaorou/
 ├── README.md
 ├── SKILL.md
 ├── install.sh              # 安装脚本
+├── requirements.txt        # Python 依赖
 ├── scripts/
 │   ├── aevia.sh           # 主入口（聊天 + 自拍 + 语音）
 │   ├── tts.py             # 文字转语音（CosyVoice）
@@ -68,7 +68,6 @@ xiaorou/
 Aevia 会自动从 `~/.openclaw/openclaw.json` 读取 API Key，无需手动配置。
 
 如需手动设置：
-
 ```bash
 export DASHSCOPE_API_KEY="sk-your-api-key"
 export AEVIA_CHARACTER_NAME="小柔"
@@ -83,15 +82,10 @@ export AEVIA_CHARACTER_NAME="小柔"
 - dashscope SDK（阿里云官方）
 - ffmpeg（用于 OPUS 格式转换）
 
-安装依赖：
+**安装依赖：**
 ```bash
-# Python 3.9（如果还没有）
 brew install python@3.9
-
-# dashscope SDK
 /home/linuxbrew/.linuxbrew/bin/python3.9 -m pip install dashscope
-
-# ffmpeg（用于音频转换）
 brew install ffmpeg
 ```
 
@@ -107,10 +101,56 @@ brew install ffmpeg
 - 飞书：自动转换为 OPUS 格式（显示语音气泡）
 - 其他平台：使用 MP3 格式
 
-手动指定音色：
+**手动指定音色：**
 ```bash
 /home/linuxbrew/.linuxbrew/bin/python3.9 scripts/tts.py --text "你好" --voice longanyang --output /tmp/voice.mp3
 ```
+
+### 📸 自拍模式
+
+| 模式 | 关键词 | 场景 |
+|------|--------|------|
+| mirror | 穿、衣服、穿搭、全身 | 对镜自拍 |
+| direct | 咖啡厅、餐厅、特写 | 直接自拍 |
+| auto | 其他 | 自动判断 |
+
+## 🎙️ TTS 高级用法
+
+### 直接使用 Python 脚本
+
+```bash
+# 基础用法
+python3 scripts/tts.py "你好，我是小柔" /tmp/voice.mp3
+
+# 选择音色
+python3 scripts/tts.py --text "你好" --voice longxiaoxia --output /tmp/voice.mp3
+
+# 列出可用音色
+python3 scripts/tts.py --list-voices
+```
+
+### 编程调用
+
+```python
+from scripts.tts import text_to_speech
+
+success, message = text_to_speech(
+    text="你好，我是小柔",
+    output_path="/tmp/voice.mp3",
+    voice="longyingxiao_v3"
+)
+```
+
+### 常见问题
+
+**Q: 语音生成失败？**  
+A: 检查 API Key 是否正确设置，网络连接是否正常。
+
+**Q: 文本长度限制？**  
+A: 单次请求最多 500 字。
+
+**Q: 临时文件会清理吗？**  
+A: 会自动清理，异常退出时可能需要手动清理 `/tmp` 目录。
 
 ## 📚 更多帮助
 
