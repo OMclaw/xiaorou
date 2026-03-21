@@ -1,21 +1,133 @@
+# ============================================
+# 小柔 AI - Git 忽略配置
+# ============================================
+
+# ============================================
 # API Keys & Secrets (NEVER commit these)
+# ============================================
 .env
+.env.local
+.env.*.local
 *.key
 *.secret
+*.pem
+*.crt
 openclaw.json
 credentials/
+config/secrets/
 
-# Generated assets
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+*.cover
+*.py,cover
+*.ipynb_checkpoints
+
+# 虚拟环境
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# ============================================
+# 生成的资产文件
+# ============================================
 assets/*.jpg
 assets/selfie_*.png
+assets/generated_*.png
+assets/*.tmp
 !assets/default-character.png
 
-# Logs
+# ============================================
+# 日志文件
+# ============================================
 *.log
 logs/
+log/
 
-# OS
+# ============================================
+# 备份文件
+# ============================================
+*.backup
+*.backup.*
+*.bak
+*.old
+*.orig
+
+# ============================================
+# 操作系统文件
+# ============================================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
+
+# ============================================
+# IDE 和编辑器
+# ============================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# ============================================
+# 测试和覆盖率
+# ============================================
+coverage/
+.nyc_output/
+test-results/
+
+# ============================================
+# Node (如果使用)
+# ============================================
 node_modules/
-__pycache__/
+npm-debug.log
+yarn-error.log
+
+# ============================================
+# 临时文件
+# ============================================
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/
