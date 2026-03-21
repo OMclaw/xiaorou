@@ -31,7 +31,8 @@ fi
 # 判断是否为图片请求
 if echo "$USER_INPUT" | grep -qiE "(照片 | 图片 | 自拍 | 发张 | 看看你 | 穿 | 穿搭 | 全身 | 镜子|pic|photo|selfie)"; then
   echo "📸 自拍模式"
-  python3 "$SCRIPT_DIR/selfie.py" "$USER_INPUT" "$CHANNEL"
+  # 添加默认配文
+  python3 "$SCRIPT_DIR/selfie.py" "$USER_INPUT" "$CHANNEL" "给你看看我现在的样子~"
 else
   echo "💬 聊天模式"
   
