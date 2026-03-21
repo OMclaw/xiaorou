@@ -42,7 +42,13 @@ load_api_key() {
     
     # 安全读取 API Key
     local key
+    # 尝试路径 1: skills.entries[].env.DASHSCOPE_API_KEY
     key=$(jq -r '.skills.entries[]?.env?.DASHSCOPE_API_KEY // empty' "$CONFIG_FILE" 2>/dev/null | head -1)
+    
+    # 尝试路径 2: models.providers.dashscope.apiKey (OpenClaw 标准配置)
+    if [ -z "$key" ]; then
+      key=$(jq -r '.models.providers.dashscope.apiKey // empty' "$CONFIG_FILE" 2>/dev/null | head -1)
+    fi
     
     # 验证并导出
     if [ -n "$key" ] && [[ "$key" =~ ^sk-[a-zA-Z0-9]{20,} ]]; then
