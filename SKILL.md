@@ -74,7 +74,7 @@ export AEVIA_CHARACTER_NAME="小柔"
 - 聊天：Qwen3.5-plus
 - 自拍：Wan2.6-image
 - 头像：Z-image-turbo
-- 语音：CosyVoice-v3-flash（音色：longanyang 等）
+- 语音：CosyVoice-v3-flash（音色：longyingxiao_v3 等，默认：longyingxiao_v3）
 
 **语音特性：**
 - 飞书：OPUS 格式（显示语音气泡，可点击播放）

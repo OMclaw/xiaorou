@@ -62,7 +62,7 @@ AVAILABLE_VOICES = [
     "longwan",         # 温柔女声
 ]
 
-DEFAULT_VOICE = "longanyang"  # 默认音色
+DEFAULT_VOICE = "longyingxiao_v3"  # 默认音色（温柔女声）
 DEFAULT_MODEL = "cosyvoice-v3-flash"  # 默认模型（快速版）
 
 # 重试配置

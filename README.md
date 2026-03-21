@@ -95,8 +95,9 @@ brew install python@3.9
 brew install ffmpeg
 ```
 
-**支持音色**（CosyVoice-v3-flash，默认：longanyang 温暖女声）：
-- `longanyang` - 温暖女声（推荐，默认）
+**支持音色**（CosyVoice-v3-flash，默认：longyingxiao_v3 温柔女声）：
+- `longyingxiao_v3` - 温柔女声（推荐，默认）
+- `longanyang` - 温暖女声
 - `longxiaochun` - 青春女声
 - `longcheng` - 成熟男声
 - `longxiaoyu` - 甜美女声
