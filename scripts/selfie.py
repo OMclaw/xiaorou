@@ -13,8 +13,8 @@ from pathlib import Path
 DASHSCOPE_API_KEY = os.environ.get('DASHSCOPE_API_KEY', '')
 CHARACTER_NAME = os.environ.get('AEVIA_CHARACTER_NAME', '小柔')
 SCRIPT_DIR = Path(__file__).parent
-# 小柔默认头像（本地文件）
-DEFAULT_CHARACTER_PATH = SCRIPT_DIR / 'assets' / 'default-character.png'
+# 小柔默认头像（本地文件）- 使用上级目录的 assets
+DEFAULT_CHARACTER_PATH = SCRIPT_DIR.parent / 'assets' / 'default-character.png'
 
 def get_image_base64(image_path):
     """将本地图片转换为 base64"""
