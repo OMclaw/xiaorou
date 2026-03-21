@@ -68,7 +68,7 @@ def generate_selfie(context, caption="给你看看我现在的样子~", channel=
                 'watermark': False,      # 不加水印
                 'n': 1,
                 'enable_interleave': False,
-                'size': '2048*2048'  # 高分辨率
+                'size': '2K'  # 最高分辨率
             }
         }
         
