@@ -78,16 +78,37 @@ export AEVIA_CHARACTER_NAME="小柔"
 
 语音功能使用相同的 `DASHSCOPE_API_KEY`，无需额外配置。
 
-支持以下音色（默认：longxiaochun 温柔女声）：
-- `longxiaochun` - 温柔女声（默认）
-- `longxiaoman` - 活泼女声
-- `longxiaoxia` - 知性女声
+**依赖要求：**
+- Python 3.9+（使用 Linuxbrew 安装）
+- dashscope SDK（阿里云官方）
+- ffmpeg（用于 OPUS 格式转换）
+
+安装依赖：
+```bash
+# Python 3.9（如果还没有）
+brew install python@3.9
+
+# dashscope SDK
+/home/linuxbrew/.linuxbrew/bin/python3.9 -m pip install dashscope
+
+# ffmpeg（用于音频转换）
+brew install ffmpeg
+```
+
+**支持音色**（CosyVoice-v3-flash，默认：longanyang 温暖女声）：
+- `longanyang` - 温暖女声（推荐，默认）
+- `longxiaochun` - 青春女声
+- `longcheng` - 成熟男声
 - `longxiaoyu` - 甜美女声
-- `longxiaoyan` - 成熟女声
+- `longxiaoxia` - 知性女声
+
+**输出格式：**
+- 飞书：自动转换为 OPUS 格式（显示语音气泡）
+- 其他平台：使用 MP3 格式
 
 手动指定音色：
 ```bash
-python3 scripts/tts.py --text "你好" --voice longxiaoxia --output /tmp/voice.mp3
+/home/linuxbrew/.linuxbrew/bin/python3.9 scripts/tts.py --text "你好" --voice longanyang --output /tmp/voice.mp3
 ```
 
 ## 📚 更多帮助
