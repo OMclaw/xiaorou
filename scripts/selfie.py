@@ -6,12 +6,21 @@ from dashscope import ImageSynthesis, MultiModalConversation
 import os
 import sys
 import json
+import base64
+from pathlib import Path
 
 # 配置
 DASHSCOPE_API_KEY = os.environ.get('DASHSCOPE_API_KEY', '')
 CHARACTER_NAME = os.environ.get('AEVIA_CHARACTER_NAME', '小柔')
-# 小柔默认头像 URL
-DEFAULT_CHARACTER_URL = "https://dashscope-a717.oss-accelerate.aliyuncs.com/1d/bc/20260321/c8f05150/46631868-oD8cWYVo_60286cb62a07.png?Expires=1774149486&OSSAccessKeyId=LTAI5tPxpiCM2hjmWrFXrym1&Signature=JOd0ViB1Xe%2FtC%2BKzFYiJ3hq%2BV%2BA%3D"
+SCRIPT_DIR = Path(__file__).parent
+# 小柔默认头像（本地文件）
+DEFAULT_CHARACTER_PATH = SCRIPT_DIR / 'assets' / 'default-character.png'
+
+def get_image_base64(image_path):
+    """将本地图片转换为 base64"""
+    with open(image_path, 'rb') as f:
+        image_data = base64.b64encode(f.read()).decode('utf-8')
+    return f"data:image/png;base64,{image_data}"
 
 def generate_selfie(context, caption="给你看看我现在的样子~", channel=None):
     """
@@ -24,6 +33,11 @@ def generate_selfie(context, caption="给你看看我现在的样子~", channel=
     """
     if not DASHSCOPE_API_KEY:
         print("❌ 请设置 DASHSCOPE_API_KEY 环境变量")
+        sys.exit(1)
+    
+    # 检查头像文件是否存在
+    if not DEFAULT_CHARACTER_PATH.exists():
+        print(f"❌ 未找到小柔头像文件：{DEFAULT_CHARACTER_PATH}")
         sys.exit(1)
     
     dashscope.api_key = DASHSCOPE_API_KEY
@@ -39,12 +53,16 @@ def generate_selfie(context, caption="给你看看我现在的样子~", channel=
     print(f"📸 模式：{mode}")
     print(f"📝 提示词：{prompt}")
     
-    # 构建消息
+    # 将本地头像转换为 base64
+    input_image_base64 = get_image_base64(DEFAULT_CHARACTER_PATH)
+    print(f"🖼️ 使用本地头像：{DEFAULT_CHARACTER_PATH}")
+    
+    # 构建消息（使用 base64 图片）
     messages = [
         {
             'role': 'user',
             'content': [
-                {'image': DEFAULT_CHARACTER_URL},
+                {'image': input_image_base64},
                 {'text': prompt}
             ]
         }
@@ -56,7 +74,6 @@ def generate_selfie(context, caption="给你看看我现在的样子~", channel=
         
         # 构建完整的请求参数
         import requests
-        api_key = DASHSCOPE_API_KEY
         
         payload = {
             'model': 'wan2.6-image',
@@ -73,7 +90,7 @@ def generate_selfie(context, caption="给你看看我现在的样子~", channel=
         }
         
         headers = {
-            'Authorization': f'Bearer {api_key}',
+            'Authorization': f'Bearer {DASHSCOPE_API_KEY}',
             'Content-Type': 'application/json'
         }
         
@@ -104,21 +121,6 @@ def generate_selfie(context, caption="给你看看我现在的样子~", channel=
                 sys.exit(1)
         else:
             print(f"❌ 生成失败：{result_json}")
-            sys.exit(1)
-        
-        if result.status_code == 200 and result.output:
-            # 获取生成的图片 URL
-            image_url = result.output.choices[0].message.content[0]['image']
-            print(f"✅ 生成成功：{image_url}")
-            
-            # 发送到频道
-            if channel:
-                print(f"📤 发送到：{channel}")
-                os.system(f'openclaw message send --action send --channel "{channel}" --message "{caption}" --media "{image_url}"')
-            
-            return image_url
-        else:
-            print(f"❌ 生成失败：{result}")
             sys.exit(1)
             
     except Exception as e:
