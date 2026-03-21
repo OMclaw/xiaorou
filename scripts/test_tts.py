@@ -14,28 +14,25 @@ import tempfile
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, script_dir)
 
-from tts import text_to_speech, list_available_voices, validate_text, validate_api_key
+from tts import text_to_speech, list_available_voices, get_api_key, validate_api_key
 
-def test_validate_text():
-    """测试文本验证功能"""
-    print("测试文本验证...")
+
+def test_get_api_key():
+    """测试 API Key 获取功能"""
+    print("测试 API Key 获取...")
     
-    # 正常文本
-    text = validate_text("你好，我是小柔")
-    assert text == "你好，我是小柔", "正常文本验证失败"
+    api_key = get_api_key()
     
-    # 带空白字符
-    text = validate_text("  你好  \n")
-    assert text == "你好", "空白字符清理失败"
+    if api_key:
+        masked = api_key[:5] + "..." + api_key[-4:] if len(api_key) > 10 else "***"
+        print(f"✓ 获取到 API Key: {masked}")
+    else:
+        print("⚠️  未找到 API Key")
+        print("   请设置环境变量: export DASHSCOPE_API_KEY=sk-xxx")
+        print("   或配置 ~/.openclaw/openclaw.json")
     
-    # 空文本
-    try:
-        validate_text("")
-        assert False, "空文本应该抛出异常"
-    except Exception:
-        pass
-    
-    print("✓ 文本验证测试通过")
+    return api_key
+
 
 def test_validate_api_key():
     """测试 API Key 验证功能"""
@@ -52,24 +49,29 @@ def test_validate_api_key():
     
     print("✓ API Key 验证测试通过")
 
+
 def test_list_voices():
     """测试音色列表功能"""
     print("测试音色列表...")
     
     voices = list_available_voices()
     assert len(voices) > 0, "音色列表为空"
-    assert "longxiaochun" in voices, "默认音色不在列表中"
+    assert "longqiang_v3" in voices, "默认音色不在列表中"
     
-    print(f"✓ 音色列表测试通过 (共 {len(voices)} 种音色)")
+    print(f"✓ 音色列表测试通过 (共 {len(voices)} 种音色):")
+    for voice in voices:
+        marker = " (默认)" if voice == "longqiang_v3" else ""
+        print(f"    - {voice}{marker}")
+
 
 def test_tts_generation():
     """测试 TTS 生成功能（需要 API Key）"""
     print("测试 TTS 生成...")
     
-    api_key = os.environ.get('DASHSCOPE_API_KEY', '')
+    api_key = get_api_key()
     
-    if not api_key:
-        print("⚠️  未设置 DASHSCOPE_API_KEY，跳过生成测试")
+    if not api_key or not validate_api_key(api_key):
+        print("⚠️  未设置有效的 DASHSCOPE_API_KEY，跳过生成测试")
         print("   如需测试完整功能，请设置环境变量:")
         print("   export DASHSCOPE_API_KEY=sk-xxx")
         return
@@ -83,7 +85,7 @@ def test_tts_generation():
         success, message = text_to_speech(
             text="你好，我是小柔",
             output_path=output_path,
-            voice="longxiaochun",
+            voice="longqiang_v3",
             retries=1
         )
         
@@ -98,15 +100,16 @@ def test_tts_generation():
         if os.path.exists(output_path):
             os.unlink(output_path)
 
+
 def main():
     """运行所有测试"""
     print("=" * 50)
-    print("TTS 功能测试")
+    print("TTS 功能测试 (CosyVoice)")
     print("=" * 50)
     print()
     
     try:
-        test_validate_text()
+        test_get_api_key()
         test_validate_api_key()
         test_list_voices()
         test_tts_generation()
@@ -128,7 +131,10 @@ def main():
         print("=" * 50)
         print(f"✗ 未知错误：{e}")
         print("=" * 50)
+        import traceback
+        traceback.print_exc()
         return 1
+
 
 if __name__ == '__main__':
     sys.exit(main())
