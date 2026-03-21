@@ -56,7 +56,7 @@ def generate_selfie(context, caption="给你看看我现在的样子~", channel=
         result = MultiModalConversation.call(
             model='wan2.6-image',
             messages=messages,
-            size='1024*1024',
+            size='2048*2048',  # 高分辨率
             n=1
         )
         
