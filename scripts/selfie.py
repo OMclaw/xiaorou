@@ -51,14 +51,60 @@ def generate_selfie(context, caption="给你看看我现在的样子~", channel=
     ]
     
     try:
-        # 调用 wan2.6-image
+        # 调用 wan2.6-image（使用官方推荐的 API 格式）
         print("🎨 调用 wan2.6-image 生成...")
-        result = MultiModalConversation.call(
-            model='wan2.6-image',
-            messages=messages,
-            size='2048*2048',  # 高分辨率
-            n=1
+        
+        # 构建完整的请求参数
+        import requests
+        api_key = DASHSCOPE_API_KEY
+        
+        payload = {
+            'model': 'wan2.6-image',
+            'input': {
+                'messages': messages
+            },
+            'parameters': {
+                'prompt_extend': True,  # 自动优化提示词
+                'watermark': False,      # 不加水印
+                'n': 1,
+                'enable_interleave': False,
+                'size': '2048*2048'  # 高分辨率
+            }
+        }
+        
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        response = requests.post(
+            'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+            headers=headers,
+            json=payload
         )
+        
+        result_json = response.json()
+        
+        # 检查是否成功
+        if response.status_code == 200 and result_json.get('output'):
+            # 获取生成的图片 URL
+            output = result_json['output']
+            if 'choices' in output and len(output['choices']) > 0:
+                image_url = output['choices'][0]['message']['content'][0]['image']
+                print(f"✅ 生成成功：{image_url}")
+                
+                # 发送到频道
+                if channel:
+                    print(f"📤 发送到：{channel}")
+                    os.system(f'openclaw message send --action send --channel "{channel}" --message "{caption}" --media "{image_url}"')
+                
+                return image_url
+            else:
+                print(f"❌ 生成失败：{result_json}")
+                sys.exit(1)
+        else:
+            print(f"❌ 生成失败：{result_json}")
+            sys.exit(1)
         
         if result.status_code == 200 and result.output:
             # 获取生成的图片 URL
