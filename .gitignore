@@ -1,0 +1,21 @@
+# API Keys & Secrets (NEVER commit these)
+.env
+*.key
+*.secret
+openclaw.json
+credentials/
+
+# Generated assets
+assets/*.jpg
+assets/selfie_*.png
+!assets/default-character.png
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+node_modules/
+__pycache__/
