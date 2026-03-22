@@ -115,19 +115,16 @@ def send_to_channel(image_url: str, caption: str, channel: str, target: Optional
             return False
         
         # 构建命令参数
+        # 支持通过 target 参数或环境变量配置，默认使用 chat: 前缀
+        send_target = target or os.environ.get('AEVIA_TARGET', 'chat:oc_c7797712851fe387479ce6812ec98f5c')
+        
         cmd_args = [
             'openclaw', 'message', 'send',
-            '--action', 'send',
             '--channel', channel,
+            '--target', send_target,
             '--message', caption,
-            '--media', temp_file,
-            '--filename', f'selfie_{timestamp}.jpg',
-            '--mimeType', 'image/jpeg'
+            '--media', temp_file
         ]
-        
-        # 添加 target 参数（如果提供）
-        if target:
-            cmd_args.extend(['--target', target])
         
         # 发送消息
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
