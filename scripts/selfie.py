@@ -92,10 +92,10 @@ def call_image_api(image_path: Path, prompt: str, api_key: str) -> str:
     raise Exception(f"API 错误：{result_json}")
 
 
-def send_to_channel(image_url: str, caption: str, channel: str) -> bool:
+def send_to_channel(image_url: str, caption: str, channel: str, target: Optional[str] = None) -> bool:
     """发送图片到飞书频道，支持正确的图片格式"""
     try:
-        logger.info(f"📤 发送到：{channel}")
+        logger.info(f"📤 发送到：{channel} (target: {target or 'auto'})")
         import requests, subprocess
         
         timestamp = int(time.time())
@@ -114,8 +114,8 @@ def send_to_channel(image_url: str, caption: str, channel: str) -> bool:
             logger.error("下载的图片文件为空")
             return False
         
-        # 发送消息 - 添加 mimeType 和 filename 参数（飞书必需）
-        result = subprocess.run([
+        # 构建命令参数
+        cmd_args = [
             'openclaw', 'message', 'send',
             '--action', 'send',
             '--channel', channel,
@@ -123,7 +123,14 @@ def send_to_channel(image_url: str, caption: str, channel: str) -> bool:
             '--media', temp_file,
             '--filename', f'selfie_{timestamp}.jpg',
             '--mimeType', 'image/jpeg'
-        ], capture_output=True, text=True, timeout=60)
+        ]
+        
+        # 添加 target 参数（如果提供）
+        if target:
+            cmd_args.extend(['--target', target])
+        
+        # 发送消息
+        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
         
         # 清理临时文件
         try:
@@ -149,7 +156,7 @@ def send_to_channel(image_url: str, caption: str, channel: str) -> bool:
         return False
 
 
-def generate_selfie(context: str, caption: str = "给你看看我现在的样子~", channel: Optional[str] = None) -> Optional[str]:
+def generate_selfie(context: str, caption: str = "给你看看我现在的样子~", channel: Optional[str] = None, target: Optional[str] = None) -> Optional[str]:
     try:
         api_key = validate_config()
         logger.info(f"✅ API Key 已加载")
@@ -169,7 +176,10 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
         image_url = call_image_api(image_path, prompt, api_key)
         
         if channel and image_url:
-            send_to_channel(image_url, caption, channel)
+            # 如果没有提供 target，尝试从环境变量获取
+            if not target:
+                target = os.environ.get('AEVIA_TARGET')
+            send_to_channel(image_url, caption, channel, target)
         
         return image_url
     except (ConfigurationError, FileNotFoundError) as e:
@@ -182,12 +192,13 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("用法：python3 selfie.py <场景描述> [频道] [配文]")
+        print("用法：python3 selfie.py <场景描述> [频道] [配文] [target]")
         sys.exit(1)
     
     context = sys.argv[1]
     channel = sys.argv[2] if len(sys.argv) > 2 else None
     caption = sys.argv[3] if len(sys.argv) > 3 else "给你看看我现在的样子~"
+    target = sys.argv[4] if len(sys.argv) > 4 else None
     
-    result = generate_selfie(context, caption, channel)
+    result = generate_selfie(context, caption, channel, target)
     sys.exit(0 if result else 1)
