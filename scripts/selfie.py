@@ -114,15 +114,13 @@ def send_to_channel(image_url: str, caption: str, channel: str) -> bool:
             logger.error("下载的图片文件为空")
             return False
         
-        # 发送消息 - 添加 mimeType 和 filename 参数（飞书必需）
+        # 发送消息 - 添加 target 参数（飞书必需）
         result = subprocess.run([
             'openclaw', 'message', 'send',
-            '--action', 'send',
             '--channel', channel,
+            '--target', 'chat:oc_c7797712851fe387479ce6812ec98f5c',
             '--message', caption,
-            '--media', temp_file,
-            '--filename', f'selfie_{timestamp}.jpg',
-            '--mimeType', 'image/jpeg'
+            '--media', temp_file
         ], capture_output=True, text=True, timeout=60)
         
         # 清理临时文件
