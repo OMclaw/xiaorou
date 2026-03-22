@@ -39,10 +39,29 @@ def validate_channel(channel: Optional[str]) -> Optional[str]:
 
 
 def validate_config() -> str:
+    """验证并加载 API Key，支持环境变量和 OpenClaw 配置文件"""
     api_key = os.environ.get('DASHSCOPE_API_KEY', '')
-    if not api_key:
-        raise ConfigurationError("API Key 未设置")
-    return api_key
+    if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
+        logger.info("✓ 从环境变量加载 API Key")
+        return api_key
+    
+    # 从 OpenClaw 配置文件读取
+    config_file = os.path.expanduser('~/.openclaw/openclaw.json')
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            # 尝试两种配置路径
+            api_key = config.get('models', {}).get('providers', {}).get('dashscope', {}).get('apiKey', '')
+            if not api_key:
+                api_key = config.get('skills', {}).get('entries', {}).get('xiaorou', {}).get('env', {}).get('DASHSCOPE_API_KEY', '')
+            if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
+                logger.info("✓ 从 OpenClaw 配置文件加载 API Key")
+                return api_key
+        except Exception as e:
+            logger.debug(f"读取配置文件失败：{e}")
+    
+    raise ConfigurationError("API Key 未设置，请配置环境变量或 ~/.openclaw/openclaw.json")
 
 
 def validate_character_image() -> Path:
