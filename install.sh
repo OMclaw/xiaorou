@@ -23,11 +23,46 @@ backup_file() {
 
 ask_overwrite() {
   local file="$1"
+  local target_name="${2:-小柔}"
+  
+  if [ ! -f "$file" ]; then
+    return 0  # 文件不存在，可以创建
+  fi
+  
+  # 检查是否已包含目标人设标识
+  if grep -q "$target_name" "$file" 2>/dev/null; then
+    info "✅ $file 已配置为 $target_name，跳过"
+    return 2  # 特殊返回值：已配置，无需更新
+  fi
+  
+  # 非交互模式：创建提示文件
   if [ ! -t 0 ]; then
-    warn "$file 已存在，非交互模式下跳过"
+    warn "$file 已存在，非交互模式下跳过配置"
+    cat > "$WORKSPACE_DIR/PERSONA_SETUP.md" <<EOF
+# 人设配置提示
+
+检测到小柔 AI 安装，但 SOUL.md 已存在其他人设。
+
+**选项 1：手动更新 SOUL.md**
+编辑 \`$file\`，添加：
+
+\`\`\`markdown
+**名字**: ${target_name}
+**Emoji**: 🦞
+**身份**: 你的 AI 虚拟伴侣
+\`\`\`
+
+**选项 2：重新运行安装脚本（交互模式）**
+\`\`\`bash
+cd ~/.openclaw/agents/developer/workspace/xiaorou
+AEVIA_CHARACTER_NAME="${target_name}" bash install.sh
+\`\`\`
+EOF
     return 1
   fi
-  read -p "⚠️  $file 已存在，是否覆盖？[y/N] " response
+  
+  # 交互模式：询问用户
+  read -p "⚠️  $file 已存在，是否更新为 $target_name 人设？[y/N] " response
   case "$response" in
     [yY][eE][sS]|[yY]) return 0 ;;
     *) info "⏭️  跳过 $file"; return 1 ;;
@@ -50,7 +85,9 @@ TARGET_NAME="${AEVIA_CHARACTER_NAME:-小柔}"
 
 # 处理 SOUL.md
 if [ -f "$SOUL_FILE" ]; then
-  if ask_overwrite "$SOUL_FILE"; then
+  ask_overwrite "$SOUL_FILE" "$TARGET_NAME"
+  result=$?
+  if [ $result -eq 0 ]; then
     backup_file "$SOUL_FILE"
     info "📝 更新 SOUL.md..."
     cat > "$SOUL_FILE" <<EOF
@@ -80,6 +117,8 @@ if [ -f "$SOUL_FILE" ]; then
 _小柔 AI - 让 AI 更有温度，让陪伴更真实_
 EOF
     info "✅ SOUL.md 已更新"
+  elif [ $result -eq 2 ]; then
+    : # 已配置，无需操作
   fi
 else
   info "📝 创建 SOUL.md..."
@@ -114,7 +153,9 @@ fi
 
 # 处理 IDENTITY.md
 if [ -f "$IDENTITY_FILE" ]; then
-  if ask_overwrite "$IDENTITY_FILE"; then
+  ask_overwrite "$IDENTITY_FILE" "$TARGET_NAME"
+  result=$?
+  if [ $result -eq 0 ]; then
     backup_file "$IDENTITY_FILE"
     info "📝 更新 IDENTITY.md..."
     cat > "$IDENTITY_FILE" <<EOF
@@ -126,6 +167,8 @@ if [ -f "$IDENTITY_FILE" ]; then
 - **Emoji:** 🦞
 EOF
     info "✅ IDENTITY.md 已更新"
+  elif [ $result -eq 2 ]; then
+    : # 已配置，无需操作
   fi
 else
   info "📝 创建 IDENTITY.md..."

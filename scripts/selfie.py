@@ -93,22 +93,57 @@ def call_image_api(image_path: Path, prompt: str, api_key: str) -> str:
 
 
 def send_to_channel(image_url: str, caption: str, channel: str) -> bool:
+    """发送图片到飞书频道，支持正确的图片格式"""
     try:
         logger.info(f"📤 发送到：{channel}")
         import requests, subprocess
-        temp_file = f'/tmp/openclaw/selfie_{int(time.time())}.jpg'
+        import os
+        
+        timestamp = int(time.time())
+        temp_file = f'/tmp/openclaw/selfie_{timestamp}.jpg'
         os.makedirs('/tmp/openclaw', exist_ok=True)
         
-        with open(temp_file, 'wb') as f:
-            f.write(requests.get(image_url).content)
+        # 下载图片
+        response = requests.get(image_url, timeout=30)
+        response.raise_for_status()
         
-        result = subprocess.run(['openclaw', 'message', 'send', '--action', 'send', '--channel', channel, '--message', caption, '--media', temp_file], capture_output=True, text=True)
-        os.remove(temp_file)
+        with open(temp_file, 'wb') as f:
+            f.write(response.content)
+        
+        # 验证文件是否有效
+        if os.path.getsize(temp_file) == 0:
+            logger.error("下载的图片文件为空")
+            return False
+        
+        # 发送消息 - 添加 mimeType 和 filename 参数（飞书必需）
+        result = subprocess.run([
+            'openclaw', 'message', 'send',
+            '--action', 'send',
+            '--channel', channel,
+            '--message', caption,
+            '--media', temp_file,
+            '--filename', f'selfie_{timestamp}.jpg',
+            '--mimeType', 'image/jpeg'
+        ], capture_output=True, text=True, timeout=60)
+        
+        # 清理临时文件
+        try:
+            os.remove(temp_file)
+        except:
+            logger.warning(f"清理临时文件失败：{temp_file}")
         
         if result.returncode == 0:
             logger.info("✓ 图片发送成功")
             return True
+        
         logger.error(f"发送失败：{result.stderr}")
+        return False
+        
+    except requests.RequestException as e:
+        logger.error(f"下载图片异常：{e}")
+        return False
+    except subprocess.TimeoutExpired:
+        logger.error("发送超时")
         return False
     except Exception as e:
         logger.error(f"发送异常：{e}")

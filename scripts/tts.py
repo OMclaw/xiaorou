@@ -64,6 +64,70 @@ def load_api_key() -> str:
     raise TTSError("无法加载 API Key，请设置 DASHSCOPE_API_KEY 环境变量")
 
 
+def get_audio_duration(audio_path: str) -> Optional[int]:
+    """获取音频时长（毫秒），用于飞书语音消息"""
+    try:
+        import subprocess
+        result = subprocess.run([
+            'ffprobe', '-v', 'error',
+            '-show_entries', 'format=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            audio_path
+        ], capture_output=True, text=True, timeout=10)
+        
+        if result.returncode == 0 and result.stdout.strip():
+            duration_sec = float(result.stdout.strip())
+            return int(duration_sec * 1000)
+    except Exception as e:
+        logger.debug(f"获取音频时长失败：{e}")
+    
+    return None
+
+
+def validate_opus_file(file_path: str) -> bool:
+    """验证 OPUS 文件是否符合飞书要求（OPUS 编码，24/48kHz，单声道）"""
+    try:
+        import subprocess
+        import json
+        
+        result = subprocess.run([
+            'ffprobe', '-v', 'error',
+            '-show_entries', 'stream=codec_name,sample_rate,channels',
+            '-of', 'json',
+            file_path
+        ], capture_output=True, text=True, timeout=10)
+        
+        if result.returncode != 0:
+            return False
+        
+        info = json.loads(result.stdout)
+        streams = info.get('streams', [])
+        if not streams:
+            return False
+        
+        stream = streams[0]
+        codec = stream.get('codec_name', '')
+        sample_rate = int(stream.get('sample_rate', 0))
+        channels = int(stream.get('channels', 0))
+        
+        # 飞书要求：OPUS 编码，24kHz 或 48kHz，单声道
+        if codec != 'opus':
+            logger.warning(f"OPUS 验证：编码格式不符：{codec}")
+            return False
+        if sample_rate not in [24000, 48000]:
+            logger.warning(f"OPUS 验证：采样率不符：{sample_rate}")
+            return False
+        if channels != 1:
+            logger.warning(f"OPUS 验证：声道数不符：{channels}")
+            return False
+        
+        logger.info("✓ OPUS 格式验证通过")
+        return True
+    except Exception as e:
+        logger.debug(f"OPUS 验证异常：{e}")
+        return True  # 验证失败不阻止发送
+
+
 def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, model: str = DEFAULT_MODEL, retries: int = MAX_RETRIES) -> Tuple[bool, str]:
     try:
         text = validate_text(text)
@@ -153,7 +217,25 @@ def main():
     success, message = text_to_speech(text=text, output_path=output, voice=args.voice, model=args.model)
     
     if success:
-        print(f"✅ 语音生成成功：{output}")
+        # 获取音频时长并输出（供 shell 脚本使用）
+        duration = get_audio_duration(output)
+        if duration:
+            print(f"✅ 语音生成成功：{output} (时长：{duration}ms)")
+            # 写入时长文件供 shell 脚本读取
+            duration_file = output + '.duration'
+            try:
+                with open(duration_file, 'w') as f:
+                    f.write(str(duration))
+                logger.debug(f"时长已写入：{duration_file}")
+            except Exception as e:
+                logger.debug(f"写入时长文件失败：{e}")
+        else:
+            print(f"✅ 语音生成成功：{output}")
+        
+        # 如果是 OPUS 格式，进行验证
+        if output.endswith('.opus'):
+            validate_opus_file(output)
+        
         sys.exit(0)
     else:
         print(f"❌ 语音生成失败：{message}")
