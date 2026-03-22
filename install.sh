@@ -117,9 +117,8 @@ if [ -f "$SOUL_FILE" ]; then
 _小柔 AI - 让 AI 更有温度，让陪伴更真实_
 EOF
     info "✅ SOUL.md 已更新"
-  elif [ $result -eq 2 ]; then
-    : # 已配置，无需操作
   fi
+  # result -eq 2 时：已配置，无需操作
 else
   info "📝 创建 SOUL.md..."
   cat > "$SOUL_FILE" <<EOF
@@ -167,9 +166,8 @@ if [ -f "$IDENTITY_FILE" ]; then
 - **Emoji:** 🦞
 EOF
     info "✅ IDENTITY.md 已更新"
-  elif [ $result -eq 2 ]; then
-    : # 已配置，无需操作
   fi
+  # result -eq 2 时：已配置，无需操作
 else
   info "📝 创建 IDENTITY.md..."
   cat > "$IDENTITY_FILE" <<EOF

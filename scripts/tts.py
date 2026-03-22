@@ -124,8 +124,9 @@ def validate_opus_file(file_path: str) -> bool:
         logger.info("✓ OPUS 格式验证通过")
         return True
     except Exception as e:
-        logger.debug(f"OPUS 验证异常：{e}")
-        return True  # 验证失败不阻止发送
+        # 验证失败不阻断流程，确保消息可发送（兼容性考虑）
+        logger.warning(f"OPUS 验证失败，但仍允许发送：{e}")
+        return True
 
 
 def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, model: str = DEFAULT_MODEL, retries: int = MAX_RETRIES) -> Tuple[bool, str]:

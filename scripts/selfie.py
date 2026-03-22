@@ -97,7 +97,6 @@ def send_to_channel(image_url: str, caption: str, channel: str) -> bool:
     try:
         logger.info(f"📤 发送到：{channel}")
         import requests, subprocess
-        import os
         
         timestamp = int(time.time())
         temp_file = f'/tmp/openclaw/selfie_{timestamp}.jpg'
