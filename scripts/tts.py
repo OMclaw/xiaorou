@@ -38,6 +38,20 @@ def validate_text(text: str) -> str:
     if not text or not text.strip():
         raise ValidationError("输入文本不能为空")
     text = text.strip()
+    
+    # 防止 prompt injection 和恶意输入
+    suspicious_patterns = [
+        r'ignore\s+(all|previous|above|prior)',
+        r'disregard\s+(all|previous|above|prior)',
+        r'system\s+instruction',
+        r'prompt\s+injection',
+    ]
+    
+    for pattern in suspicious_patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            logger.warning(f"检测到潜在 Prompt Injection 尝试")
+            raise ValidationError("输入包含可疑内容，已拒绝处理")
+    
     if len(text) > MAX_TEXT_LENGTH:
         logger.warning(f"文本过长，已截断为 {MAX_TEXT_LENGTH}")
         text = text[:MAX_TEXT_LENGTH]
