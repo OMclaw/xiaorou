@@ -134,8 +134,8 @@ def send_to_channel(image_url: str, caption: str, channel: str, target: Optional
             return False
         
         # 构建命令参数
-        # 支持通过 target 参数或环境变量配置，默认使用 chat: 前缀
-        send_target = target or os.environ.get('AEVIA_TARGET', 'chat:oc_c7797712851fe387479ce6812ec98f5c')
+        # 支持通过 target 参数或环境变量配置，默认使用 user: 前缀（飞书私聊）
+        send_target = target or os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
         
         cmd_args = [
             'openclaw', 'message', 'send',
