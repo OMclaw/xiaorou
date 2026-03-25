@@ -2,7 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
-## [3.5.0] - 2026-03-23
+## [3.5.6] - 2026-03-25
+
+### ✨ Added
+- **飞书语音气泡原生支持**：msg_type=audio 原生支持
+- **集成 li-feishu-audio 技能**
+- **CosyVoice OPUS 直传**：直接生成 OPUS 格式，无需 ffmpeg 转换
+
+### 🔧 Optimized
+- **环境变量支持**：支持 `AEVIA_FEISHU_SKILL_DIR` 配置
+- **降级处理**：技能不可用时回退到普通发送
+- **非飞书平台优化**：语音发送逻辑优化
+
+### 📦 Technical Details
+- ✅ OPUS 24kHz 单声道，符合飞书要求
+- ✅ 自动从 `openclaw.json` 读取飞书凭证
+- ✅ 零敏感信息提交，配置可移植
+
+---
+
+## [3.5.5] - 2026-03-24
 
 ### ✨ Added
 - **API Key 兼容性增强**：`selfie.py` 现在支持从 `~/.openclaw/openclaw.json` 读取 API Key
