@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.0] - 2026-03-30
+
+### ✨ Added
+- **双模型并发**：wan2.6-image + qwen-image-2.0-pro 同时生成
+- **直接图生图**：参考图模式直接使用参考图作为输入
+- 每次生成两张图片（每个模型一张）
+- 发送时标注模型名称
+
+### 🗑️ Removed
+- **移除 image_analyzer.py** - 不再分析参考图
+- 不再提取参考图 prompt
+
+### 🔧 Technical Details
+- 重写 `selfie.py` 支持双模型并发
+- `generate_images_dual_model()` - 双模型并发生成
+- `generate_single_image()` - 单模型生成
+- `generate_from_reference()` - 参考图模式（直接图生图）
+- 使用 ThreadPoolExecutor 并发
+- wan2.6-image: 2K 分辨率
+- qwen-image-2.0-pro: 1024*1024 分辨率
+
+---
+
+## [3.8.0] - 2026-03-30
+
+### ✨ Added
+- **增强图片真实感**：添加自然皮肤纹理、毛孔细节、真实光影等标签
+- **减少 AI 感**：去除"高级滤镜"、"ins 风"等过度美化标签
+- **关闭 PROMPT_EXTEND**：避免 AI 自动扩展导致过度美化
+
+### 🔧 Technical Details
+- 修改 `build_prompt()` 函数
+- 增加"真实摄影"、"胶片质感"、"生活照风格"等标签
+- `PROMPT_EXTEND = False`
+
+---
+
 ## [3.7.1] - 2026-03-30
 
 ### 🐛 Fixed
