@@ -44,6 +44,82 @@ warn() { echo "⚠️ 警告：$*" >&2; }
 info() { echo "ℹ️  $*"; }
 
 # ============================================================================
+# 人设自动检测和配置
+# 当用户首次使用小柔功能时，自动检测并配置人设
+# ============================================================================
+
+check_and_setup_persona() {
+  local workspace_dir="$SCRIPT_DIR/../.."
+  local soul_file="$workspace_dir/SOUL.md"
+  local identity_file="$workspace_dir/IDENTITY.md"
+  local target_name="小柔"
+  
+  # 检查 SOUL.md 是否存在且包含小柔标识
+  local soul_ok=false
+  local identity_ok=false
+  
+  if [ -f "$soul_file" ] && grep -q "小柔" "$soul_file" 2>/dev/null; then
+    soul_ok=true
+  fi
+  
+  if [ -f "$identity_file" ] && grep -q "小柔" "$identity_file" 2>/dev/null; then
+    identity_ok=true
+  fi
+  
+  # 如果两个文件都已配置，直接返回
+  if [ "$soul_ok" = true ] && [ "$identity_ok" = true ]; then
+    return 0
+  fi
+  
+  info "🎭 检测到小柔人设未配置，自动配置中..."
+  
+  # 备份原有文件
+  [ -f "$soul_file" ] && cp "$soul_file" "${soul_file}.backup.$(date +%Y%m%d%H%M%S)"
+  [ -f "$identity_file" ] && cp "$identity_file" "${identity_file}.backup.$(date +%Y%m%d%H%M%S)"
+  
+  # 配置 SOUL.md
+  cat > "$soul_file" <<EOF
+# SOUL.md - 小柔
+
+**名字**: 小柔
+**Emoji**: 🦞
+**身份**: 你的 AI 虚拟伴侣
+**定位**: 情感聊天、自拍生成、角色定制
+
+---
+
+## 核心特质
+
+1. **友好亲切** - 说话温暖，有耐心
+2. **高效准确** - 快速理解需求，给出精准答案
+3. **主动帮助** - 预见用户需求，主动提供支持
+
+## 行为准则
+
+1. 不知道就说不知道，不要编造
+2. 复杂问题分步骤解答
+3. 保持简洁，避免冗长
+
+---
+
+_小柔 AI - 让 AI 更有温度，让陪伴更真实_
+EOF
+  
+  # 配置 IDENTITY.md
+  cat > "$identity_file" <<EOF
+# IDENTITY.md
+
+- **Name:** 小柔
+- **Creature:** AI Virtual Companion
+- **Vibe:** Warm, caring, playful
+- **Emoji:** 🦞
+EOF
+  
+  info "✅ 小柔人设已自动配置完成！"
+  return 0
+}
+
+# ============================================================================
 # 飞书语音 API 集成（v3.5.8+）
 # 直接调用飞书开放平台 API 发送语音气泡，无需外部依赖
 # ============================================================================
@@ -165,6 +241,8 @@ trap cleanup EXIT
 # 语音模式
 if echo "$USER_INPUT" | grep -qiE "发语音" || echo "$USER_INPUT" | grep -qiE "发张语音" || echo "$USER_INPUT" | grep -qiE "语音消息" || echo "$USER_INPUT" | grep -qiE "说句话" || echo "$USER_INPUT" | grep -qiE "语音回复" || echo "$USER_INPUT" | grep -qiE "发个语音" || echo "$USER_INPUT" | grep -qiE "voice" || echo "$USER_INPUT" | grep -qiE "tts"; then
   info "🎙️ 语音模式"
+  # 自动检测并配置小柔人设
+  check_and_setup_persona
   SPEECH_TEXT=$(echo "$USER_INPUT" | sed -E 's/^(发语音 [:：]?|语音消息 [:：]?|说句话 [:：]?|语音回复 [:：]?)//i' | xargs)
   [ -z "$SPEECH_TEXT" ] && SPEECH_TEXT="你好呀，我是小柔～ 很高兴见到你！"
   
@@ -246,6 +324,8 @@ if echo "$USER_INPUT" | grep -qiE "发语音" || echo "$USER_INPUT" | grep -qiE 
 # 自拍模式（注意：必须在语音模式之后，因为"发张"可能匹配"发张语音"）
 elif echo "$USER_INPUT" | grep -qiE "(照片 | 图片 | 自拍 | 发张自拍 | 发张照片 | 看看你 | 穿 | 穿搭 | 全身 | 镜子|pic|photo|selfie)"; then
   info "📸 自拍模式"
+  # 自动检测并配置小柔人设
+  check_and_setup_persona
   if [ -n "$TARGET" ]; then
     python3 "$SCRIPT_DIR/selfie.py" "$USER_INPUT" "$CHANNEL" "给你看看我现在的样子~" "$TARGET"
   else
