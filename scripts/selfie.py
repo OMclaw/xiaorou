@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""selfie.py - 自拍生成模块 (Wan2.6-image 图生图)"""
+"""selfie.py - 自拍生成模块 (Wan2.6-image 图生图)
+
+支持两种模式：
+1. 普通模式：根据文字描述生成
+2. 参考图模式：分析参考图后生成模仿图
+"""
 
 import dashscope
 import os
@@ -321,6 +326,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, target: Optional
 
 
 def generate_selfie(context: str, caption: str = "给你看看我现在的样子~", channel: Optional[str] = None, target: Optional[str] = None) -> Optional[str]:
+    """普通模式：根据文字描述生成图片"""
     try:
         api_key = validate_config()
         logger.info(f"✅ API Key 已加载")
@@ -340,7 +346,6 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
         image_url = call_image_api(image_path, prompt, api_key)
         
         if channel and image_url:
-            # 如果没有提供 target，尝试从环境变量获取
             if not target:
                 target = os.environ.get('AEVIA_TARGET')
             send_to_channel(image_url, caption, channel, target)
@@ -354,15 +359,80 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
         return None
 
 
+def generate_from_reference(reference_image_path: str, caption: str = "这是模仿参考图生成的～", channel: Optional[str] = None, target: Optional[str] = None) -> Optional[str]:
+    """
+    参考图模式：分析参考图后生成模仿图
+    
+    Args:
+        reference_image_path: 参考图路径
+        caption: 发送消息的配文
+        channel: 发送频道
+        target: 发送目标
+    
+    Returns:
+        生成的图片 URL，失败返回 None
+    """
+    try:
+        # 1. 分析参考图
+        logger.info("🔍 正在分析参考图...")
+        script_dir = Path(__file__).resolve().parent
+        analyzer_path = script_dir / 'image_analyzer.py'
+        
+        if not analyzer_path.exists():
+            logger.error(f"图片分析模块不存在：{analyzer_path}")
+            return None
+        
+        import subprocess
+        result = subprocess.run(
+            ['python3.11', str(analyzer_path), reference_image_path],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"图片分析失败：{result.stderr}")
+            return None
+        
+        reference_prompt = result.stdout.strip()
+        logger.info(f"✅ 参考图分析完成：{reference_prompt[:100]}...")
+        
+        # 2. 使用小柔头像 + 参考图 prompt 生成
+        return generate_selfie(reference_prompt, caption, channel, target)
+        
+    except subprocess.TimeoutExpired:
+        logger.error("图片分析超时")
+        return None
+    except Exception as e:
+        logger.error(f"❌ 错误：{e}")
+        return None
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("用法：python3 selfie.py <场景描述> [频道] [配文] [target]")
+        print("用法：python3 selfie.py <场景描述 | --reference 参考图路径> [频道] [配文] [target]")
         sys.exit(1)
     
-    context = sys.argv[1]
-    channel = sys.argv[2] if len(sys.argv) > 2 else None
-    caption = sys.argv[3] if len(sys.argv) > 3 else "给你看看我现在的样子~"
-    target = sys.argv[4] if len(sys.argv) > 4 else None
+    # 检测是否为参考图模式
+    if sys.argv[1] == '--reference' and len(sys.argv) >= 3:
+        # 参考图模式
+        reference_image = sys.argv[2]
+        channel = sys.argv[3] if len(sys.argv) > 3 else None
+        caption = sys.argv[4] if len(sys.argv) > 4 else "这是模仿参考图生成的～"
+        target = sys.argv[5] if len(sys.argv) > 5 else None
+        
+        if not os.path.exists(reference_image):
+            logger.error(f"参考图不存在：{reference_image}")
+            sys.exit(1)
+        
+        result = generate_from_reference(reference_image, caption, channel, target)
+    else:
+        # 普通模式
+        context = sys.argv[1]
+        channel = sys.argv[2] if len(sys.argv) > 2 else None
+        caption = sys.argv[3] if len(sys.argv) > 3 else "给你看看我现在的样子~"
+        target = sys.argv[4] if len(sys.argv) > 4 else None
+        
+        result = generate_selfie(context, caption, channel, target)
     
-    result = generate_selfie(context, caption, channel, target)
     sys.exit(0 if result else 1)

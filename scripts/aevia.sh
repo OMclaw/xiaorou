@@ -332,6 +332,17 @@ elif echo "$USER_INPUT" | grep -qiE "(照片 | 图片 | 自拍 | 发张自拍 | 
     python3 "$SCRIPT_DIR/selfie.py" "$USER_INPUT" "$CHANNEL" "给你看看我现在的样子~"
   fi
 
+# 参考图模式：检测是否包含图片且有关键词
+elif [ -n "${AEVIA_IMAGE_PATH:-}" ] && echo "$USER_INPUT" | grep -qiE "(模仿 | 参考 | 类似 | 照着 | 按照 | 学 | 同款)"; then
+  info "🎨 参考图模式"
+  # 自动检测并配置小柔人设
+  check_and_setup_persona
+  if [ -n "$TARGET" ]; then
+    python3 "$SCRIPT_DIR/selfie.py" --reference "$AEVIA_IMAGE_PATH" "$CHANNEL" "这是模仿参考图生成的～" "$TARGET"
+  else
+    python3 "$SCRIPT_DIR/selfie.py" --reference "$AEVIA_IMAGE_PATH" "$CHANNEL" "这是模仿参考图生成的～"
+  fi
+
 # 聊天模式
 else
   info "💬 聊天模式"
