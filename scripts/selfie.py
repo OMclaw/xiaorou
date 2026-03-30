@@ -178,13 +178,16 @@ def upload_feishu_image(image_file: str) -> Optional[str]:
         return None
     
     # 2. 上传图片文件
+    # 飞书要求：image_type=message 表示用于发送消息的图片
     upload_url = "https://open.feishu.cn/open-apis/im/v1/images"
     with open(image_file, 'rb') as f:
         files = {'image': (os.path.basename(image_file), f, 'image/jpeg')}
+        data = {'image_type': 'message'}
         upload_response = requests.post(
             upload_url,
             headers={"Authorization": f"Bearer {access_token}"},
             files=files,
+            data=data,
             timeout=60
         )
     
