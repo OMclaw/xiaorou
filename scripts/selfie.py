@@ -298,11 +298,24 @@ def send_feishu_image_message(image_key: str, caption: str, receive_id: str, rec
     return False
 
 
+def get_model_display(model_name: str) -> str:
+    """获取模型名称的 emoji 显示格式"""
+    model_map = {
+        'wan2.6-image': '🎨【万相 2.6】',
+        'qwen-image-2.0-pro': '🖼️【万相 2.0 Pro】'
+    }
+    return model_map.get(model_name, f'📷【{model_name}】')
+
+
 def send_to_channel(image_url: str, caption: str, channel: str, model_name: str, target: Optional[str] = None) -> bool:
     """发送图片到频道，飞书使用原生图片格式，其他平台使用文件"""
     try:
         logger.info(f"📤 发送到：{channel} (model: {model_name})")
         import requests, subprocess
+        
+        # 模型名称放在 caption 最开头，使用 emoji 标识
+        model_display = get_model_display(model_name)
+        full_caption = f"{model_display} {caption}"
         
         timestamp = int(time.time())
         temp_file = f'/tmp/openclaw/selfie_{model_name}_{timestamp}.jpg'
@@ -325,7 +338,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             
             image_key = upload_feishu_image(temp_file)
             if image_key:
-                success = send_feishu_image_message(image_key, f"{caption} 【{model_name}】", receive_id, "open_id")
+                success = send_feishu_image_message(image_key, full_caption, receive_id, "open_id")
                 os.remove(temp_file)
                 return success
         
@@ -335,7 +348,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             'openclaw', 'message', 'send',
             '--channel', channel,
             '--target', send_target,
-            '--message', f"{caption} 【{model_name}】",
+            '--message', full_caption,
             '--media', temp_file
         ]
         
@@ -393,11 +406,10 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
         # 发送所有成功生成的图片
         success_count = 0
         for model_name, image_url in results:
-            model_caption = f"{caption} 【{model_name}】"
             if channel and image_url:
                 if not target:
                     target = os.environ.get('AEVIA_TARGET')
-                if send_to_channel(image_url, model_caption, channel, model_name, target):
+                if send_to_channel(image_url, caption, channel, model_name, target):
                     success_count += 1
         
         logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
@@ -482,11 +494,10 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         # 5. 发送所有成功生成的图片
         success_count = 0
         for model_name, image_url in results:
-            model_caption = f"{caption} 【{model_name}】"
             if channel and image_url:
                 if not target:
                     target = os.environ.get('AEVIA_TARGET')
-                if send_to_channel(image_url, model_caption, channel, model_name, target):
+                if send_to_channel(image_url, caption, channel, model_name, target):
                     success_count += 1
         
         logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
