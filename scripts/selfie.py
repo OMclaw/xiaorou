@@ -78,11 +78,19 @@ def get_image_base64(image_path: Path) -> str:
 
 
 def build_prompt(context: str) -> Tuple[str, str]:
+    """构建网红风格图片生成 prompt"""
     context_lower = context.lower()
+    
+    # 网红风格基础元素
+    influencer_style = "网红风格，精致妆容，时尚穿搭，专业摄影，高级滤镜，ins 风，小红书风格"
+    quality_tags = "8K 超高清，电影级布光，专业后期，细节丰富，色彩饱满"
+    
     mirror_keywords = ['穿', '衣服', '穿搭', '全身', '镜子']
     if any(kw in context_lower for kw in mirror_keywords):
-        return "mirror", f"在对镜自拍，{context}，全身照，镜子反射，自然光线，真实感，高清"
-    return "direct", f"{context}，眼神直视镜头，微笑，手臂伸出拿手机，背景虚化，真实感，高清"
+        return "mirror", f"{influencer_style}，{context}，全身照，对镜拍摄，网红打卡场景，自然光线，{quality_tags}"
+    
+    # 默认网红风格 prompt
+    return "direct", f"{influencer_style}，{context}，眼神直视镜头，甜美微笑，精致五官，时尚造型，网红打卡背景，{quality_tags}"
 
 
 def call_image_api(image_path: Path, prompt: str, api_key: str) -> str:
@@ -111,8 +119,134 @@ def call_image_api(image_path: Path, prompt: str, api_key: str) -> str:
     raise Exception(f"API 错误：{result_json}")
 
 
+def get_feishu_credentials():
+    """获取飞书 API 凭证"""
+    import json
+    config_file = os.path.expanduser('~/.openclaw/openclaw.json')
+    
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            # 尝试新配置格式（直接 channels.feishu.appId）
+            app_id = config.get('channels', {}).get('feishu', {}).get('appId', '')
+            app_secret = config.get('channels', {}).get('feishu', {}).get('appSecret', '')
+            
+            # 兼容旧配置格式（accounts 数组）
+            if not app_id or not app_secret:
+                default_account = config.get('channels', {}).get('feishu', {}).get('defaultAccount', 'main')
+                accounts = config.get('channels', {}).get('feishu', {}).get('accounts', {})
+                app_id = accounts.get(default_account, {}).get('appId', '')
+                app_secret = accounts.get(default_account, {}).get('appSecret', '')
+            
+            if app_id and app_secret:
+                return app_id, app_secret
+        except Exception as e:
+            logger.debug(f"读取飞书配置失败：{e}")
+    
+    # 尝试环境变量
+    app_id = os.environ.get('FEISHU_APP_ID', '')
+    app_secret = os.environ.get('FEISHU_APP_SECRET', '')
+    if app_id and app_secret:
+        return app_id, app_secret
+    
+    return None, None
+
+
+def upload_feishu_image(image_file: str) -> Optional[str]:
+    """上传图片到飞书，返回 image_key"""
+    import requests
+    
+    app_id, app_secret = get_feishu_credentials()
+    if not app_id or not app_secret:
+        logger.warning("未配置飞书凭证，无法使用原生图片格式")
+        return None
+    
+    # 1. 获取 access_token
+    token_url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/"
+    token_response = requests.post(
+        token_url,
+        headers={"Content-Type": "application/json"},
+        json={"app_id": app_id, "app_secret": app_secret},
+        timeout=30
+    )
+    token_data = token_response.json()
+    access_token = token_data.get('tenant_access_token', '')
+    
+    if not access_token:
+        logger.warning("获取飞书 access_token 失败")
+        return None
+    
+    # 2. 上传图片文件
+    upload_url = "https://open.feishu.cn/open-apis/im/v1/images"
+    with open(image_file, 'rb') as f:
+        files = {'image': (os.path.basename(image_file), f, 'image/jpeg')}
+        upload_response = requests.post(
+            upload_url,
+            headers={"Authorization": f"Bearer {access_token}"},
+            files=files,
+            timeout=60
+        )
+    
+    upload_data = upload_response.json()
+    if upload_data.get('code') == 0:
+        image_key = upload_data.get('data', {}).get('image_key', '')
+        logger.info(f"✅ 飞书图片上传成功：{image_key}")
+        return image_key
+    
+    logger.warning(f"飞书图片上传失败：{upload_data}")
+    return None
+
+
+def send_feishu_image_message(image_key: str, caption: str, receive_id: str, receive_id_type: str = "open_id") -> bool:
+    """发送飞书原生图片消息"""
+    import requests
+    
+    app_id, app_secret = get_feishu_credentials()
+    if not app_id or not app_secret:
+        return False
+    
+    # 获取 access_token
+    token_url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/"
+    token_response = requests.post(
+        token_url,
+        headers={"Content-Type": "application/json"},
+        json={"app_id": app_id, "app_secret": app_secret},
+        timeout=30
+    )
+    token_data = token_response.json()
+    access_token = token_data.get('tenant_access_token', '')
+    
+    if not access_token:
+        return False
+    
+    # 发送图片消息
+    message_url = f"https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type={receive_id_type}"
+    content = json.dumps({"image_key": image_key, "text": caption})
+    message_data = {
+        "receive_id": receive_id,
+        "msg_type": "image",
+        "content": content
+    }
+    
+    response = requests.post(
+        message_url,
+        headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+        json=message_data,
+        timeout=60
+    )
+    
+    result = response.json()
+    if result.get('code') == 0:
+        logger.info("✅ 飞书原生图片消息发送成功")
+        return True
+    
+    logger.error(f"飞书图片消息发送失败：{result}")
+    return False
+
+
 def send_to_channel(image_url: str, caption: str, channel: str, target: Optional[str] = None) -> bool:
-    """发送图片到飞书频道，支持正确的图片格式"""
+    """发送图片到频道，飞书使用原生图片格式，其他平台使用文件"""
     try:
         logger.info(f"📤 发送到：{channel} (target: {target or 'auto'})")
         import requests, subprocess
@@ -131,10 +265,22 @@ def send_to_channel(image_url: str, caption: str, channel: str, target: Optional
         # 验证文件是否有效
         if os.path.getsize(temp_file) == 0:
             logger.error("下载的图片文件为空")
+            os.remove(temp_file)
             return False
         
-        # 构建命令参数
-        # 支持通过 target 参数或环境变量配置，默认使用 user: 前缀（飞书私聊）
+        # 飞书平台：尝试使用原生图片格式
+        if channel == "feishu":
+            send_target = target or os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
+            receive_id = send_target.replace('user:', '') if send_target.startswith('user:') else send_target
+            
+            # 上传到飞书并发送原生图片消息
+            image_key = upload_feishu_image(temp_file)
+            if image_key:
+                success = send_feishu_image_message(image_key, caption, receive_id, "open_id")
+                os.remove(temp_file)
+                return success
+        
+        # 其他平台或飞书降级方案：使用 openclaw message send
         send_target = target or os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
         
         cmd_args = [
@@ -145,7 +291,6 @@ def send_to_channel(image_url: str, caption: str, channel: str, target: Optional
             '--media', temp_file
         ]
         
-        # 发送消息
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
         
         # 清理临时文件
