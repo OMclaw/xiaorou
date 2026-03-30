@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.7.1] - 2026-03-30
+
+### 🐛 Fixed
+- **image_analyzer.py 导入问题**：修复 `dashscope` 变量未定义错误
+- 将 `import dashscope` 移到函数开头，避免作用域问题
+
+### 📦 Technical Details
+- 图片分析模块导入顺序优化
+- 确保首次使用参考图功能时正常工作
+
+---
+
 ## [3.7.0] - 2026-03-30
 
 ### ✨ Added
