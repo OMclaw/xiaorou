@@ -131,15 +131,15 @@ def build_reference_prompt(description: str) -> str:
     # 质量标签
     quality_tags = "8K 超高清，电影级布光，细节丰富，色彩自然"
     
-    # **关键**：三次强调保持小柔脸部特征一致性（开头、中间、结尾）
+    # **关键**：三次强调保持输入图片的人物脸部特征（开头、中间、结尾）
     # 开头强调 - 最重要
-    consistency_head = "【必须严格保持小柔的脸部特征】原始五官、原始脸型、原始妆容风格，不要改变人物身份，必须使用小柔本人的脸部特征，严格保持小柔的五官特征和脸型"
+    consistency_head = "【必须严格保持输入图片的人物脸部特征】原始五官、原始脸型、原始妆容风格，不要改变人物身份，必须使用输入图片的人物，严格保持原始人物的五官特征和脸型"
     
     # 中间强调
-    consistency_mid = "严格保持小柔的五官特征和脸型，不要改变她的眼睛、鼻子、嘴巴、眉毛形状，妆容风格必须与小柔一致"
+    consistency_mid = "严格保持输入图片人物的五官特征和脸型，不要改变她的眼睛、鼻子、嘴巴、眉毛形状，妆容风格必须与输入图片一致"
     
     # 结尾强调
-    consistency_end = "必须严格保持小柔的脸部一致性，不要改变她的五官和脸型，确保是小柔本人"
+    consistency_end = "必须严格保持输入图片的人物脸部一致性，不要改变她的五官和脸型，确保是同一个人"
     
     # 组合完整 prompt - 三次强调
     full_prompt = f"{consistency_head}，{base_style}，{description}，{consistency_mid}，{realistic_tags}，{quality_tags}，{consistency_end}"
