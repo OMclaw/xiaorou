@@ -107,26 +107,23 @@ def build_prompt(context: str) -> Tuple[str, str]:
     return "direct", f"{influencer_style}，{context}，眼神直视镜头，自然微笑，真实五官，时尚造型，网红打卡背景，{realistic_tags}，{quality_tags}"
 
 
-def generate_single_image(model_name: str, image_path: Path, prompt: str, api_key: str) -> Tuple[str, str]:
+def generate_images_single_model(image_path: Path, prompt: str, api_key: str) -> Optional[str]:
     """
-    使用指定模型生成单张图片
+    使用 qwen-image-2.0-pro 模型生成单张图片
     
     Returns:
-        (model_name, image_url) 或 (model_name, None) 如果失败
+        image_url 或 None 如果失败
     """
     try:
         dashscope.api_key = api_key
         input_image_base64 = get_image_base64(image_path)
-        logger.info(f"🖼️ 使用本地头像，模型：{model_name}")
+        logger.info(f"🖼️ 使用本地头像，模型：qwen-image-2.0-pro")
         
-        # 不同模型的尺寸参数格式不同
-        if model_name == 'qwen-image-2.0-pro':
-            size_param = '1024*1024'
-        else:
-            size_param = DEFAULT_IMAGE_SIZE
+        # qwen-image-2.0-pro 需要 width*height 格式
+        size_param = '1024*1024'
         
         payload = {
-            'model': model_name,
+            'model': 'qwen-image-2.0-pro',
             'input': {'messages': [{'role': 'user', 'content': [{'image': input_image_base64}, {'text': prompt}]}]},
             'parameters': {'prompt_extend': PROMPT_EXTEND, 'watermark': False, 'n': 1, 'enable_interleave': False, 'size': size_param}
         }
@@ -142,39 +139,15 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
             output = result_json['output']
             if 'choices' in output and len(output['choices']) > 0:
                 image_url = output['choices'][0]['message']['content'][0]['image']
-                logger.info(f"✅ {model_name} 生成成功")
-                return (model_name, image_url)
+                logger.info("✅ qwen-image-2.0-pro 生成成功")
+                return image_url
         
-        logger.error(f"❌ {model_name} API 错误：{result_json}")
-        return (model_name, None)
+        logger.error(f"❌ API 错误：{result_json}")
+        return None
         
     except Exception as e:
-        logger.error(f"❌ {model_name} 错误：{e}")
-        return (model_name, None)
-
-
-def generate_images_dual_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
-    """
-    使用两个模型并发生成图片
-    
-    Returns:
-        [(model_name, image_url), ...] 成功生成的图片列表
-    """
-    models = ['wan2.6-image', 'qwen-image-2.0-pro']
-    results = []
-    
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = {
-            executor.submit(generate_single_image, model, image_path, prompt, api_key): model
-            for model in models
-        }
-        
-        for future in as_completed(futures):
-            model_name, image_url = future.result()
-            if image_url:
-                results.append((model_name, image_url))
-    
-    return results
+        logger.error(f"❌ 错误：{e}")
+        return None
 
 
 def get_feishu_credentials():
@@ -298,27 +271,23 @@ def send_feishu_image_message(image_key: str, caption: str, receive_id: str, rec
     return False
 
 
-def get_model_display(model_name: str) -> str:
+def get_model_display() -> str:
     """获取模型名称的 emoji 显示格式"""
-    model_map = {
-        'wan2.6-image': '🎨【万相 2.6】',
-        'qwen-image-2.0-pro': '🖼️【万相 2.0 Pro】'
-    }
-    return model_map.get(model_name, f'📷【{model_name}】')
+    return '🖼️【万相 2.0 Pro】'
 
 
-def send_to_channel(image_url: str, caption: str, channel: str, model_name: str, target: Optional[str] = None) -> bool:
+def send_to_channel(image_url: str, caption: str, channel: str, target: Optional[str] = None) -> bool:
     """发送图片到频道，飞书使用原生图片格式，其他平台使用文件"""
     try:
-        logger.info(f"📤 发送到：{channel} (model: {model_name})")
+        logger.info(f"📤 发送到：{channel}")
         import requests, subprocess
         
         # 模型名称放在 caption 最开头，使用 emoji 标识
-        model_display = get_model_display(model_name)
+        model_display = get_model_display()
         full_caption = f"{model_display} {caption}"
         
         timestamp = int(time.time())
-        temp_file = f'/tmp/openclaw/selfie_{model_name}_{timestamp}.jpg'
+        temp_file = f'/tmp/openclaw/selfie_{timestamp}.jpg'
         os.makedirs('/tmp/openclaw', exist_ok=True)
         
         response = requests.get(image_url, timeout=30)
@@ -395,22 +364,20 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
         mode, prompt = build_prompt(context)
         logger.info(f"📸 模式：{mode}")
         
-        # 双模型并发生成
-        logger.info("🚀 双模型并发生成中...")
-        results = generate_images_dual_model(image_path, prompt, api_key)
+        # 使用 qwen-image-2.0-pro 生成
+        logger.info("🚀 正在生成图片...")
+        image_url = generate_images_single_model(image_path, prompt, api_key)
         
-        if not results:
-            logger.error("❌ 两个模型都生成失败")
+        if not image_url:
+            logger.error("❌ 生成失败")
             return False
         
-        # 发送所有成功生成的图片
-        success_count = 0
-        for model_name, image_url in results:
-            if channel and image_url:
-                if not target:
-                    target = os.environ.get('AEVIA_TARGET')
-                if send_to_channel(image_url, caption, channel, model_name, target):
-                    success_count += 1
+        # 发送图片
+        if channel and image_url:
+            if not target:
+                target = os.environ.get('AEVIA_TARGET')
+            if send_to_channel(image_url, caption, channel, target):
+                success_count += 1
         
         logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
         return success_count > 0
@@ -483,22 +450,21 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         prompt = result.stdout.strip()
         logger.info(f"✅ 参考图分析完成：{prompt[:100]}...")
         
-        # 4. 双模型并发生成（使用小柔头像）
-        logger.info("🚀 双模型并发生成中...")
-        results = generate_images_dual_model(image_path, prompt, api_key)
+        # 4. 使用 qwen-image-2.0-pro 生成（使用小柔头像）
+        logger.info("🚀 正在生成图片...")
+        results = generate_images_single_model(image_path, prompt, api_key)
         
         if not results:
-            logger.error("❌ 两个模型都生成失败")
+            logger.error("❌ 生成失败")
             return False
         
-        # 5. 发送所有成功生成的图片
+        # 5. 发送图片
         success_count = 0
-        for model_name, image_url in results:
-            if channel and image_url:
-                if not target:
-                    target = os.environ.get('AEVIA_TARGET')
-                if send_to_channel(image_url, caption, channel, model_name, target):
-                    success_count += 1
+        if channel and results:
+            if not target:
+                target = os.environ.get('AEVIA_TARGET')
+            if send_to_channel(results, caption, channel, target):
+                success_count += 1
         
         logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
         return success_count > 0
