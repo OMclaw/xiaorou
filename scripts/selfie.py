@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""selfie.py - 自拍生成模块 (Wan2.6-image 图生图)
+"""selfie.py - 自拍生成模块 (双模型并发)
 
 支持两种模式：
 1. 普通模式：根据文字描述生成
-2. 参考图模式：分析参考图后生成模仿图
+2. 参考图模式：直接使用参考图进行图生图（不分析）
+
+每次生成使用两个模型各生成一张：
+- wan2.6-image
+- qwen-image-2.0-pro
 """
 
 import dashscope
@@ -14,8 +18,10 @@ import base64
 import logging
 import re
 import time
+import requests
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 DEFAULT_IMAGE_SIZE = "2K"
 PROMPT_EXTEND = False  # 关闭自动扩展，避免过度美化导致假
@@ -50,13 +56,11 @@ def validate_config() -> str:
         logger.info("✓ 从环境变量加载 API Key")
         return api_key
     
-    # 从 OpenClaw 配置文件读取
     config_file = os.path.expanduser('~/.openclaw/openclaw.json')
     if os.path.exists(config_file):
         try:
             with open(config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-            # 尝试两种配置路径
             api_key = config.get('models', {}).get('providers', {}).get('dashscope', {}).get('apiKey', '')
             if not api_key:
                 api_key = config.get('skills', {}).get('entries', {}).get('xiaorou', {}).get('env', {}).get('DASHSCOPE_API_KEY', '')
@@ -103,30 +107,74 @@ def build_prompt(context: str) -> Tuple[str, str]:
     return "direct", f"{influencer_style}，{context}，眼神直视镜头，自然微笑，真实五官，时尚造型，网红打卡背景，{realistic_tags}，{quality_tags}"
 
 
-def call_image_api(image_path: Path, prompt: str, api_key: str) -> str:
-    dashscope.api_key = api_key
-    input_image_base64 = get_image_base64(image_path)
-    logger.info(f"🖼️ 使用本地头像")
+def generate_single_image(model_name: str, image_path: Path, prompt: str, api_key: str) -> Tuple[str, str]:
+    """
+    使用指定模型生成单张图片
     
-    import requests
-    payload = {
-        'model': 'wan2.6-image',
-        'input': {'messages': [{'role': 'user', 'content': [{'image': input_image_base64}, {'text': prompt}]}]},
-        'parameters': {'prompt_extend': PROMPT_EXTEND, 'watermark': False, 'n': 1, 'enable_interleave': False, 'size': DEFAULT_IMAGE_SIZE}
-    }
+    Returns:
+        (model_name, image_url) 或 (model_name, None) 如果失败
+    """
+    try:
+        dashscope.api_key = api_key
+        input_image_base64 = get_image_base64(image_path)
+        logger.info(f"🖼️ 使用本地头像，模型：{model_name}")
+        
+        # 不同模型的尺寸参数格式不同
+        if model_name == 'qwen-image-2.0-pro':
+            size_param = '1024*1024'
+        else:
+            size_param = DEFAULT_IMAGE_SIZE
+        
+        payload = {
+            'model': model_name,
+            'input': {'messages': [{'role': 'user', 'content': [{'image': input_image_base64}, {'text': prompt}]}]},
+            'parameters': {'prompt_extend': PROMPT_EXTEND, 'watermark': False, 'n': 1, 'enable_interleave': False, 'size': size_param}
+        }
+        
+        response = requests.post(
+            'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            json=payload, timeout=120
+        )
+        
+        result_json = response.json()
+        if response.status_code == 200 and result_json.get('output'):
+            output = result_json['output']
+            if 'choices' in output and len(output['choices']) > 0:
+                image_url = output['choices'][0]['message']['content'][0]['image']
+                logger.info(f"✅ {model_name} 生成成功")
+                return (model_name, image_url)
+        
+        logger.error(f"❌ {model_name} API 错误：{result_json}")
+        return (model_name, None)
+        
+    except Exception as e:
+        logger.error(f"❌ {model_name} 错误：{e}")
+        return (model_name, None)
+
+
+def generate_images_dual_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
+    """
+    使用两个模型并发生成图片
     
-    response = requests.post(
-        'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
-        headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-        json=payload, timeout=120
-    )
+    Returns:
+        [(model_name, image_url), ...] 成功生成的图片列表
+    """
+    models = ['wan2.6-image', 'qwen-image-2.0-pro']
+    results = []
     
-    result_json = response.json()
-    if response.status_code == 200 and result_json.get('output'):
-        output = result_json['output']
-        if 'choices' in output and len(output['choices']) > 0:
-            return output['choices'][0]['message']['content'][0]['image']
-    raise Exception(f"API 错误：{result_json}")
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = {
+            executor.submit(generate_single_image, model, image_path, prompt, api_key): model
+            for model in models
+        }
+        
+        for future in as_completed(futures):
+            model_name, image_url = future.result()
+            if image_url:
+                results.append((model_name, image_url))
+    
+    return results
 
 
 def get_feishu_credentials():
@@ -138,11 +186,9 @@ def get_feishu_credentials():
         try:
             with open(config_file, 'r', encoding='utf-8') as f:
                 config = json.load(f)
-            # 尝试新配置格式（直接 channels.feishu.appId）
             app_id = config.get('channels', {}).get('feishu', {}).get('appId', '')
             app_secret = config.get('channels', {}).get('feishu', {}).get('appSecret', '')
             
-            # 兼容旧配置格式（accounts 数组）
             if not app_id or not app_secret:
                 default_account = config.get('channels', {}).get('feishu', {}).get('defaultAccount', 'main')
                 accounts = config.get('channels', {}).get('feishu', {}).get('accounts', {})
@@ -154,7 +200,6 @@ def get_feishu_credentials():
         except Exception as e:
             logger.debug(f"读取飞书配置失败：{e}")
     
-    # 尝试环境变量
     app_id = os.environ.get('FEISHU_APP_ID', '')
     app_secret = os.environ.get('FEISHU_APP_SECRET', '')
     if app_id and app_secret:
@@ -172,7 +217,6 @@ def upload_feishu_image(image_file: str) -> Optional[str]:
         logger.warning("未配置飞书凭证，无法使用原生图片格式")
         return None
     
-    # 1. 获取 access_token
     token_url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/"
     token_response = requests.post(
         token_url,
@@ -187,12 +231,10 @@ def upload_feishu_image(image_file: str) -> Optional[str]:
         logger.warning("获取飞书 access_token 失败")
         return None
     
-    # 2. 上传图片文件
-    # 飞书要求：image_type=message 表示用于发送消息的图片
     upload_url = "https://open.feishu.cn/open-apis/im/v1/images"
     with open(image_file, 'rb') as f:
         files = {'image': (os.path.basename(image_file), f, 'image/jpeg')}
-        data = {'image_type': 'message'}
+        data = {'image_type': 'message'}  # 飞书要求
         upload_response = requests.post(
             upload_url,
             headers={"Authorization": f"Bearer {access_token}"},
@@ -219,7 +261,6 @@ def send_feishu_image_message(image_key: str, caption: str, receive_id: str, rec
     if not app_id or not app_secret:
         return False
     
-    # 获取 access_token
     token_url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/"
     token_response = requests.post(
         token_url,
@@ -233,7 +274,6 @@ def send_feishu_image_message(image_key: str, caption: str, receive_id: str, rec
     if not access_token:
         return False
     
-    # 发送图片消息
     message_url = f"https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type={receive_id_type}"
     content = json.dumps({"image_key": image_key, "text": caption})
     message_data = {
@@ -258,55 +298,49 @@ def send_feishu_image_message(image_key: str, caption: str, receive_id: str, rec
     return False
 
 
-def send_to_channel(image_url: str, caption: str, channel: str, target: Optional[str] = None) -> bool:
+def send_to_channel(image_url: str, caption: str, channel: str, model_name: str, target: Optional[str] = None) -> bool:
     """发送图片到频道，飞书使用原生图片格式，其他平台使用文件"""
     try:
-        logger.info(f"📤 发送到：{channel} (target: {target or 'auto'})")
+        logger.info(f"📤 发送到：{channel} (model: {model_name})")
         import requests, subprocess
         
         timestamp = int(time.time())
-        temp_file = f'/tmp/openclaw/selfie_{timestamp}.jpg'
+        temp_file = f'/tmp/openclaw/selfie_{model_name}_{timestamp}.jpg'
         os.makedirs('/tmp/openclaw', exist_ok=True)
         
-        # 下载图片
         response = requests.get(image_url, timeout=30)
         response.raise_for_status()
         
         with open(temp_file, 'wb') as f:
             f.write(response.content)
         
-        # 验证文件是否有效
         if os.path.getsize(temp_file) == 0:
             logger.error("下载的图片文件为空")
             os.remove(temp_file)
             return False
         
-        # 飞书平台：尝试使用原生图片格式
         if channel == "feishu":
             send_target = target or os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
             receive_id = send_target.replace('user:', '') if send_target.startswith('user:') else send_target
             
-            # 上传到飞书并发送原生图片消息
             image_key = upload_feishu_image(temp_file)
             if image_key:
-                success = send_feishu_image_message(image_key, caption, receive_id, "open_id")
+                success = send_feishu_image_message(image_key, f"{caption} 【{model_name}】", receive_id, "open_id")
                 os.remove(temp_file)
                 return success
         
-        # 其他平台或飞书降级方案：使用 openclaw message send
         send_target = target or os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
         
         cmd_args = [
             'openclaw', 'message', 'send',
             '--channel', channel,
             '--target', send_target,
-            '--message', caption,
+            '--message', f"{caption} 【{model_name}】",
             '--media', temp_file
         ]
         
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
         
-        # 清理临时文件
         try:
             os.remove(temp_file)
         except:
@@ -330,8 +364,8 @@ def send_to_channel(image_url: str, caption: str, channel: str, target: Optional
         return False
 
 
-def generate_selfie(context: str, caption: str = "给你看看我现在的样子~", channel: Optional[str] = None, target: Optional[str] = None) -> Optional[str]:
-    """普通模式：根据文字描述生成图片"""
+def generate_selfie(context: str, caption: str = "给你看看我现在的样子~", channel: Optional[str] = None, target: Optional[str] = None) -> bool:
+    """普通模式：根据文字描述生成图片，双模型并发"""
     try:
         api_key = validate_config()
         logger.info(f"✅ API Key 已加载")
@@ -342,75 +376,98 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
         context = sanitize_input(context)
         if not context:
             logger.error("无效的场景描述")
-            return None
+            return False
         
         channel = validate_channel(channel)
         mode, prompt = build_prompt(context)
         logger.info(f"📸 模式：{mode}")
         
-        image_url = call_image_api(image_path, prompt, api_key)
+        # 双模型并发生成
+        logger.info("🚀 双模型并发生成中...")
+        results = generate_images_dual_model(image_path, prompt, api_key)
         
-        if channel and image_url:
-            if not target:
-                target = os.environ.get('AEVIA_TARGET')
-            send_to_channel(image_url, caption, channel, target)
+        if not results:
+            logger.error("❌ 两个模型都生成失败")
+            return False
         
-        return image_url
+        # 发送所有成功生成的图片
+        success_count = 0
+        for model_name, image_url in results:
+            model_caption = f"{caption} 【{model_name}】"
+            if channel and image_url:
+                if not target:
+                    target = os.environ.get('AEVIA_TARGET')
+                if send_to_channel(image_url, model_caption, channel, model_name, target):
+                    success_count += 1
+        
+        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
+        return success_count > 0
+        
     except (ConfigurationError, FileNotFoundError) as e:
         logger.error(f"❌ 错误：{e}")
-        return None
+        return False
     except Exception as e:
         logger.error(f"❌ 错误：{e}")
-        return None
+        return False
 
 
-def generate_from_reference(reference_image_path: str, caption: str = "这是模仿参考图生成的～", channel: Optional[str] = None, target: Optional[str] = None) -> Optional[str]:
+def generate_from_reference(reference_image_path: str, caption: str = "这是模仿参考图生成的～", channel: Optional[str] = None, target: Optional[str] = None) -> bool:
     """
-    参考图模式：分析参考图后生成模仿图
+    参考图模式：直接使用参考图进行图生图（不分析）
     
     Args:
-        reference_image_path: 参考图路径
+        reference_image_path: 参考图路径（作为图生图的输入）
         caption: 发送消息的配文
         channel: 发送频道
         target: 发送目标
     
     Returns:
-        生成的图片 URL，失败返回 None
+        是否成功
     """
     try:
-        # 1. 分析参考图
-        logger.info("🔍 正在分析参考图...")
-        script_dir = Path(__file__).resolve().parent
-        analyzer_path = script_dir / 'image_analyzer.py'
+        # 直接使用参考图作为图生图的输入（替换小柔头像）
+        api_key = validate_config()
+        logger.info(f"✅ API Key 已加载")
         
-        if not analyzer_path.exists():
-            logger.error(f"图片分析模块不存在：{analyzer_path}")
-            return None
+        ref_path = Path(reference_image_path)
+        if not ref_path.exists():
+            logger.error(f"参考图不存在：{reference_image_path}")
+            return False
         
-        import subprocess
-        result = subprocess.run(
-            ['python3.11', str(analyzer_path), reference_image_path],
-            capture_output=True,
-            text=True,
-            timeout=120
-        )
+        logger.info("✅ 参考图验证通过")
         
-        if result.returncode != 0:
-            logger.error(f"图片分析失败：{result.stderr}")
-            return None
+        channel = validate_channel(channel)
         
-        reference_prompt = result.stdout.strip()
-        logger.info(f"✅ 参考图分析完成：{reference_prompt[:100]}...")
+        # 构建 prompt
+        prompt = "网红风格，精致妆容，时尚穿搭，专业摄影，真实摄影，自然皮肤纹理，毛孔细节，真实光影，胶片质感，生活照风格，无 AI 感，无塑料感，8K 超高清，电影级布光，细节丰富，色彩自然"
         
-        # 2. 使用小柔头像 + 参考图 prompt 生成
-        return generate_selfie(reference_prompt, caption, channel, target)
+        # 双模型并发生成
+        logger.info("🚀 双模型并发生成中...")
+        results = generate_images_dual_model(ref_path, prompt, api_key)
         
-    except subprocess.TimeoutExpired:
-        logger.error("图片分析超时")
-        return None
+        if not results:
+            logger.error("❌ 两个模型都生成失败")
+            return False
+        
+        # 发送所有成功生成的图片
+        success_count = 0
+        for model_name, image_url in results:
+            model_caption = f"{caption} 【{model_name}】"
+            if channel and image_url:
+                if not target:
+                    target = os.environ.get('AEVIA_TARGET')
+                if send_to_channel(image_url, model_caption, channel, model_name, target):
+                    success_count += 1
+        
+        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
+        return success_count > 0
+        
+    except (ConfigurationError, FileNotFoundError) as e:
+        logger.error(f"❌ 错误：{e}")
+        return False
     except Exception as e:
         logger.error(f"❌ 错误：{e}")
-        return None
+        return False
 
 
 if __name__ == "__main__":
@@ -430,7 +487,7 @@ if __name__ == "__main__":
             logger.error(f"参考图不存在：{reference_image}")
             sys.exit(1)
         
-        result = generate_from_reference(reference_image, caption, channel, target)
+        success = generate_from_reference(reference_image, caption, channel, target)
     else:
         # 普通模式
         context = sys.argv[1]
@@ -438,6 +495,6 @@ if __name__ == "__main__":
         caption = sys.argv[3] if len(sys.argv) > 3 else "给你看看我现在的样子~"
         target = sys.argv[4] if len(sys.argv) > 4 else None
         
-        result = generate_selfie(context, caption, channel, target)
+        success = generate_selfie(context, caption, channel, target)
     
-    sys.exit(0 if result else 1)
+    sys.exit(0 if success else 1)
