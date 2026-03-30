@@ -109,7 +109,7 @@ def build_prompt(context: str) -> Tuple[str, str]:
 
 def generate_images_single_model(image_path: Path, prompt: str, api_key: str) -> Optional[str]:
     """
-    使用 qwen-image-2.0-pro 模型生成单张图片
+    使用 qwen-image-2.0-pro 模型生成单张图片（单图输入）
     
     Returns:
         image_url 或 None 如果失败
@@ -140,6 +140,60 @@ def generate_images_single_model(image_path: Path, prompt: str, api_key: str) ->
             if 'choices' in output and len(output['choices']) > 0:
                 image_url = output['choices'][0]['message']['content'][0]['image']
                 logger.info("✅ qwen-image-2.0-pro 生成成功")
+                return image_url
+        
+        logger.error(f"❌ API 错误：{result_json}")
+        return None
+        
+    except Exception as e:
+        logger.error(f"❌ 错误：{e}")
+        return None
+
+
+def generate_images_multi_model(image_path: Path, reference_image_path: Path, prompt: str, api_key: str) -> Optional[str]:
+    """
+    使用 qwen-image-2.0-pro 模型生成单张图片（多图融合输入）
+    
+    Args:
+        image_path: 小柔头像路径
+        reference_image_path: 参考图路径
+        prompt: 融合指令 prompt
+    
+    Returns:
+        image_url 或 None 如果失败
+    """
+    try:
+        dashscope.api_key = api_key
+        input_image_base64 = get_image_base64(image_path)
+        ref_image_base64 = get_image_base64(reference_image_path)
+        logger.info(f"🖼️ 多图融合模式：小柔头像 + 参考图，模型：qwen-image-2.0-pro")
+        
+        # qwen-image-2.0-pro 需要 width*height 格式
+        size_param = '1024*1024'
+        
+        # 多图输入：先传小柔头像，再传参考图，最后是文本指令
+        payload = {
+            'model': 'qwen-image-2.0-pro',
+            'input': {'messages': [{'role': 'user', 'content': [
+                {'image': input_image_base64},  # 图 1：小柔头像
+                {'image': ref_image_base64},    # 图 2：参考图
+                {'text': prompt}                 # 融合指令
+            ]}]},
+            'parameters': {'prompt_extend': False, 'watermark': False, 'n': 1, 'enable_interleave': False, 'size': size_param}
+        }
+        
+        response = requests.post(
+            'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            json=payload, timeout=120
+        )
+        
+        result_json = response.json()
+        if response.status_code == 200 and result_json.get('output'):
+            output = result_json['output']
+            if 'choices' in output and len(output['choices']) > 0:
+                image_url = output['choices'][0]['message']['content'][0]['image']
+                logger.info("✅ qwen-image-2.0-pro 多图融合成功")
                 return image_url
         
         logger.error(f"❌ API 错误：{result_json}")
@@ -390,21 +444,27 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
         return False
 
 
-def generate_from_reference(reference_image_path: str, caption: str = "这是模仿参考图生成的～", channel: Optional[str] = None, target: Optional[str] = None) -> bool:
+def generate_from_reference(reference_image_path: str, caption: str = "这是模仿参考图生成的～", channel: Optional[str] = None, target: Optional[str] = None, multi_mode: bool = False) -> bool:
     """
     参考图模式：分析参考图后，使用小柔头像进行图生图
     
     工作流程：
+    方案一（multi_mode=False）：
     1. 分析参考图 → 提取场景、姿势、服装、光线等描述
     2. 使用小柔头像作为图生图的输入
     3. Prompt 强调保持小柔脸部特征一致性
-    4. 双模型并发生成
+    4. 生成图片
+    
+    方案二（multi_mode=True）：
+    1. 小柔头像 + 参考图直接传给模型
+    2. 多图融合生成
     
     Args:
         reference_image_path: 参考图路径
         caption: 发送消息的配文
         channel: 发送频道
         target: 发送目标
+        multi_mode: 是否使用多图融合模式
     
     Returns:
         是否成功
@@ -426,47 +486,71 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         
         channel = validate_channel(channel)
         
-        # 3. 分析参考图，提取 prompt
-        logger.info("🔍 正在分析参考图...")
-        script_dir = Path(__file__).resolve().parent
-        analyzer_path = script_dir / 'image_analyzer.py'
+        if multi_mode:
+            # ===== 方案二：多图融合模式 =====
+            logger.info("🔀 多图融合模式：小柔头像 + 参考图直接融合")
+            
+            # 多图融合 prompt
+            fusion_prompt = """这是一张人物肖像融合创作。
+图 1 是小柔的头像，请保持她的脸部特征：五官、脸型、发型、妆容风格。
+图 2 是参考图，请学习参考图的场景、姿势、服装、光线、氛围。
+
+要求：
+1. 必须严格保持图 1 人物的脸部特征一致性，不要改变她的眼睛、鼻子、嘴巴、眉毛形状
+2. 采用图 2 的场景、姿势、服装、光线
+3. 保持图 1 人物的身份特征，确保是小柔本人
+4. 妆容清淡自然，裸妆效果，无腮红，自然唇色，淡粉色嘴唇
+5. 真实摄影风格，自然光滑皮肤，清透肌肤，无 AI 感，无塑料感
+
+将图 1 的人物完美融入图 2 的场景中，保持脸部一致性的同时，学习参考图的整体风格和氛围。"""
+            
+            logger.info("🚀 正在生成图片（多图融合）...")
+            image_url = generate_images_multi_model(image_path, ref_path, fusion_prompt, api_key)
+            
+        else:
+            # ===== 方案一：分析 + 图生图模式 =====
+            logger.info("🔍 分析参考图模式：提取 prompt 后图生图")
+            
+            # 3. 分析参考图，提取 prompt
+            script_dir = Path(__file__).resolve().parent
+            analyzer_path = script_dir / 'image_analyzer.py'
+            
+            if not analyzer_path.exists():
+                logger.error(f"图片分析模块不存在：{analyzer_path}")
+                return False
+            
+            import subprocess
+            result = subprocess.run(
+                ['python3.11', str(analyzer_path), reference_image_path],
+                capture_output=True,
+                text=True,
+                timeout=120
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"图片分析失败：{result.stderr}")
+                return False
+            
+            prompt = result.stdout.strip()
+            logger.info(f"✅ 参考图分析完成：{prompt[:100]}...")
+            
+            # 4. 使用 qwen-image-2.0-pro 生成（使用小柔头像）
+            logger.info("🚀 正在生成图片...")
+            image_url = generate_images_single_model(image_path, prompt, api_key)
         
-        if not analyzer_path.exists():
-            logger.error(f"图片分析模块不存在：{analyzer_path}")
-            return False
-        
-        import subprocess
-        result = subprocess.run(
-            ['python3.11', str(analyzer_path), reference_image_path],
-            capture_output=True,
-            text=True,
-            timeout=120
-        )
-        
-        if result.returncode != 0:
-            logger.error(f"图片分析失败：{result.stderr}")
-            return False
-        
-        prompt = result.stdout.strip()
-        logger.info(f"✅ 参考图分析完成：{prompt[:100]}...")
-        
-        # 4. 使用 qwen-image-2.0-pro 生成（使用小柔头像）
-        logger.info("🚀 正在生成图片...")
-        results = generate_images_single_model(image_path, prompt, api_key)
-        
-        if not results:
+        if not image_url:
             logger.error("❌ 生成失败")
             return False
         
         # 5. 发送图片
         success_count = 0
-        if channel and results:
+        if channel and image_url:
             if not target:
                 target = os.environ.get('AEVIA_TARGET')
-            if send_to_channel(results, caption, channel, target):
+            if send_to_channel(image_url, caption, channel, target):
                 success_count += 1
         
-        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
+        logger.info(f"✅ 成功发送 {success_count} 张图片")
         return success_count > 0
         
     except (ConfigurationError, FileNotFoundError) as e:
@@ -479,22 +563,30 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("用法：python3 selfie.py <场景描述 | --reference 参考图路径> [频道] [配文] [target]")
+        print("用法：python3 selfie.py <场景描述 | --reference 参考图路径> [--multi] [频道] [配文] [target]")
         sys.exit(1)
     
     # 检测是否为参考图模式
     if sys.argv[1] == '--reference' and len(sys.argv) >= 3:
         # 参考图模式
         reference_image = sys.argv[2]
-        channel = sys.argv[3] if len(sys.argv) > 3 else None
-        caption = sys.argv[4] if len(sys.argv) > 4 else "这是模仿参考图生成的～"
-        target = sys.argv[5] if len(sys.argv) > 5 else None
+        
+        # 检测是否启用多图融合模式
+        multi_mode = False
+        offset = 0
+        if len(sys.argv) > 3 and sys.argv[3] == '--multi':
+            multi_mode = True
+            offset = 1
+        
+        channel = sys.argv[3 + offset] if len(sys.argv) > 3 + offset else None
+        caption = sys.argv[4 + offset] if len(sys.argv) > 4 + offset else "这是模仿参考图生成的～"
+        target = sys.argv[5 + offset] if len(sys.argv) > 5 + offset else None
         
         if not os.path.exists(reference_image):
             logger.error(f"参考图不存在：{reference_image}")
             sys.exit(1)
         
-        success = generate_from_reference(reference_image, caption, channel, target)
+        success = generate_from_reference(reference_image, caption, channel, target, multi_mode)
     else:
         # 普通模式
         context = sys.argv[1]
