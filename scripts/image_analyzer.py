@@ -62,6 +62,9 @@ def analyze_image(image_path: str, api_key: str) -> str:
     Returns:
         详细的图片描述 prompt
     """
+    import dashscope
+    from dashscope import MultiModalConversation
+    
     dashscope.api_key = api_key
     
     # 读取图片为 base64
@@ -82,9 +85,6 @@ def analyze_image(image_path: str, api_key: str) -> str:
 7. **风格标签**：如 ins 风、小红书风格、网红风、日系、韩系等
 
 请用简洁的中文描述，要素之间用逗号分隔，适合作为 AI 绘画的 prompt。不需要评价图片，只需要客观描述视觉元素。"""
-
-    import dashscope
-    from dashscope import MultiModalConversation
     
     messages = [{
         'role': 'user',
