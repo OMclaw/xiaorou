@@ -121,7 +121,7 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
         
         # 不同模型的尺寸参数格式不同
         if model_name == 'qwen-image-2.0-pro':
-            size_param = DEFAULT_IMAGE_SIZE  # qwen-image-2.0-pro 也使用 2K
+            size_param = '2048*2048'  # qwen-image-2.0-pro 使用 2K 分辨率
         else:
             size_param = DEFAULT_IMAGE_SIZE
         
