@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 DEFAULT_IMAGE_SIZE = "2K"
-PROMPT_EXTEND = True
+PROMPT_EXTEND = False  # 关闭自动扩展，避免过度美化导致假
 MAX_INPUT_LENGTH = 500
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stderr)
@@ -83,19 +83,24 @@ def get_image_base64(image_path: Path) -> str:
 
 
 def build_prompt(context: str) -> Tuple[str, str]:
-    """构建网红风格图片生成 prompt"""
+    """构建网红风格图片生成 prompt - 增强真实感版本"""
     context_lower = context.lower()
     
-    # 网红风格基础元素
-    influencer_style = "网红风格，精致妆容，时尚穿搭，专业摄影，高级滤镜，ins 风，小红书风格"
-    quality_tags = "8K 超高清，电影级布光，专业后期，细节丰富，色彩饱满"
+    # 网红风格基础元素 - 减少 AI 感，增加真实感
+    influencer_style = "网红风格，精致妆容，时尚穿搭，专业摄影"
+    
+    # 真实感增强标签 - 关键！
+    realistic_tags = "真实摄影，自然皮肤纹理，毛孔细节，真实光影，胶片质感，生活照风格，无 AI 感，无塑料感"
+    
+    # 质量标签
+    quality_tags = "8K 超高清，电影级布光，细节丰富，色彩自然"
     
     mirror_keywords = ['穿', '衣服', '穿搭', '全身', '镜子']
     if any(kw in context_lower for kw in mirror_keywords):
-        return "mirror", f"{influencer_style}，{context}，全身照，对镜拍摄，网红打卡场景，自然光线，{quality_tags}"
+        return "mirror", f"{influencer_style}，{context}，全身照，对镜拍摄，网红打卡场景，自然光线，{realistic_tags}，{quality_tags}"
     
-    # 默认网红风格 prompt
-    return "direct", f"{influencer_style}，{context}，眼神直视镜头，甜美微笑，精致五官，时尚造型，网红打卡背景，{quality_tags}"
+    # 默认网红风格 prompt - 强调真实感
+    return "direct", f"{influencer_style}，{context}，眼神直视镜头，自然微笑，真实五官，时尚造型，网红打卡背景，{realistic_tags}，{quality_tags}"
 
 
 def call_image_api(image_path: Path, prompt: str, api_key: str) -> str:
