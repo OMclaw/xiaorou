@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.7.0] - 2026-03-30
+
+### ✨ Added
+- **参考图生成功能**：支持分析参考图并生成模仿图
+- **图片分析模块**：新增 `image_analyzer.py`，使用 qwen3.5-plus 视觉能力
+- **Prompt 提取**：自动提取场景、穿搭、妆容、姿势、光线等详细 prompt
+- **关键词检测**：支持"模仿"、"参考"、"类似"、"照着"、"按照"、"学"、"同款"等
+
+### 🔧 Technical Details
+- 图片分析：qwen3.5-plus 多模态模型
+- 图生图：wan2.6-image 模型
+- 新增 `generate_from_reference()` 函数
+- aevia.sh 支持 `AEVIA_IMAGE_PATH` 环境变量
+
+### 📦 文件变更
+- `scripts/image_analyzer.py` (新增)
+- `scripts/selfie.py` (修改)
+- `scripts/aevia.sh` (修改)
+
+---
+
 ## [3.6.1] - 2026-03-30
 
 ### 🐛 Fixed
