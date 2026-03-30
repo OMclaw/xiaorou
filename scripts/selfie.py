@@ -87,14 +87,14 @@ def get_image_base64(image_path: Path) -> str:
 
 
 def build_prompt(context: str) -> Tuple[str, str]:
-    """构建网红风格图片生成 prompt - 增强真实感版本"""
+    """构建网红风格图片生成 prompt - 自然真实版本"""
     context_lower = context.lower()
     
     # 网红风格基础元素 - 减少 AI 感，增加真实感
     influencer_style = "网红风格，精致妆容，时尚穿搭，专业摄影"
     
-    # 真实感增强标签 - 关键！
-    realistic_tags = "真实摄影，自然皮肤纹理，毛孔细节，真实光影，胶片质感，生活照风格，无 AI 感，无塑料感"
+    # 真实感增强标签 - 自然光滑，无黑点
+    realistic_tags = "真实摄影，自然光滑皮肤，清透肌肤，真实光影，柔和光线，生活照风格，无 AI 感，无塑料感，无黑点，无瑕疵"
     
     # 质量标签
     quality_tags = "8K 超高清，电影级布光，细节丰富，色彩自然"
@@ -103,7 +103,7 @@ def build_prompt(context: str) -> Tuple[str, str]:
     if any(kw in context_lower for kw in mirror_keywords):
         return "mirror", f"{influencer_style}，{context}，全身照，对镜拍摄，网红打卡场景，自然光线，{realistic_tags}，{quality_tags}"
     
-    # 默认网红风格 prompt - 强调真实感
+    # 默认网红风格 prompt - 强调自然真实
     return "direct", f"{influencer_style}，{context}，眼神直视镜头，自然微笑，真实五官，时尚造型，网红打卡背景，{realistic_tags}，{quality_tags}"
 
 
@@ -439,7 +439,7 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         channel = validate_channel(channel)
         
         # 构建 prompt
-        prompt = "网红风格，精致妆容，时尚穿搭，专业摄影，真实摄影，自然皮肤纹理，毛孔细节，真实光影，胶片质感，生活照风格，无 AI 感，无塑料感，8K 超高清，电影级布光，细节丰富，色彩自然"
+        prompt = "网红风格，精致妆容，时尚穿搭，专业摄影，真实摄影，自然光滑皮肤，清透肌肤，真实光影，柔和光线，生活照风格，无 AI 感，无塑料感，无黑点，无瑕疵，8K 超高清，电影级布光，细节丰富，色彩自然"
         
         # 双模型并发生成
         logger.info("🚀 双模型并发生成中...")
