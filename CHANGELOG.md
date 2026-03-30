@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.6.0] - 2026-03-30
+
+### ✨ Added
+- **网红风格 Prompt**：自拍生成升级为网红风格，添加精致妆容、时尚穿搭、ins 风、小红书风格等元素
+- **飞书原生图片支持**：通过飞书 API 上传获取 image_key，发送原生 image 消息（非文件）
+- **人设自动检测与配置**：首次使用自拍/语音功能时自动配置 SOUL.md 和 IDENTITY.md 为小柔人设
+- **专业摄影标签**：8K 超高清、电影级布光、专业后期、色彩饱满
+
+### 🔧 Optimized
+- **aevia.sh 飞书凭证读取**：支持新旧两种配置格式，兼容 channels.feishu.appId 和 accounts 数组
+- **自拍模式检测**：优化关键词匹配，避免与语音模式冲突
+- **Python 路径修复**：统一使用 python3.11 调用 TTS 脚本
+- **降级方案优化**：飞书原生格式失败时自动降级为文件发送
+
+### 📦 Technical Details
+- ✅ 新增 `get_feishu_credentials()` 获取飞书 API 凭证
+- ✅ 新增 `upload_feishu_image()` 上传图片获取 image_key
+- ✅ 新增 `send_feishu_image_message()` 发送原生图片消息
+- ✅ 新增 `check_and_setup_persona()` 自动检测并配置人设
+- ✅ 零敏感信息提交，配置可移植
+
+---
+
 ## [3.5.6] - 2026-03-25
 
 ### ✨ Added
