@@ -334,34 +334,14 @@ elif echo "$USER_INPUT" | grep -qiE "(照片 | 图片 | 自拍 | 发张自拍 | 
 
 # 参考图模式：检测是否包含图片且有关键词
 elif [ -n "${AEVIA_IMAGE_PATH:-}" ] && echo "$USER_INPUT" | grep -qiE "(模仿 | 参考 | 类似 | 照着 | 按照 | 学 | 同款)"; then
-  info "🎨 参考图模式（双方案对比）"
+  info "🎨 参考图模式（双模型并发）"
   # 自动检测并配置小柔人设
   check_and_setup_persona
-  
-  # 方案一：分析 + 图生图
-  info "📝 方案一：分析参考图 + 小柔头像图生图"
   if [ -n "$TARGET" ]; then
-    python3 "$SCRIPT_DIR/selfie.py" --reference "$AEVIA_IMAGE_PATH" "$CHANNEL" "📝 方案一【分析 + 图生图】模仿参考图生成的～" "$TARGET" &
-    PID_PLAN_A=$!
+    python3 "$SCRIPT_DIR/selfie.py" --reference "$AEVIA_IMAGE_PATH" "$CHANNEL" "这是模仿参考图生成的～" "$TARGET"
   else
-    python3 "$SCRIPT_DIR/selfie.py" --reference "$AEVIA_IMAGE_PATH" "$CHANNEL" "📝 方案一【分析 + 图生图】模仿参考图生成的～" &
-    PID_PLAN_A=$!
+    python3 "$SCRIPT_DIR/selfie.py" --reference "$AEVIA_IMAGE_PATH" "$CHANNEL" "这是模仿参考图生成的～"
   fi
-  
-  # 方案二：多图融合
-  info "🔀 方案二：小柔头像 + 参考图多图融合"
-  if [ -n "$TARGET" ]; then
-    python3 "$SCRIPT_DIR/selfie.py" --reference "$AEVIA_IMAGE_PATH" --multi "$CHANNEL" "🔀 方案二【多图融合】模仿参考图生成的～" "$TARGET" &
-    PID_PLAN_B=$!
-  else
-    python3 "$SCRIPT_DIR/selfie.py" --reference "$AEVIA_IMAGE_PATH" --multi "$CHANNEL" "🔀 方案二【多图融合】模仿参考图生成的～" &
-    PID_PLAN_B=$!
-  fi
-  
-  # 等待两个进程完成
-  wait $PID_PLAN_A 2>/dev/null || true
-  wait $PID_PLAN_B 2>/dev/null || true
-  info "✅ 双方案生成完成"
 
 # 聊天模式
 else
