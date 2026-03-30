@@ -413,10 +413,16 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
 
 def generate_from_reference(reference_image_path: str, caption: str = "这是模仿参考图生成的～", channel: Optional[str] = None, target: Optional[str] = None) -> bool:
     """
-    参考图模式：直接使用参考图进行图生图（不分析）
+    参考图模式：分析参考图后，使用小柔头像进行图生图
+    
+    工作流程：
+    1. 分析参考图 → 提取场景、姿势、服装、光线等描述
+    2. 使用小柔头像作为图生图的输入
+    3. Prompt 强调保持小柔脸部特征一致性
+    4. 双模型并发生成
     
     Args:
-        reference_image_path: 参考图路径（作为图生图的输入）
+        reference_image_path: 参考图路径
         caption: 发送消息的配文
         channel: 发送频道
         target: 发送目标
@@ -425,31 +431,55 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         是否成功
     """
     try:
-        # 直接使用参考图作为图生图的输入（替换小柔头像）
         api_key = validate_config()
         logger.info(f"✅ API Key 已加载")
         
+        # 1. 验证参考图
         ref_path = Path(reference_image_path)
         if not ref_path.exists():
             logger.error(f"参考图不存在：{reference_image_path}")
             return False
-        
         logger.info("✅ 参考图验证通过")
+        
+        # 2. 加载小柔头像
+        image_path = validate_character_image()
+        logger.info("✅ 头像文件验证通过（使用小柔头像）")
         
         channel = validate_channel(channel)
         
-        # 构建 prompt
-        prompt = "网红风格，精致妆容，时尚穿搭，专业摄影，真实摄影，自然光滑皮肤，清透肌肤，真实光影，柔和光线，生活照风格，无 AI 感，无塑料感，无黑点，无瑕疵，8K 超高清，电影级布光，细节丰富，色彩自然"
+        # 3. 分析参考图，提取 prompt
+        logger.info("🔍 正在分析参考图...")
+        script_dir = Path(__file__).resolve().parent
+        analyzer_path = script_dir / 'image_analyzer.py'
         
-        # 双模型并发生成
+        if not analyzer_path.exists():
+            logger.error(f"图片分析模块不存在：{analyzer_path}")
+            return False
+        
+        import subprocess
+        result = subprocess.run(
+            ['python3.11', str(analyzer_path), reference_image_path],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"图片分析失败：{result.stderr}")
+            return False
+        
+        prompt = result.stdout.strip()
+        logger.info(f"✅ 参考图分析完成：{prompt[:100]}...")
+        
+        # 4. 双模型并发生成（使用小柔头像）
         logger.info("🚀 双模型并发生成中...")
-        results = generate_images_dual_model(ref_path, prompt, api_key)
+        results = generate_images_dual_model(image_path, prompt, api_key)
         
         if not results:
             logger.error("❌ 两个模型都生成失败")
             return False
         
-        # 发送所有成功生成的图片
+        # 5. 发送所有成功生成的图片
         success_count = 0
         for model_name, image_url in results:
             model_caption = f"{caption} 【{model_name}】"
