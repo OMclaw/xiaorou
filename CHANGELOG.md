@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.6.1] - 2026-03-30
+
+### 🐛 Fixed
+- **飞书图片上传参数错误**：添加 `image_type=message` 参数
+- **错误码 234001**：修复 Invalid request param 问题
+
+### 🔧 Technical Details
+- 飞书 API `/im/v1/images` 必须指定 `image_type=message`
+- 确保原生图片上传功能正常工作
+
+---
+
 ## [3.6.0] - 2026-03-30
 
 ### ✨ Added
