@@ -302,7 +302,7 @@ def get_model_display(model_name: str) -> str:
     """获取模型名称的 emoji 显示格式"""
     model_map = {
         'wan2.6-image': '🎨【万相 2.6】',
-        'qwen-image-2.0-pro': '🖼️【万相 2.0 Pro】'
+        'qwen-image-2.0-pro': '🖼️【千问 2.0 Pro】'
     }
     return model_map.get(model_name, f'📷【{model_name}】')
 
