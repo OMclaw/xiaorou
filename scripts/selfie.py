@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Optional, Tuple, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-DEFAULT_IMAGE_SIZE = "2K"
+DEFAULT_IMAGE_SIZE = "1K"  # 改成 1K 分辨率提高速度
 PROMPT_EXTEND = False  # 关闭自动扩展，避免过度美化导致假
 MAX_INPUT_LENGTH = 500
 
@@ -119,11 +119,11 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
         input_image_base64 = get_image_base64(image_path)
         logger.info(f"🖼️ 使用本地头像，模型：{model_name}")
         
-        # 不同模型的尺寸参数格式不同
+        # 不同模型的尺寸参数格式不同 - 全部改成 1K
         if model_name == 'qwen-image-2.0-pro':
-            size_param = '2048*2048'  # qwen-image-2.0-pro 使用 2K 分辨率
+            size_param = '1024*1024'  # qwen-image-2.0-pro 使用 1K 分辨率
         else:
-            size_param = DEFAULT_IMAGE_SIZE
+            size_param = DEFAULT_IMAGE_SIZE  # wan2.6-image 使用 1K
         
         payload = {
             'model': model_name,
