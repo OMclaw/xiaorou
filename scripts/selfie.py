@@ -555,13 +555,168 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         return False
 
 
+def generate_face_swap(target_image_path: str, caption: str = "换脸完成～看看效果怎么样？", channel: Optional[str] = None, target: Optional[str] = None) -> bool:
+    """
+    换脸模式：把小柔的脸换到用户照片上
+    
+    方案：
+    1. 方案一（natural）：自然融合，轻度换脸，保持原图风格
+    2. 方案二（precise）：精准换脸，强调小柔脸部特征
+    
+    每个方案用两个模型各生成一张 = 4 张图
+    
+    Args:
+        target_image_path: 目标图（用户的照片）路径
+        caption: 发送消息的配文
+        channel: 发送频道
+        target: 发送目标
+    
+    Returns:
+        是否成功
+    """
+    try:
+        api_key = validate_config()
+        logger.info(f"✅ API Key 已加载")
+        
+        # 1. 验证目标图
+        target_path = Path(target_image_path)
+        if not target_path.exists():
+            logger.error(f"目标图不存在：{target_image_path}")
+            return False
+        logger.info("✅ 目标图验证通过")
+        
+        # 2. 加载小柔头像
+        image_path = validate_character_image()
+        logger.info("✅ 头像文件验证通过（使用小柔头像）")
+        
+        channel = validate_channel(channel)
+        
+        # 3. 分析目标图，提取场景描述
+        script_dir = Path(__file__).resolve().parent
+        analyzer_path = script_dir / 'image_analyzer.py'
+        
+        if not analyzer_path.exists():
+            logger.error(f"图片分析模块不存在：{analyzer_path}")
+            return False
+        
+        import subprocess
+        result = subprocess.run(
+            ['python3.11', str(analyzer_path), str(target_path)],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"图片分析失败：{result.stderr}")
+            return False
+        
+        scene_description = result.stdout.strip()
+        logger.info(f"✅ 目标图分析完成：{scene_description[:100]}...")
+        
+        # 4. 生成两种方案的 prompt
+        # 方案一：自然融合（轻度换脸）
+        prompt_natural = f"""【自然融合模式】
+将输入图片的人物脸部替换为小柔的脸，保持自然过渡。
+要求：
+1. 保持原图的场景、姿势、服装、发型、光线完全不变
+2. 只替换脸部特征，使用小柔的五官
+3. 肤色、光影要与原图协调自然
+4. 边缘过渡要自然，不要有明显拼接痕迹
+5. 保持原图的整体氛围和风格
+6. 妆容清淡自然，裸妆效果，无腮红，无口红
+
+原图描述：{scene_description}"""
+        
+        # 方案二：精准换脸（强调小柔特征）
+        prompt_precise = f"""【精准换脸模式】
+将输入图片的人物脸部精准替换为小柔的脸，强调小柔的脸部特征。
+要求：
+1. 严格保持小柔的五官特征：眼睛、鼻子、嘴巴、眉毛、脸型
+2. 保持原图的场景、姿势、服装、光线不变
+3. 小柔的特征要明显可识别
+4. 妆容清淡自然，裸妆效果，无腮红，无口红，裸唇，唇色自然
+5. 真实摄影风格，自然光滑皮肤，清透肌肤，无 AI 感
+6. 光影要与原图协调，边缘过渡自然
+
+原图描述：{scene_description}"""
+        
+        # 5. 生成 4 张图片（2 方案 × 2 模型）
+        models = ['wan2.6-image', 'qwen-image-2.0-pro']
+        results = []
+        
+        # 方案一：自然融合
+        logger.info("🎨 方案一（自然融合）生成中...")
+        for model_name in models:
+            logger.info(f"  使用模型：{model_name}")
+            model_result = generate_single_image(model_name, target_path, prompt_natural, api_key)
+            if model_result[1]:
+                results.append(('natural', model_name, model_result[1]))
+        
+        # 方案二：精准换脸
+        logger.info("🎯 方案二（精准换脸）生成中...")
+        for model_name in models:
+            logger.info(f"  使用模型：{model_name}")
+            model_result = generate_single_image(model_name, target_path, prompt_precise, api_key)
+            if model_result[1]:
+                results.append(('precise', model_name, model_result[1]))
+        
+        if not results:
+            logger.error("❌ 所有生成均失败")
+            return False
+        
+        # 6. 发送所有成功生成的图片
+        success_count = 0
+        for scheme, model_name, image_url in results:
+            if channel and image_url:
+                if not target:
+                    target = os.environ.get('AEVIA_TARGET')
+                
+                # 根据方案选择配文
+                if scheme == 'natural':
+                    scheme_caption = "【自然融合】轻度换脸，保持原图风格"
+                else:
+                    scheme_caption = "【精准换脸】强调小柔特征"
+                
+                full_caption = f"{scheme_caption} - {caption}"
+                
+                if send_to_channel(image_url, full_caption, channel, model_name, target):
+                    success_count += 1
+        
+        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
+        return success_count > 0
+        
+    except (ConfigurationError, FileNotFoundError) as e:
+        logger.error(f"❌ 错误：{e}")
+        return False
+    except Exception as e:
+        logger.error(f"❌ 错误：{e}")
+        return False
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("用法：python3 selfie.py <场景描述 | --reference 参考图路径> [--multi] [频道] [配文] [target]")
+        print("用法：")
+        print("  普通模式：python3 selfie.py <场景描述> [频道] [配文] [target]")
+        print("  参考图模式：python3 selfie.py --reference <参考图路径> [--multi] [频道] [配文] [target]")
+        print("  换脸模式：python3 selfie.py --face-swap <目标图路径> [频道] [配文] [target]")
         sys.exit(1)
     
+    # 检测是否为换脸模式
+    if sys.argv[1] == '--face-swap' and len(sys.argv) >= 3:
+        target_image = sys.argv[2]
+        channel = sys.argv[3] if len(sys.argv) > 3 else None
+        caption = sys.argv[4] if len(sys.argv) > 4 else "换脸完成～看看效果怎么样？"
+        target = sys.argv[5] if len(sys.argv) > 5 else None
+        
+        if not os.path.exists(target_image):
+            logger.error(f"目标图不存在：{target_image}")
+            sys.exit(1)
+        
+        success = generate_face_swap(target_image, caption, channel, target)
+    
     # 检测是否为参考图模式
-    if sys.argv[1] == '--reference' and len(sys.argv) >= 3:
+    elif sys.argv[1] == '--reference' and len(sys.argv) >= 3:
         # 参考图模式
         reference_image = sys.argv[2]
         
