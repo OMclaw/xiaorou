@@ -147,6 +147,68 @@ def build_reference_prompt(description: str) -> str:
     return full_prompt
 
 
+def analyze_image_for_face_swap(image_path: str, api_key: str) -> str:
+    """
+    换脸模式专用：只提取场景、姿势、服装、光线，不包含脸部和发型
+    
+    Args:
+        image_path: 图片路径
+        api_key: DashScope API Key
+    
+    Returns:
+        场景描述（不含脸部/发型）
+    """
+    import dashscope
+    from dashscope import MultiModalConversation
+    
+    dashscope.api_key = api_key
+    
+    try:
+        image_base64 = get_image_base64(image_path)
+    except Exception as e:
+        raise ImageAnalysisError(f"读取图片失败：{e}")
+    
+    # 换脸模式专用 prompt - 只提取场景，不提取脸部/发型
+    analysis_prompt = """请分析这张图片，**只提取以下要素**（不要描述脸部和发型）：
+
+1. **场景环境**：室内/室外、具体地点、背景元素、建筑、装饰
+2. **人物姿态**：站姿/坐姿/蹲姿、手部动作、身体角度、与镜头的关系
+3. **服装穿搭**：衣服款式、颜色、风格、配饰（包包、首饰等）
+4. **光线氛围**：自然光/人造光、光线方向、整体色调、时间感（白天/夜晚）
+5. **构图特点**：拍摄角度、景深、构图方式
+
+**不要描述**：
+- ❌ 脸部特征（五官、脸型、妆容）
+- ❌ 发型发色
+
+请用简洁的中文描述，要素之间用逗号分隔，适合作为 AI 绘画的场景 prompt。"""
+
+    messages = [{
+        'role': 'user',
+        'content': [
+            {'image': image_base64},
+            {'text': analysis_prompt}
+        ]
+    }]
+    
+    try:
+        response = MultiModalConversation.call(
+            model='qwen3.5-plus',
+            messages=messages,
+            api_key=api_key
+        )
+        
+        if response.status_code == 200 and response.output:
+            result = response.output.choices[0].message.content[0]['text']
+            logger.info("✅ 换脸模式场景分析成功")
+            return result
+        
+        raise ImageAnalysisError(f"API 错误：{response.message}")
+    
+    except Exception as e:
+        raise ImageAnalysisError(f"图片分析失败：{e}")
+
+
 def analyze_image_file(image_path: str) -> Optional[str]:
     """
     分析图片文件，返回优化后的 prompt
