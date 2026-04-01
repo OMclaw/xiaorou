@@ -95,10 +95,12 @@ def analyze_image(image_path: str, api_key: str) -> str:
     }]
     
     try:
+        # 使用 SDK 调用，添加 X-DashScope-DataInspection header 禁用数据检查
         response = MultiModalConversation.call(
             model='qwen3.5-plus',
             messages=messages,
-            api_key=api_key
+            api_key=api_key,
+            headers={'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'}
         )
         
         if response.status_code == 200 and response.output:
@@ -192,10 +194,12 @@ def analyze_image_for_face_swap(image_path: str, api_key: str) -> str:
     }]
     
     try:
+        # 使用 SDK 调用，添加 X-DashScope-DataInspection header 禁用数据检查
         response = MultiModalConversation.call(
             model='qwen3.5-plus',
             messages=messages,
-            api_key=api_key
+            api_key=api_key,
+            headers={'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'}
         )
         
         if response.status_code == 200 and response.output:

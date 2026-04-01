@@ -133,7 +133,11 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
         
         response = requests.post(
             'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
-            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json',
+                'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'
+            },
             json=payload, timeout=120
         )
         
