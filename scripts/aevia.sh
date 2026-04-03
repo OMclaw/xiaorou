@@ -99,16 +99,48 @@ run_video() {
   local target="$2"
   local image_path="${AEVIA_IMAGE_PATH:-}"
   
-  info "🎬 视频模式"
+  info "🎬 视频模式（自动流程：参考图 → 小柔自拍 → 视频）"
   
-  # 提取 prompt（简化处理）
+  # 提取 prompt
   local prompt
-  prompt=$(echo "$input" | sed -E 's/^(生成视频 | 做视频)[:：]?//i' | xargs)
-  [ -z "$prompt" ] && prompt="一个美丽的女孩自然微笑"
+  prompt=$(echo "$input" | sed -E 's/^(生成视频 | 做视频 | 图生视频)[:：]?//i' | xargs)
+  [ -z "$prompt" ] && prompt="一个美丽的女孩自然微笑，动作自然舒展"
   
   if [ -n "$image_path" ]; then
-    info "使用参考图生成视频"
-    python3.11 "$SCRIPT_DIR/generate_video.py" --image "$image_path" --prompt "$prompt" --target "$target"
+    info "📸 步骤 1: 先生成小柔参考图..."
+    
+    # 调用 selfie.py 生成小柔照片（参考用户图片）
+    local selfie_output
+    selfie_output=$(python3.11 "$SCRIPT_DIR/selfie.py" --reference "$image_path" "$AEVIA_CHANNEL" "准备生成视频～" "$target" 2>&1)
+    
+    # 等待几秒让图片发送完成
+    sleep 2
+    
+    info "✅ 小柔照片生成完成"
+    
+    # 找到最新生成的小柔照片（从 selfie.py 的临时文件）
+    local latest_selfie
+    latest_selfie=$(ls -t /tmp/openclaw/selfie_*.jpg 2>/dev/null | head -1)
+    
+    if [ -n "$latest_selfie" ] && [ -f "$latest_selfie" ]; then
+      info "🎬 步骤 2: 使用小柔照片生成视频..."
+      info "  图片：$latest_selfie"
+      
+      # 优化 prompt，强调动作自然
+      local video_prompt="$prompt，动作自然舒展，表情生动，真实摄影感"
+      
+      python3.11 "$SCRIPT_DIR/generate_video.py" \
+        --image "$latest_selfie" \
+        --prompt "$video_prompt" \
+        --model "wan2.7-i2v" \
+        --duration 5 \
+        --target "$target"
+      
+      info "✅ 视频生成完成"
+    else
+      warn "⚠️ 未找到小柔照片，使用原图生成视频"
+      python3.11 "$SCRIPT_DIR/generate_video.py" --image "$image_path" --prompt "$prompt" --target "$target"
+    fi
   else
     error "视频生成需要提供图片"
   fi
