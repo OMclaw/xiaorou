@@ -135,11 +135,14 @@ def build_reference_prompt(description: str) -> str:
     # 质量标签 - 强调自然摄影、真实无 AI 感
     quality_tags = "自然摄影，真实照片，无 AI 感，无塑料感，真实光影，自然质感，细节丰富，色彩自然，人物高清，脸部高清，五官清晰，皮肤细腻，发丝清晰"
     
-    # 反向提示词 - 避免多手多腿等畸形问题
-    negative_tags = "避免畸形，避免多手多腿，避免肢体扭曲，避免多余肢体，避免肢体融合，避免肢体重复，正常人体结构，双手双脚，比例正确"
+    # 动作自然标签 - 强调姿势自然、表情生动、生活化
+    natural_pose_tags = "动作自然，姿势舒展，表情生动，神态自然，肢体放松，不僵硬，不做作，生活化姿态，日常动作，自然互动，抓拍感，动态感，流畅动作，舒展肢体，放松状态"
     
-    # 组合完整 prompt - 简洁清晰
-    full_prompt = f"{instruction}。{description}。{base_style}。{realistic_tags}。{quality_tags}。{negative_tags}"
+    # 反向提示词 - 避免多手多腿等畸形问题 + 避免动作僵硬
+    negative_tags = "避免畸形，避免多手多腿，避免肢体扭曲，避免多余肢体，避免肢体融合，避免肢体重复，正常人体结构，双手双脚，比例正确，避免动作僵硬，避免姿势刻板，避免表情呆板，避免摆拍感"
+    
+    # 组合完整 prompt - 加入动作自然化
+    full_prompt = f"{instruction}。{description}。{base_style}。{realistic_tags}。{quality_tags}。{natural_pose_tags}。{negative_tags}"
     
     return full_prompt
 
