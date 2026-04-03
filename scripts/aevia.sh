@@ -113,13 +113,10 @@ run_video() {
     local selfie_output
     selfie_output=$(python3.11 "$SCRIPT_DIR/selfie.py" --reference "$image_path" "$AEVIA_CHANNEL" "准备生成视频～" "$target" 2>&1)
     
-    # 等待几秒让图片发送完成
-    sleep 2
+    # 等待 1 秒让图片发送完成
+    sleep 1
     
     info "✅ 小柔照片生成完成"
-    
-    # 等待几秒让图片保存完成
-    sleep 2
     
     # 使用最新生成的小柔照片（固定路径）
     local latest_selfie="/tmp/openclaw/selfie_latest.jpg"
