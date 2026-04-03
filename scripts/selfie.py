@@ -343,6 +343,16 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             image_key = upload_feishu_image(temp_file)
             if image_key:
                 success = send_feishu_image_message(image_key, full_caption, receive_id, "open_id")
+                
+                # 保留一份最新的小柔照片到固定路径（供视频生成使用）
+                latest_path = '/tmp/openclaw/selfie_latest.jpg'
+                try:
+                    import shutil
+                    shutil.copy2(temp_file, latest_path)
+                    logger.info(f"✓ 已保存最新自拍到：{latest_path}")
+                except Exception as e:
+                    logger.warning(f"保存自拍失败：{e}")
+                
                 os.remove(temp_file)
                 return success
         
