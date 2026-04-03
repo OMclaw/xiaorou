@@ -129,17 +129,21 @@ def build_reference_prompt(description: str) -> str:
     # 基础风格标签 - 减少妆容感，清淡妆容，性感妩媚
     base_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红，性感妩媚，女人味十足，迷人眼神，撩人姿态"
     
-    # 真实感标签 - 强调自然融合
+    # 真实感标签 - 强调自然融合、实拍感
     realistic_tags = "超高写实，面部清晰自然，光影统一，细节真实，比例正常，无违和融合，高质量人像"
     
-    # 质量标签 - 强调自然摄影、真实无 AI 感
+    # 质量标签 - 强调自然摄影、真实无 AI 感、手机实拍感
     quality_tags = "自然摄影，真实照片，无 AI 感，无塑料感，真实光影，自然质感，细节丰富，色彩自然，人物高清，脸部高清，五官清晰，皮肤细腻，发丝清晰"
     
     # 反向提示词 - 避免多手多腿等畸形问题
     negative_tags = "避免畸形，避免多手多腿，避免肢体扭曲，避免多余肢体，避免肢体融合，避免肢体重复，正常人体结构，双手双脚，比例正确"
     
-    # 组合完整 prompt - 简洁清晰
-    full_prompt = f"{instruction}。{description}。{base_style}。{realistic_tags}。{quality_tags}。{negative_tags}"
+    # === 新增：真实感/实拍感强化标签 ===
+    # 强调手机/相机实拍质感，避免 AI 生成痕迹
+    real_photo_tags = "手机实拍，相机直出，原图直出，无修图，无滤镜，真实皮肤纹理，毛孔可见，自然瑕疵，真实环境光，现场光拍摄，无棚拍感，生活照质感，日常拍摄，随手拍，真实场景，非影楼，非写真，非 AI 合成，非 3D 渲染，非插画，非动漫，非游戏 CG"
+    
+    # 组合完整 prompt - 简洁清晰，加入实拍感强化
+    full_prompt = f"{instruction}。{description}。{base_style}。{realistic_tags}。{quality_tags}。{real_photo_tags}。{negative_tags}"
     
     return full_prompt
 

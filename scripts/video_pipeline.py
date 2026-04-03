@@ -58,32 +58,60 @@ def validate_config() -> str:
 
 def upload_to_oss(file_path: str) -> Optional[str]:
     """
-    上传文件到临时 OSS（使用 dashscope 的上传接口）
+    上传文件到飞书获取公网 URL
     
-    简化方案：使用 dashscope 的文件上传 API
+    使用飞书图片上传 API 获取 image_key，然后构造公网 URL
     """
-    api_key = validate_config()
-    
     try:
-        # 使用 dashscope 的文件上传接口
-        upload_url = 'https://dashscope.aliyuncs.com/api/v1/uploads'
+        # 读取飞书凭证
+        config_file = os.path.expanduser('~/.openclaw/openclaw.json')
+        with open(config_file, 'r') as f:
+            config = json.load(f)
         
+        app_id = config.get('channels', {}).get('feishu', {}).get('appId', '')
+        app_secret = config.get('channels', {}).get('feishu', {}).get('appSecret', '')
+        
+        if not app_id or not app_secret:
+            logger.error("❌ 未配置飞书凭证")
+            return None
+        
+        # 1. 获取 access_token
+        token_url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/"
+        token_response = requests.post(
+            token_url,
+            headers={"Content-Type": "application/json"},
+            json={"app_id": app_id, "app_secret": app_secret},
+            timeout=30
+        )
+        token_data = token_response.json()
+        access_token = token_data.get('tenant_access_token', '')
+        
+        if not access_token:
+            logger.error("❌ 获取 access_token 失败")
+            return None
+        
+        # 2. 上传图片
+        upload_url = "https://open.feishu.cn/open-apis/im/v1/images"
         with open(file_path, 'rb') as f:
-            files = {'file': (os.path.basename(file_path), f)}
-            response = requests.post(
+            files = {'image': (os.path.basename(file_path), f, 'image/jpeg')}
+            data = {'image_type': 'message'}
+            upload_response = requests.post(
                 upload_url,
-                headers={'Authorization': f'Bearer {api_key}'},
+                headers={"Authorization": f"Bearer {access_token}"},
                 files=files,
+                data=data,
                 timeout=60
             )
         
-        if response.status_code == 200:
-            result = response.json()
-            file_url = result.get('output', {}).get('url', '')
-            logger.info(f"✅ 文件上传成功：{file_url}")
-            return file_url
+        upload_data = upload_response.json()
+        if upload_data.get('code') == 0:
+            image_key = upload_data.get('data', {}).get('image_key', '')
+            # 构造飞书图片 URL（临时方案：使用飞书 CDN）
+            img_url = f"https://open.feishu.cn/open-apis/im/v1/images/{image_key}"
+            logger.info(f"✅ 图片上传成功：{image_key}")
+            return img_url
         
-        logger.error(f"❌ 上传失败：{response.text}")
+        logger.error(f"❌ 飞书上传失败：{upload_data}")
         return None
         
     except Exception as e:
