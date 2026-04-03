@@ -118,12 +118,14 @@ run_video() {
     
     info "✅ 小柔照片生成完成"
     
-    # 找到最新生成的小柔照片（从 selfie.py 的临时文件）
-    local latest_selfie
-    latest_selfie=$(ls -t /tmp/openclaw/selfie_*.jpg 2>/dev/null | head -1)
+    # 等待几秒让图片保存完成
+    sleep 2
     
-    if [ -n "$latest_selfie" ] && [ -f "$latest_selfie" ]; then
-      info "🎬 步骤 2: 使用小柔照片生成视频..."
+    # 使用最新生成的小柔照片（固定路径）
+    local latest_selfie="/tmp/openclaw/selfie_latest.jpg"
+    
+    if [ -f "$latest_selfie" ]; then
+      info "🎬 步骤 2: 使用刚生成的小柔照片生成视频..."
       info "  图片：$latest_selfie"
       
       # 优化 prompt，强调动作自然

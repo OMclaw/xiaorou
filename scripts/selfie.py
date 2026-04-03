@@ -358,6 +358,15 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
         
+        # 保留一份最新的小柔照片到固定路径（供视频生成使用）
+        latest_path = '/tmp/openclaw/selfie_latest.jpg'
+        try:
+            import shutil
+            shutil.copy2(temp_file, latest_path)
+            logger.info(f"✓ 已保存最新自拍到：{latest_path}")
+        except Exception as e:
+            logger.warning(f"保存自拍失败：{e}")
+        
         try:
             os.remove(temp_file)
         except:
