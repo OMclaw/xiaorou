@@ -388,10 +388,11 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             return False
         
         # 验证文件类型（防止恶意文件）
-        import imghdr
-        img_type = imghdr.what(temp_file)
-        if img_type not in ['jpeg', 'png', 'webp']:
-            logger.error(f"文件类型不正确：{img_type}，仅支持 jpeg/png/webp")
+        # 使用 mimetypes 替代废弃的 imghdr (Python 3.13+)
+        import mimetypes
+        mime_type, _ = mimetypes.guess_type(temp_file)
+        if mime_type not in ['image/jpeg', 'image/png', 'image/webp']:
+            logger.error(f"文件类型不正确：{mime_type}，仅支持 jpeg/png/webp")
             os.remove(temp_file)
             return False
         
