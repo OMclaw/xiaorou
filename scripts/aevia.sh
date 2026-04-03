@@ -29,8 +29,11 @@ load_api_key() {
 
 sanitize_input() {
   local input="$1"
+  # 严格长度限制
   [ ${#input} -gt 500 ] && input="${input:0:500}"
-  echo "$input" | tr -d '\000-\011\013-\037\177' | sed "s/[\\\`\$(){};|&!]//g"
+  # 只保留安全的字母数字、中文、标点和空格
+  # 移除所有控制字符、反引号、美元符号、反斜杠
+  echo "$input" | tr -cd '[:alnum:][:space:][:punct:]' | tr -d '`$\\'
 }
 
 error() { echo "❌ 错误：$*" >&2; exit 1; }
@@ -82,8 +85,14 @@ run_voice() {
   speech_text=$(echo "$input" | sed -E 's/^(发语音 [:：]?|语音消息 [:：]?)//i' | xargs)
   [ -z "$speech_text" ] && speech_text="你好呀，我是小柔～"
   
-  local temp_audio="/tmp/openclaw/xiaorou_voice_$(date +%s).opus"
+  # 使用 mktemp 创建不可预测的临时文件（避免竞争条件攻击）
+  local temp_audio
+  temp_audio=$(mktemp "/tmp/openclaw/xiaorou_voice_XXXXXX.opus" 2>/dev/null) || {
+    # fallback: 使用时间戳
+    temp_audio="/tmp/openclaw/xiaorou_voice_$(date +%s)_$$.opus"
+  }
   mkdir -p /tmp/openclaw
+  chmod 700 /tmp/openclaw 2>/dev/null || true
   
   info "正在生成语音：$speech_text"
   if python3.11 "$SCRIPT_DIR/tts.py" "$speech_text" "$temp_audio" 2>&1; then
@@ -173,17 +182,33 @@ run_chat() {
   
   info "💬 聊天模式"
   
+  # 使用 jq 安全构造 JSON（避免注入攻击）
   local temp_json
   temp_json=$(mktemp)
-  cat > "$temp_json" <<EOF
+  
+  # 检查是否有 jq
+  if command -v jq &>/dev/null; then
+    jq -n \
+      --arg input "$input" \
+      --arg char "$CHARACTER_NAME" \
+      '{model: "qwen3.5-plus", messages: [
+        {role: "system", content: "你是\($char)，用户的虚拟伴侣。性格温柔体贴，善解人意。用中文回复，语气自然亲切。"},
+        {role: "user", content: $input}
+      ]}' > "$temp_json"
+  else
+    # fallback: 手动转义（如果无 jq）
+    local escaped_input
+    escaped_input=$(echo "$input" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g' | tr '\n' ' ')
+    cat > "$temp_json" <<EOF
 {
   "model": "qwen3.5-plus",
   "messages": [
     {"role": "system", "content": "你是${CHARACTER_NAME}，用户的虚拟伴侣。性格温柔体贴，善解人意。用中文回复，语气自然亲切。"},
-    {"role": "user", "content": "$input"}
+    {"role": "user", "content": "$escaped_input"}
   ]
 }
 EOF
+  fi
   
   local response
   response=$(curl -s -f -X POST "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions" \

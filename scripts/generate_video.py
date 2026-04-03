@@ -31,8 +31,6 @@ from config import config, ConfigurationError
 
 # ============ 配置初始化 ============
 
-logger = logging.getLogger(__name__)
-
 # 使用配置模块
 TEMP_DIR = config.get_video_dir()
 POLL_INTERVAL = config.get_poll_interval()
@@ -41,6 +39,47 @@ FEISHU_TARGET = config.get_feishu_target()
 
 # 创建 requests session（连接池）
 session = requests.Session()
+
+# ============ 安全工具函数 ============
+
+def safe_log(message: str) -> str:
+    """
+    日志脱敏处理，移除敏感信息
+    
+    Args:
+        message: 原始日志消息
+    
+    Returns:
+        脱敏后的消息
+    """
+    # 脱敏 API Key
+    message = re.sub(r'sk-[a-zA-Z0-9]{20,}', 'sk-****REDACTED****', message)
+    # 脱敏 OSS URL（包含签名）
+    message = re.sub(r'Signature=[a-zA-Z0-9%]+', 'Signature=****REDACTED****', message)
+    return message
+
+
+class SafeLogger:
+    """安全日志包装器，自动脱敏敏感信息"""
+    
+    def __init__(self, logger):
+        self._logger = logger
+    
+    def info(self, msg, *args, **kwargs):
+        self._logger.info(safe_log(msg), *args, **kwargs)
+    
+    def warning(self, msg, *args, **kwargs):
+        self._logger.warning(safe_log(msg), *args, **kwargs)
+    
+    def error(self, msg, *args, **kwargs):
+        self._logger.error(safe_log(msg), *args, **kwargs)
+    
+    def debug(self, msg, *args, **kwargs):
+        self._logger.debug(safe_log(msg), *args, **kwargs)
+
+
+# 使用安全日志包装器
+logger = SafeLogger(logging.getLogger(__name__))
 
 
 # ============ 重试装饰器 ============
@@ -97,7 +136,7 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.7-
         params = {"action": "getPolicy", "model": model_name}
         headers = {"Authorization": f"Bearer {api_key}"}
         
-        response = session.get(policy_url, headers=headers, params=params, timeout=30)
+        response = session.get(policy_url, headers=headers, params=params, timeout=30, verify=True)
         if response.status_code != 200:
             logger.error(f"❌ 获取上传凭证失败：{response.text[:200]}")
             return None
@@ -126,7 +165,7 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.7-
                 'file': (file_name, f)
             }
             
-            response = session.post(policy_data['upload_host'], files=files, timeout=60)
+            response = session.post(policy_data['upload_host'], files=files, timeout=60, verify=True)
         
         if response.status_code != 200:
             logger.error(f"❌ 上传失败：{response.text[:200]}")
@@ -245,7 +284,8 @@ def generate_video(
             'https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis',
             headers=headers,
             json=payload,
-            timeout=60
+            timeout=60,
+            verify=True
         )
         
         result = response.json()
@@ -296,7 +336,8 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
             response = session.get(
                 f'https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}',
                 headers={'Authorization': f'Bearer {api_key}'},
-                timeout=30
+                timeout=30,
+                verify=True
             )
             
             result = response.json()
@@ -353,7 +394,7 @@ def download_video(video_url: str, output_path: str) -> bool:
     temp_path = str(output_path) + '.tmp'
     
     try:
-        response = session.get(video_url, timeout=300, stream=True)
+        response = session.get(video_url, timeout=300, stream=True, verify=True)
         response.raise_for_status()
         
         with open(temp_path, 'wb') as f:
