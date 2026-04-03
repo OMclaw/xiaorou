@@ -165,18 +165,22 @@ def upload_to_aliyun_dashscope(file_path: str, api_key: str) -> Optional[str]:
 def generate_video(
     prompt: str,
     img_url: str,
+    audio_url: Optional[str] = None,
     resolution: str = "720P",
     duration: int = 5,
+    model: str = "wan2.7-i2v",
     api_key: Optional[str] = None
 ) -> Tuple[bool, str]:
     """
-    使用 wan2.6-i2v 生成视频
+    使用 wan2.7-i2v / wan2.6-i2v 生成视频
     
     Args:
         prompt: 视频描述提示词
-        img_url: 图片 URL（必须公网可访问）
+        img_url: 图片 URL（oss:// 或 https://）
+        audio_url: 音频 URL（可选，oss:// 或 https://）
         resolution: 分辨率 (720P/1080P)
         duration: 视频时长 (秒)
+        model: 模型名称 (wan2.7-i2v / wan2.6-i2v)
         api_key: DashScope API Key
     
     Returns:
@@ -186,26 +190,63 @@ def generate_video(
         api_key = validate_config()
     
     logger.info(f"🎬 开始生成视频...")
-    logger.info(f"  模型：wan2.6-i2v")
+    logger.info(f"  模型：{model}")
     logger.info(f"  提示词：{prompt[:100]}...")
     logger.info(f"  图片 URL: {img_url}")
+    logger.info(f"  音频 URL: {audio_url or '无'}")
     logger.info(f"  分辨率：{resolution}")
     logger.info(f"  时长：{duration}秒")
     
-    # 构建请求体
-    payload = {
-        "model": "wan2.6-i2v",
-        "input": {
+    # 构建请求体 - wan2.7-i2v 使用 media 数组格式
+    if model == "wan2.7-i2v":
+        # wan2.7-i2v 新格式：使用 media 数组
+        input_data = {
+            "prompt": prompt,
+            "media": [
+                {
+                    "type": "first_frame",
+                    "url": img_url
+                }
+            ]
+        }
+        
+        # 如果有音频，添加到 media 数组
+        if audio_url:
+            input_data["media"].append({
+                "type": "driving_audio",
+                "url": audio_url
+            })
+        
+        payload = {
+            "model": model,
+            "input": input_data,
+            "parameters": {
+                "resolution": resolution,
+                "prompt_extend": True,
+                "duration": duration,
+                "watermark": True
+            }
+        }
+    else:
+        # wan2.6-i2v 旧格式：使用 img_url
+        input_data = {
             "prompt": prompt,
             "img_url": img_url
-        },
-        "parameters": {
-            "resolution": resolution,
-            "prompt_extend": True,
-            "duration": duration,
-            "shot_type": "multi"
         }
-    }
+        
+        if audio_url:
+            input_data["audio_url"] = audio_url
+        
+        payload = {
+            "model": model,
+            "input": input_data,
+            "parameters": {
+                "resolution": resolution,
+                "prompt_extend": True,
+                "duration": duration,
+                "shot_type": "multi"
+            }
+        }
     
     # 提交异步任务
     try:
@@ -216,7 +257,7 @@ def generate_video(
         }
         
         # 如果是 oss:// URL，需要添加 OSS 资源解析 header
-        if img_url.startswith('oss://'):
+        if img_url.startswith('oss://') or (audio_url and audio_url.startswith('oss://')):
             headers['X-DashScope-OssResourceResolve'] = 'enable'
         
         response = requests.post(
@@ -354,18 +395,22 @@ def send_to_feishu(video_path: str, caption: str, target: str = FEISHU_TARGET) -
 def image_to_video(
     image_path: str,
     prompt: str,
+    audio_path: Optional[str] = None,
     resolution: str = "720P",
     duration: int = 5,
+    model: str = "wan2.7-i2v",
     target: str = FEISHU_TARGET
 ) -> bool:
     """
-    图生视频完整流程
+    图生视频完整流程（支持图片 + 音频）
     
     Args:
         image_path: 本地图片路径
         prompt: 视频描述提示词
+        audio_path: 本地音频路径（可选）
         resolution: 分辨率
         duration: 视频时长
+        model: 模型名称 (wan2.7-i2v / wan2.6-i2v)
         target: 飞书目标用户
     
     Returns:
@@ -387,21 +432,31 @@ def image_to_video(
     logger.info(f"  图片路径：{image_path}")
     logger.info(f"✅ 图片验证通过")
     
-    # 步骤 2: 上传图片获取公网 URL
+    # 步骤 2: 上传图片到 OSS
     logger.info(f"📤 步骤 2: 上传图片到 DashScope OSS...")
     
-    img_url = upload_to_aliyun_oss(image_path, api_key)
+    img_url = upload_to_aliyun_oss(image_path, api_key, model)
     
     if not img_url:
         logger.error("❌ 流程终止：图片上传失败")
         return False
     
-    # 步骤 3: 生成视频
+    # 步骤 3: 上传音频（如果有）
+    audio_url = None
+    if audio_path and os.path.exists(audio_path):
+        logger.info(f"🎵 步骤 3: 上传音频到 DashScope OSS...")
+        audio_url = upload_to_aliyun_oss(audio_path, api_key, model)
+        if not audio_url:
+            logger.warning("⚠️ 音频上传失败，继续无音频视频流程...")
+    
+    # 步骤 4: 生成视频
     success, video_result = generate_video(
         prompt=prompt,
         img_url=img_url,
+        audio_url=audio_url,
         resolution=resolution,
         duration=duration,
+        model=model,
         api_key=api_key
     )
     
@@ -435,9 +490,11 @@ def image_to_video(
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description='小柔图生视频工具')
+    parser = argparse.ArgumentParser(description='小柔图生视频工具（支持图片 + 音频）')
     parser.add_argument('--image', type=str, required=True, help='输入图片路径')
     parser.add_argument('--prompt', type=str, required=True, help='视频描述提示词')
+    parser.add_argument('--audio', type=str, help='输入音频路径（可选）')
+    parser.add_argument('--model', type=str, default='wan2.7-i2v', help='模型名称 (wan2.7-i2v / wan2.6-i2v)')
     parser.add_argument('--resolution', type=str, default='720P', help='分辨率 (720P/1080P)')
     parser.add_argument('--duration', type=int, default=5, help='视频时长（秒）')
     parser.add_argument('--target', type=str, default=FEISHU_TARGET, help='飞书目标用户')
@@ -447,8 +504,10 @@ if __name__ == "__main__":
     success = image_to_video(
         image_path=args.image,
         prompt=args.prompt,
+        audio_path=args.audio,
         resolution=args.resolution,
         duration=args.duration,
+        model=args.model,
         target=args.target
     )
     
