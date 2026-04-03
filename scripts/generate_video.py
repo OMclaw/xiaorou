@@ -20,6 +20,7 @@
 import os
 import sys
 import time
+import re
 import requests
 import logging
 import subprocess
@@ -32,9 +33,10 @@ from config import config, ConfigurationError
 # ============ 配置初始化 ============
 
 # 使用配置模块
-TEMP_DIR = config.get_video_dir()
-POLL_INTERVAL = config.get_poll_interval()
-MAX_WAIT = config.get_max_wait()
+TEMP_DIR = config.get_temp_dir() / 'videos'
+TEMP_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+POLL_INTERVAL = int(os.environ.get('XIAOROU_POLL_INTERVAL', '10'))
+MAX_WAIT = int(os.environ.get('XIAOROU_MAX_WAIT', '600'))
 FEISHU_TARGET = config.get_feishu_target()
 
 # 创建 requests session（连接池）

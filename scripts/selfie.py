@@ -24,10 +24,11 @@ from typing import Optional, Tuple, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 导入统一配置
-from config import config, ConfigurationError, get_temp_file
+from config import config, ConfigurationError
 
 # 使用配置模块
-TEMP_DIR = config.get_selfie_dir()
+TEMP_DIR = config.get_temp_dir() / 'selfies'
+TEMP_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
 MAX_INPUT_LENGTH = 500
 DEFAULT_IMAGE_SIZE = "1K"
 PROMPT_EXTEND = False
