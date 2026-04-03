@@ -173,7 +173,7 @@ def generate_video(
                 "resolution": resolution,
                 "prompt_extend": True,
                 "duration": duration,
-                "watermark": True
+                "watermark": False
             }
         }
     else:
