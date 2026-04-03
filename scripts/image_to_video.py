@@ -55,82 +55,77 @@ def validate_config() -> str:
     raise Exception("API Key 未设置")
 
 
-def upload_to_aliyun_oss(file_path: str) -> Optional[str]:
+def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-i2v") -> Optional[str]:
     """
-    上传文件到阿里云 OSS 获取公网 URL
+    使用 DashScope 官方上传 API 获取临时文件 URL
     
-    使用 oss2 SDK
+    参考：https://help.aliyun.com/zh/model-studio/get-temporary-file-url
     """
     try:
-        import oss2
+        # 1. 获取上传凭证
+        logger.info(f"📤 正在获取上传凭证...")
+        policy_url = "https://dashscope.aliyuncs.com/api/v1/uploads"
+        params = {"action": "getPolicy", "model": model_name}
+        headers = {"Authorization": f"Bearer {api_key}"}
         
-        # 从配置文件读取 OSS 凭证
-        config_file = os.path.expanduser('~/.openclaw/openclaw.json')
-        if not os.path.exists(config_file):
-            logger.error("❌ 配置文件不存在")
+        response = requests.get(policy_url, headers=headers, params=params, timeout=30)
+        if response.status_code != 200:
+            logger.error(f"❌ 获取上传凭证失败：{response.text[:200]}")
             return None
         
-        with open(config_file, 'r') as f:
-            config = json.load(f)
-        
-        # 尝试从多种位置读取 OSS 配置
-        oss_config = None
-        
-        # 位置 1: skills.entries.xiaorou.env
-        if not oss_config:
-            oss_config = config.get('skills', {}).get('entries', {}).get('xiaorou', {}).get('env', {})
-            if oss_config.get('OSS_ACCESS_KEY_ID'):
-                oss_config = {
-                    'access_key_id': oss_config['OSS_ACCESS_KEY_ID'],
-                    'access_key_secret': oss_config['OSS_ACCESS_KEY_SECRET'],
-                    'bucket': oss_config.get('OSS_BUCKET', 'xiaorou-images'),
-                    'region': oss_config.get('OSS_REGION', 'cn-beijing')
-                }
-            else:
-                oss_config = None
-        
-        # 位置 2: 独立的 oss 配置
-        if not oss_config:
-            oss_config = config.get('oss', {})
-            if not oss_config.get('access_key_id'):
-                oss_config = None
-        
-        if not oss_config:
-            logger.error("❌ 未配置 OSS 凭证")
-            logger.info("请在 ~/.openclaw/openclaw.json 中配置 OSS 信息")
+        policy_data = response.json().get('data', {})
+        if not policy_data:
+            logger.error(f"❌ 未获取到上传凭证：{response.json()}")
             return None
         
-        access_key_id = oss_config['access_key_id']
-        access_key_secret = oss_config['access_key_secret']
-        bucket_name = oss_config['bucket']
-        region = oss_config['region']
+        logger.info(f"✅ 上传凭证获取成功")
         
-        # 创建 Auth 和 Bucket 对象
-        auth = oss2.Auth(access_key_id, access_key_secret)
-        endpoint = f"oss-{region}.aliyuncs.com"
-        bucket = oss2.Bucket(auth, endpoint, bucket_name)
+        # 2. 上传文件到 OSS
+        file_name = Path(file_path).name
+        key = f"{policy_data['upload_dir']}/{file_name}"
         
-        # 生成对象名称
-        object_name = f"xiaorou/{int(time.time())}_{Path(file_path).name}"
+        logger.info(f"📤 正在上传图片...")
+        with open(file_path, 'rb') as f:
+            files = {
+                'OSSAccessKeyId': (None, policy_data['oss_access_key_id']),
+                'Signature': (None, policy_data['signature']),
+                'policy': (None, policy_data['policy']),
+                'x-oss-object-acl': (None, policy_data['x_oss_object_acl']),
+                'x-oss-forbid-overwrite': (None, policy_data['x_oss_forbid_overwrite']),
+                'key': (None, key),
+                'success_action_status': (None, '200'),
+                'file': (file_name, f)
+            }
+            
+            response = requests.post(policy_data['upload_host'], files=files, timeout=60)
         
-        # 上传文件
-        logger.info(f"📤 正在上传图片到 OSS...")
-        result = bucket.put_object_from_file(object_name, file_path)
+        if response.status_code != 200:
+            logger.error(f"❌ 上传失败：{response.text[:200]}")
+            return None
         
-        if result.status == 200:
-            img_url = f"https://{bucket_name}.{endpoint}/{object_name}"
-            logger.info(f"✅ 图片上传成功：{img_url}")
-            return img_url
+        # 返回 oss:// URL
+        oss_url = f"oss://{key}"
+        logger.info(f"✅ 图片上传成功：{oss_url}")
         
-        logger.error(f"❌ OSS 上传失败：{result.status}")
-        return None
+        return oss_url
         
-    except ImportError:
-        logger.error("❌ 未安装 oss2 库，请运行：pip3 install oss2")
-        return None
     except Exception as e:
-        logger.error(f"❌ OSS 上传异常：{e}")
+        logger.error(f"❌ 上传异常：{e}")
         return None
+
+
+def upload_to_aliyun_oss(file_path: str, api_key: str) -> Optional[str]:
+    """
+    上传文件到阿里云 OSS 获取公网 URL（使用 DashScope 官方 API）
+    """
+    oss_url = upload_to_dashscope(file_path, api_key, "wan2.6-i2v")
+    
+    if oss_url:
+        # 注意：oss:// URL 需要在请求头中添加 X-DashScope-OssResourceResolve: enable
+        # 但视频生成 API 支持直接使用 oss:// URL
+        return oss_url
+    
+    return None
 
 
 def upload_to_aliyun_dashscope(file_path: str, api_key: str) -> Optional[str]:
@@ -214,13 +209,19 @@ def generate_video(
     
     # 提交异步任务
     try:
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+            'X-DashScope-Async': 'enable'
+        }
+        
+        # 如果是 oss:// URL，需要添加 OSS 资源解析 header
+        if img_url.startswith('oss://'):
+            headers['X-DashScope-OssResourceResolve'] = 'enable'
+        
         response = requests.post(
             'https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis',
-            headers={
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json',
-                'X-DashScope-Async': 'enable'
-            },
+            headers=headers,
             json=payload,
             timeout=60
         )
@@ -387,13 +388,12 @@ def image_to_video(
     logger.info(f"✅ 图片验证通过")
     
     # 步骤 2: 上传图片获取公网 URL
-    logger.info(f"📤 步骤 2: 上传图片到阿里云 OSS...")
+    logger.info(f"📤 步骤 2: 上传图片到 DashScope OSS...")
     
-    img_url = upload_to_aliyun_oss(image_path)
+    img_url = upload_to_aliyun_oss(image_path, api_key)
     
     if not img_url:
         logger.error("❌ 流程终止：图片上传失败")
-        logger.info("💡 请确保在 ~/.openclaw/openclaw.json 中配置了 OSS 凭证")
         return False
     
     # 步骤 3: 生成视频
