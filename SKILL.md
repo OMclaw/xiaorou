@@ -1,6 +1,6 @@
 ---
 name: xiaorou
-description: 小柔 AI - 你的虚拟伴侣，支持情感聊天、自拍生成、角色定制、语音消息
+description: 小柔 AI - 你的虚拟伴侣，支持情感聊天、自拍生成、视频生成、角色定制、语音消息
 allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write Bash(python3:*) Bash(ffmpeg:*)
 ---
 
@@ -9,7 +9,8 @@ allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write Bash(python3:*) Bash(ffm
 ## 功能
 
 - 💬 **情感聊天** - Qwen3.5-plus
-- 📸 **自拍生成** - Wan2.6-image
+- 📸 **自拍生成** - Wan2.6-image / qwen-image-2.0-pro
+- 🎬 **视频生成** - wan2.6-i2v（图片 + 文字 → 视频）
 - 🎨 **角色定制** - Z-image
 - 🎙️ **语音消息** - CosyVoice-v3-flash（飞书语音气泡）
 - 🌐 **多平台** - 飞书/Telegram/Discord/WhatsApp
@@ -30,6 +31,18 @@ bash scripts/aevia.sh "早安"
 
 # 自拍
 bash scripts/aevia.sh "发张自拍" feishu
+
+# 视频生成（单步）
+python3 scripts/video_generator.py --img photo.jpg --prompt "一个女孩在海边散步" --output video.mp4
+
+# 视频生成（完整流程：图片 + 语音→视频）
+python3 scripts/video_pipeline.py \
+  --reference photo.jpg \
+  --scene-prompt "一个美丽的女孩在海边微笑" \
+  --tts-text "你好呀，今天天气真好～" \
+  --video-prompt "一个女孩在海边微笑，微风吹拂头发，阳光明媚" \
+  --duration 5 \
+  --target "user:ou_xxx"
 
 # 语音
 bash scripts/aevia.sh "发语音：早上好呀" feishu
@@ -65,7 +78,8 @@ export AEVIA_CHARACTER_NAME="小柔"
 ## API
 
 - 聊天：Qwen3.5-plus
-- 自拍：Wan2.6-image
+- 自拍：Wan2.6-image / qwen-image-2.0-pro
+- 视频：wan2.6-i2v
 - 头像：Z-image-turbo
 - 语音：CosyVoice-v3-flash（默认：longyingxiao_v3）
 
@@ -73,6 +87,28 @@ export AEVIA_CHARACTER_NAME="小柔"
 - 飞书：OPUS 格式（语音气泡）
 - 其他：MP3 格式
 - 首包延迟：~1.6 秒
+
+## 视频生成 API
+
+**模型**：wan2.6-i2v
+
+**支持模式**：
+- 图片 + 文字 → 视频
+- 纯文字 → 视频
+- 图片 + 文字 + 音频 → 视频（带音频）
+
+**参数**：
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| resolution | 分辨率 | 720P |
+| duration | 视频时长 | 10 秒 |
+| audio | 是否启用音频 | false |
+| shot_type | 镜头类型 | multi |
+| prompt_extend | 是否扩展提示词 | true |
+
+**生成时间**：约 3-10 分钟（异步任务）
+
+**输出格式**：MP4
 
 ## TTS 高级用法
 

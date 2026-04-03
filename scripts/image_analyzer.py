@@ -126,17 +126,20 @@ def build_reference_prompt(description: str) -> str:
     # 开头：明确指令 - 保留 B 脸，套用 A 的场景/穿搭/姿态
     instruction = "以图生图，严格保留输入图片的人脸五官、脸型、神态不变，替换为参考图的全身穿搭、姿态、背景与风格"
     
-    # 基础风格标签 - 减少妆容感，清淡妆容
-    base_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红"
+    # 基础风格标签 - 减少妆容感，清淡妆容，性感妩媚
+    base_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红，性感妩媚，女人味十足，迷人眼神，撩人姿态"
     
     # 真实感标签 - 强调自然融合
     realistic_tags = "超高写实，面部清晰自然，光影统一，细节真实，比例正常，无违和融合，高质量人像"
     
-    # 质量标签
-    quality_tags = "8K 超高清，电影级布光，细节丰富，色彩自然"
+    # 质量标签 - 强调自然摄影、真实无 AI 感
+    quality_tags = "自然摄影，真实照片，无 AI 感，无塑料感，真实光影，自然质感，细节丰富，色彩自然，人物高清，脸部高清，五官清晰，皮肤细腻，发丝清晰"
+    
+    # 反向提示词 - 避免多手多腿等畸形问题
+    negative_tags = "避免畸形，避免多手多腿，避免肢体扭曲，避免多余肢体，避免肢体融合，避免肢体重复，正常人体结构，双手双脚，比例正确"
     
     # 组合完整 prompt - 简洁清晰
-    full_prompt = f"{instruction}。{description}。{base_style}。{realistic_tags}。{quality_tags}"
+    full_prompt = f"{instruction}。{description}。{base_style}。{realistic_tags}。{quality_tags}。{negative_tags}"
     
     return full_prompt
 
