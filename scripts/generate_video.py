@@ -1,70 +1,94 @@
 #!/usr/bin/env python3
-"""generate_video.py - 小柔统一视频生成工具
+"""generate_video.py - 小柔统一视频生成工具（优化版）
 
 整合所有视频生成功能：
 1. 图生视频（本地图片 → 视频）
 2. 图片 + 音频 → 视频
-3. 纯文字 → 视频（使用示例图片）
-4. 参考图生图 + 视频（完整流程）
 
 支持模型：
 - wan2.7-i2v（推荐，最新）
 - wan2.6-i2v
 
-使用阿里云 DashScope 官方上传 API，无需额外配置 OSS。
+优化内容：
+- 使用统一配置模块
+- 添加重试机制
+- 使用连接池
+- 改进错误处理
+- 安全临时文件处理
 """
 
 import os
 import sys
-import json
 import time
 import requests
 import logging
-import re
 import subprocess
 from pathlib import Path
 from typing import Optional, Tuple
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stderr)
+# 导入统一配置
+from config import config, ConfigurationError
+
+# ============ 配置初始化 ============
+
 logger = logging.getLogger(__name__)
 
+# 使用配置模块
+TEMP_DIR = config.get_video_dir()
+POLL_INTERVAL = config.get_poll_interval()
+MAX_WAIT = config.get_max_wait()
+FEISHU_TARGET = config.get_feishu_target()
 
-# ============ 配置 ============
+# 创建 requests session（连接池）
+session = requests.Session()
 
-DASHSCOPE_API_KEY = os.environ.get('DASHSCOPE_API_KEY', '')
-FEISHU_TARGET = os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
 
-# 临时文件目录
-TEMP_DIR = Path('/tmp/xiaorou_video')
-TEMP_DIR.mkdir(exist_ok=True)
+# ============ 重试装饰器 ============
+
+def retry_on_failure(max_attempts: int = 3, delay: float = 1.0):
+    """
+    重试装饰器
+    
+    Args:
+        max_attempts: 最大重试次数
+        delay: 初始延迟（秒）
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    if attempt < max_attempts:
+                        logger.warning(f"⚠️ 尝试 {attempt}/{max_attempts} 失败：{e}，{delay}秒后重试...")
+                        time.sleep(delay)
+                        delay *= 2  # 指数退避
+                    else:
+                        logger.error(f"❌ 尝试 {max_attempts}/{max_attempts} 失败")
+            raise last_exception
+        return wrapper
+    return decorator
 
 
 # ============ 工具函数 ============
 
-def validate_config() -> str:
-    """验证并加载 API Key"""
-    if DASHSCOPE_API_KEY and re.match(r'^sk-[a-zA-Z0-9]{20,}$', DASHSCOPE_API_KEY):
-        logger.info("✓ 从环境变量加载 API Key")
-        return DASHSCOPE_API_KEY
-    
-    config_file = os.path.expanduser('~/.openclaw/openclaw.json')
-    if os.path.exists(config_file):
-        with open(config_file, 'r') as f:
-            config = json.load(f)
-        api_key = config.get('models', {}).get('providers', {}).get('dashscope', {}).get('apiKey', '')
-        if api_key:
-            logger.info("✓ 从 OpenClaw 配置文件加载 API Key")
-            return api_key
-    
-    raise Exception("API Key 未设置")
-
-
+@retry_on_failure(max_attempts=3, delay=1.0)
 def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.7-i2v") -> Optional[str]:
     """
     使用 DashScope 官方上传 API 获取临时文件 URL
     
     参考：https://help.aliyun.com/zh/model-studio/get-temporary-file-url
     有效期：48 小时
+    
+    Args:
+        file_path: 本地文件路径
+        api_key: DashScope API Key
+        model_name: 模型名称
+    
+    Returns:
+        oss:// URL（失败返回 None）
     """
     try:
         # 1. 获取上传凭证
@@ -73,7 +97,7 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.7-
         params = {"action": "getPolicy", "model": model_name}
         headers = {"Authorization": f"Bearer {api_key}"}
         
-        response = requests.get(policy_url, headers=headers, params=params, timeout=30)
+        response = session.get(policy_url, headers=headers, params=params, timeout=30)
         if response.status_code != 200:
             logger.error(f"❌ 获取上传凭证失败：{response.text[:200]}")
             return None
@@ -102,7 +126,7 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.7-
                 'file': (file_name, f)
             }
             
-            response = requests.post(policy_data['upload_host'], files=files, timeout=60)
+            response = session.post(policy_data['upload_host'], files=files, timeout=60)
         
         if response.status_code != 200:
             logger.error(f"❌ 上传失败：{response.text[:200]}")
@@ -115,11 +139,18 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.7-
         
         return oss_url
         
+    except requests.exceptions.Timeout:
+        logger.error("❌ 上传超时，请检查网络连接")
+        return None
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"❌ 连接错误：{e}")
+        return None
     except Exception as e:
-        logger.error(f"❌ 上传异常：{e}")
+        logger.error(f"❌ 上传异常：{type(e).__name__}: {e}")
         return None
 
 
+@retry_on_failure(max_attempts=3, delay=2.0)
 def generate_video(
     prompt: str,
     img_url: Optional[str] = None,
@@ -145,7 +176,7 @@ def generate_video(
         (成功标志，视频 URL 或错误信息)
     """
     if not api_key:
-        api_key = validate_config()
+        api_key = config.get_api_key()
     
     logger.info(f"🎬 开始生成视频...")
     logger.info(f"  模型：{model}")
@@ -173,7 +204,7 @@ def generate_video(
                 "resolution": resolution,
                 "prompt_extend": True,
                 "duration": duration,
-                "watermark": False
+                "watermark": False  # 关闭水印
             }
         }
     else:
@@ -210,7 +241,7 @@ def generate_video(
         if has_oss:
             headers['X-DashScope-OssResourceResolve'] = 'enable'
         
-        response = requests.post(
+        response = session.post(
             'https://dashscope.aliyuncs.com/api/v1/services/aigc/video-generation/video-synthesis',
             headers=headers,
             json=payload,
@@ -233,23 +264,36 @@ def generate_video(
         # 轮询任务状态
         return poll_task_status(task_id, api_key)
         
+    except requests.exceptions.Timeout:
+        logger.error("❌ API 请求超时")
+        return (False, "API 请求超时，请检查网络连接")
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"❌ 连接错误：{e}")
+        return (False, f"无法连接 API 服务：{str(e)}")
     except Exception as e:
-        logger.error(f"❌ 请求失败：{e}")
-        return (False, f"请求失败：{e}")
+        logger.error(f"❌ 请求失败：{type(e).__name__}: {e}")
+        return (False, f"请求失败：{type(e).__name__}")
 
 
-def poll_task_status(task_id: str, api_key: str, max_wait: int = 600) -> Tuple[bool, str]:
-    """轮询任务状态直到完成"""
+def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
+    """
+    轮询任务状态直到完成（使用指数退避）
+    
+    Args:
+        task_id: 任务 ID
+        api_key: DashScope API Key
+    
+    Returns:
+        (成功标志，视频 URL 或错误信息)
+    """
     logger.info(f"⏳ 等待视频生成完成...")
     
     start_time = time.time()
-    poll_interval = 10
+    poll_interval = POLL_INTERVAL  # 初始轮询间隔
     
-    while time.time() - start_time < max_wait:
-        time.sleep(poll_interval)
-        
+    while time.time() - start_time < MAX_WAIT:
         try:
-            response = requests.get(
+            response = session.get(
                 f'https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}',
                 headers={'Authorization': f'Bearer {api_key}'},
                 timeout=30
@@ -272,34 +316,61 @@ def poll_task_status(task_id: str, api_key: str, max_wait: int = 600) -> Tuple[b
                 return (False, f"视频生成失败：{error_message}")
             
             elif task_status in ['PENDING', 'RUNNING']:
+                # 指数退避：每次增加 50%，最大 30 秒
+                time.sleep(poll_interval)
+                poll_interval = min(poll_interval * 1.5, 30)
                 continue
             
             else:
                 logger.warning(f"⚠️ 未知状态：{task_status}")
+                time.sleep(poll_interval)
                 continue
                 
+        except requests.exceptions.Timeout:
+            logger.error("❌ 轮询超时")
+            continue
         except Exception as e:
-            logger.error(f"❌ 轮询失败：{e}")
+            logger.error(f"❌ 轮询失败：{type(e).__name__}: {e}")
             continue
     
-    logger.error(f"❌ 等待超时（{max_wait}秒）")
-    return (False, f"等待超时（{max_wait}秒）")
+    logger.error(f"❌ 等待超时（{MAX_WAIT}秒）")
+    return (False, f"等待超时（{MAX_WAIT}秒）")
 
 
 def download_video(video_url: str, output_path: str) -> bool:
-    """下载视频到本地"""
+    """
+    下载视频到本地（原子操作，避免不完整文件）
+    
+    Args:
+        video_url: 视频 URL
+        output_path: 输出文件路径
+    
+    Returns:
+        是否成功
+    """
     logger.info(f"📥 下载视频到：{output_path}")
     
+    temp_path = str(output_path) + '.tmp'
+    
     try:
-        response = requests.get(video_url, timeout=300)
-        with open(output_path, 'wb') as f:
-            f.write(response.content)
+        response = session.get(video_url, timeout=300, stream=True)
+        response.raise_for_status()
+        
+        with open(temp_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        
+        # 原子操作：重命名临时文件
+        os.replace(temp_path, output_path)
         
         logger.info(f"✅ 视频已保存：{output_path}")
         return True
         
     except Exception as e:
-        logger.error(f"❌ 下载失败：{e}")
+        logger.error(f"❌ 下载失败：{type(e).__name__}: {e}")
+        # 清理不完整文件
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
         return False
 
 
@@ -325,8 +396,11 @@ def send_to_feishu(video_path: str, caption: str, target: str = FEISHU_TARGET) -
         logger.error(f"❌ 发送失败：{result.stderr}")
         return False
         
+    except subprocess.TimeoutExpired:
+        logger.error("❌ 发送超时")
+        return False
     except Exception as e:
-        logger.error(f"❌ 发送异常：{e}")
+        logger.error(f"❌ 发送异常：{type(e).__name__}: {e}")
         return False
 
 
@@ -362,7 +436,7 @@ def image_to_video(
     logger.info("🎬 小柔图生视频流程启动")
     logger.info("=" * 60)
     
-    api_key = validate_config()
+    api_key = config.get_api_key()
     timestamp = int(time.time())
     
     # 步骤 1: 验证图片
@@ -430,6 +504,14 @@ def image_to_video(
 if __name__ == "__main__":
     import argparse
     
+    # 配置日志级别
+    log_level = config.get_log_level()
+    logging.basicConfig(
+        level=getattr(logging, log_level, logging.INFO),
+        format='%(levelname)s: %(message)s',
+        stream=sys.stderr
+    )
+    
     parser = argparse.ArgumentParser(
         description='小柔统一视频生成工具',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -461,21 +543,28 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    video_path = image_to_video(
-        image_path=args.image,
-        prompt=args.prompt,
-        audio_path=args.audio,
-        resolution=args.resolution,
-        duration=args.duration,
-        model=args.model,
-        target=args.target,
-        send_message=not args.no_send
-    )
-    
-    if video_path:
-        print(f"\n✅ 视频生成成功！")
-        print(f"   本地路径：{video_path}")
-        sys.exit(0)
-    else:
-        print(f"\n❌ 视频生成失败")
+    try:
+        video_path = image_to_video(
+            image_path=args.image,
+            prompt=args.prompt,
+            audio_path=args.audio,
+            resolution=args.resolution,
+            duration=args.duration,
+            model=args.model,
+            target=args.target,
+            send_message=not args.no_send
+        )
+        
+        if video_path:
+            print(f"\n✅ 视频生成成功！")
+            print(f"   本地路径：{video_path}")
+            sys.exit(0)
+        else:
+            print(f"\n❌ 视频生成失败")
+            sys.exit(1)
+    except ConfigurationError as e:
+        print(f"\n❌ 配置错误：{e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ 未知错误：{type(e).__name__}: {e}")
         sys.exit(1)

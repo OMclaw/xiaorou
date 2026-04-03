@@ -23,11 +23,22 @@ from pathlib import Path
 from typing import Optional, Tuple, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-DEFAULT_IMAGE_SIZE = "1K"  # 改成 1K 分辨率提高速度
-PROMPT_EXTEND = False  # 关闭自动扩展，避免过度美化导致假
-MAX_INPUT_LENGTH = 500
+# 导入统一配置
+from config import config, ConfigurationError, get_temp_file
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stderr)
+# 使用配置模块
+TEMP_DIR = config.get_selfie_dir()
+MAX_INPUT_LENGTH = 500
+DEFAULT_IMAGE_SIZE = "1K"
+PROMPT_EXTEND = False
+
+# 配置日志级别
+log_level = config.get_log_level()
+logging.basicConfig(
+    level=getattr(logging, log_level, logging.INFO),
+    format='%(levelname)s: %(message)s',
+    stream=sys.stderr
+)
 logger = logging.getLogger(__name__)
 
 
@@ -369,7 +380,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
         
         # 保留一份最新的小柔照片到固定路径（供视频生成使用）
-        latest_path = '/tmp/openclaw/selfie_latest.jpg'
+        latest_path = config.get_temp_dir() / 'selfie_latest.jpg'
         try:
             import shutil
             shutil.copy2(temp_file, latest_path)
