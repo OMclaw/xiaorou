@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""image_to_video.py - 图生视频模块
+"""generate_video.py - 小柔统一视频生成工具
 
-直接使用用户提供的图片 + 文字描述生成视频
-支持：
-1. 本地图片 → 上传到阿里云 OSS → 生成视频
-2. 图片 + 文字 → 视频
-3. 发送到飞书
+整合所有视频生成功能：
+1. 图生视频（本地图片 → 视频）
+2. 图片 + 音频 → 视频
+3. 纯文字 → 视频（使用示例图片）
+4. 参考图生图 + 视频（完整流程）
 
-使用模型：wan2.6-i2v
+支持模型：
+- wan2.7-i2v（推荐，最新）
+- wan2.6-i2v
+
+使用阿里云 DashScope 官方上传 API，无需额外配置 OSS。
 """
 
 import os
@@ -55,11 +59,12 @@ def validate_config() -> str:
     raise Exception("API Key 未设置")
 
 
-def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-i2v") -> Optional[str]:
+def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.7-i2v") -> Optional[str]:
     """
     使用 DashScope 官方上传 API 获取临时文件 URL
     
     参考：https://help.aliyun.com/zh/model-studio/get-temporary-file-url
+    有效期：48 小时
     """
     try:
         # 1. 获取上传凭证
@@ -84,7 +89,7 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-
         file_name = Path(file_path).name
         key = f"{policy_data['upload_dir']}/{file_name}"
         
-        logger.info(f"📤 正在上传图片...")
+        logger.info(f"📤 正在上传文件...")
         with open(file_path, 'rb') as f:
             files = {
                 'OSSAccessKeyId': (None, policy_data['oss_access_key_id']),
@@ -105,7 +110,8 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-
         
         # 返回 oss:// URL
         oss_url = f"oss://{key}"
-        logger.info(f"✅ 图片上传成功：{oss_url}")
+        logger.info(f"✅ 文件上传成功：{oss_url}")
+        logger.info(f"⏰ 有效期：48 小时")
         
         return oss_url
         
@@ -114,57 +120,9 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-
         return None
 
 
-def upload_to_aliyun_oss(file_path: str, api_key: str) -> Optional[str]:
-    """
-    上传文件到阿里云 OSS 获取公网 URL（使用 DashScope 官方 API）
-    """
-    oss_url = upload_to_dashscope(file_path, api_key, "wan2.6-i2v")
-    
-    if oss_url:
-        # 注意：oss:// URL 需要在请求头中添加 X-DashScope-OssResourceResolve: enable
-        # 但视频生成 API 支持直接使用 oss:// URL
-        return oss_url
-    
-    return None
-
-
-def upload_to_aliyun_dashscope(file_path: str, api_key: str) -> Optional[str]:
-    """
-    使用阿里云 DashScope 的文件上传接口
-    
-    注意：DashScope 没有公开的文件上传 API，需要使用 OSS
-    """
-    # 尝试使用 dashscope 的上传接口
-    try:
-        upload_url = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/files/upload'
-        
-        with open(file_path, 'rb') as f:
-            files = {'file': (os.path.basename(file_path), f, 'image/png')}
-            response = requests.post(
-                upload_url,
-                headers={'Authorization': f'Bearer {api_key}'},
-                files=files,
-                timeout=60
-            )
-        
-        if response.status_code == 200:
-            result = response.json()
-            file_url = result.get('output', {}).get('url', '')
-            if file_url:
-                logger.info(f"✅ 文件上传成功：{file_url}")
-                return file_url
-        
-        logger.warning(f"⚠️ DashScope 上传失败：{response.text[:200]}")
-        return None
-        
-    except Exception as e:
-        logger.warning(f"⚠️ DashScope 上传异常：{e}")
-        return None
-
-
 def generate_video(
     prompt: str,
-    img_url: str,
+    img_url: Optional[str] = None,
     audio_url: Optional[str] = None,
     resolution: str = "720P",
     duration: int = 5,
@@ -192,30 +150,21 @@ def generate_video(
     logger.info(f"🎬 开始生成视频...")
     logger.info(f"  模型：{model}")
     logger.info(f"  提示词：{prompt[:100]}...")
-    logger.info(f"  图片 URL: {img_url}")
+    logger.info(f"  图片 URL: {img_url or '无'}")
     logger.info(f"  音频 URL: {audio_url or '无'}")
     logger.info(f"  分辨率：{resolution}")
     logger.info(f"  时长：{duration}秒")
     
-    # 构建请求体 - wan2.7-i2v 使用 media 数组格式
+    # 构建请求体
     if model == "wan2.7-i2v":
         # wan2.7-i2v 新格式：使用 media 数组
-        input_data = {
-            "prompt": prompt,
-            "media": [
-                {
-                    "type": "first_frame",
-                    "url": img_url
-                }
-            ]
-        }
+        input_data = {"prompt": prompt, "media": []}
         
-        # 如果有音频，添加到 media 数组
+        if img_url:
+            input_data["media"].append({"type": "first_frame", "url": img_url})
+        
         if audio_url:
-            input_data["media"].append({
-                "type": "driving_audio",
-                "url": audio_url
-            })
+            input_data["media"].append({"type": "driving_audio", "url": audio_url})
         
         payload = {
             "model": model,
@@ -229,10 +178,10 @@ def generate_video(
         }
     else:
         # wan2.6-i2v 旧格式：使用 img_url
-        input_data = {
-            "prompt": prompt,
-            "img_url": img_url
-        }
+        input_data = {"prompt": prompt}
+        
+        if img_url:
+            input_data["img_url"] = img_url
         
         if audio_url:
             input_data["audio_url"] = audio_url
@@ -257,7 +206,8 @@ def generate_video(
         }
         
         # 如果是 oss:// URL，需要添加 OSS 资源解析 header
-        if img_url.startswith('oss://') or (audio_url and audio_url.startswith('oss://')):
+        has_oss = (img_url and img_url.startswith('oss://')) or (audio_url and audio_url.startswith('oss://'))
+        if has_oss:
             headers['X-DashScope-OssResourceResolve'] = 'enable'
         
         response = requests.post(
@@ -289,21 +239,11 @@ def generate_video(
 
 
 def poll_task_status(task_id: str, api_key: str, max_wait: int = 600) -> Tuple[bool, str]:
-    """
-    轮询任务状态直到完成
-    
-    Args:
-        task_id: 任务 ID
-        api_key: DashScope API Key
-        max_wait: 最大等待时间（秒）
-    
-    Returns:
-        (成功标志，视频 URL 或错误信息)
-    """
+    """轮询任务状态直到完成"""
     logger.info(f"⏳ 等待视频生成完成...")
     
     start_time = time.time()
-    poll_interval = 10  # 每 10 秒轮询一次
+    poll_interval = 10
     
     while time.time() - start_time < max_wait:
         time.sleep(poll_interval)
@@ -399,8 +339,9 @@ def image_to_video(
     resolution: str = "720P",
     duration: int = 5,
     model: str = "wan2.7-i2v",
-    target: str = FEISHU_TARGET
-) -> bool:
+    target: str = FEISHU_TARGET,
+    send_message: bool = True
+) -> Optional[str]:
     """
     图生视频完整流程（支持图片 + 音频）
     
@@ -410,11 +351,12 @@ def image_to_video(
         audio_path: 本地音频路径（可选）
         resolution: 分辨率
         duration: 视频时长
-        model: 模型名称 (wan2.7-i2v / wan2.6-i2v)
+        model: 模型名称
         target: 飞书目标用户
+        send_message: 是否发送到飞书
     
     Returns:
-        是否成功
+        视频文件路径（失败返回 None）
     """
     logger.info("=" * 60)
     logger.info("🎬 小柔图生视频流程启动")
@@ -426,7 +368,7 @@ def image_to_video(
     # 步骤 1: 验证图片
     if not os.path.exists(image_path):
         logger.error(f"❌ 图片不存在：{image_path}")
-        return False
+        return None
     
     logger.info(f"📸 步骤 1: 验证图片...")
     logger.info(f"  图片路径：{image_path}")
@@ -434,18 +376,17 @@ def image_to_video(
     
     # 步骤 2: 上传图片到 OSS
     logger.info(f"📤 步骤 2: 上传图片到 DashScope OSS...")
-    
-    img_url = upload_to_aliyun_oss(image_path, api_key, model)
+    img_url = upload_to_dashscope(image_path, api_key, model)
     
     if not img_url:
         logger.error("❌ 流程终止：图片上传失败")
-        return False
+        return None
     
     # 步骤 3: 上传音频（如果有）
     audio_url = None
     if audio_path and os.path.exists(audio_path):
         logger.info(f"🎵 步骤 3: 上传音频到 DashScope OSS...")
-        audio_url = upload_to_aliyun_oss(audio_path, api_key, model)
+        audio_url = upload_to_dashscope(audio_path, api_key, model)
         if not audio_url:
             logger.warning("⚠️ 音频上传失败，继续无音频视频流程...")
     
@@ -462,27 +403,26 @@ def image_to_video(
     
     if not success:
         logger.error(f"❌ 流程终止：视频生成失败 - {video_result}")
-        return False
+        return None
     
-    video_url = video_result
-    
-    # 步骤 4: 下载视频
+    # 步骤 5: 下载视频
     video_path = TEMP_DIR / f"video_{timestamp}.mp4"
-    if not download_video(video_url, str(video_path)):
+    if not download_video(video_result, str(video_path)):
         logger.error("❌ 流程终止：视频下载失败")
-        return False
+        return None
     
-    # 步骤 5: 发送到飞书
-    caption = f"🎬 小柔生成的视频～\n{prompt[:50]}..."
-    if not send_to_feishu(str(video_path), caption, target):
-        logger.error("❌ 流程终止：发送失败")
-        return False
+    # 步骤 6: 发送到飞书
+    if send_message:
+        caption = f"🎬 小柔生成的视频～\n{prompt[:50]}..."
+        if not send_to_feishu(str(video_path), caption, target):
+            logger.error("❌ 流程终止：发送失败")
+            return None
     
     logger.info("=" * 60)
     logger.info("✅ 视频生成流程完成！")
     logger.info("=" * 60)
     
-    return True
+    return str(video_path)
 
 
 # ============ 命令行入口 ============
@@ -490,7 +430,26 @@ def image_to_video(
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description='小柔图生视频工具（支持图片 + 音频）')
+    parser = argparse.ArgumentParser(
+        description='小柔统一视频生成工具',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例用法:
+
+1. 图生视频（推荐 wan2.7-i2v）:
+   python3 generate_video.py --image photo.jpg --prompt "描述文字" --model wan2.7-i2v
+
+2. 图片 + 音频 → 视频:
+   python3 generate_video.py --image photo.jpg --audio audio.mp3 --prompt "描述文字"
+
+3. 自定义时长和分辨率:
+   python3 generate_video.py --image photo.jpg --prompt "描述文字" --duration 10 --resolution 1080P
+
+4. 不自动发送（只生成）:
+   python3 generate_video.py --image photo.jpg --prompt "描述文字" --no-send
+        """
+    )
+    
     parser.add_argument('--image', type=str, required=True, help='输入图片路径')
     parser.add_argument('--prompt', type=str, required=True, help='视频描述提示词')
     parser.add_argument('--audio', type=str, help='输入音频路径（可选）')
@@ -498,17 +457,25 @@ if __name__ == "__main__":
     parser.add_argument('--resolution', type=str, default='720P', help='分辨率 (720P/1080P)')
     parser.add_argument('--duration', type=int, default=5, help='视频时长（秒）')
     parser.add_argument('--target', type=str, default=FEISHU_TARGET, help='飞书目标用户')
+    parser.add_argument('--no-send', action='store_true', help='不自动发送到飞书')
     
     args = parser.parse_args()
     
-    success = image_to_video(
+    video_path = image_to_video(
         image_path=args.image,
         prompt=args.prompt,
         audio_path=args.audio,
         resolution=args.resolution,
         duration=args.duration,
         model=args.model,
-        target=args.target
+        target=args.target,
+        send_message=not args.no_send
     )
     
-    sys.exit(0 if success else 1)
+    if video_path:
+        print(f"\n✅ 视频生成成功！")
+        print(f"   本地路径：{video_path}")
+        sys.exit(0)
+    else:
+        print(f"\n❌ 视频生成失败")
+        sys.exit(1)
