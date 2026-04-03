@@ -57,6 +57,14 @@ class Config:
         temp_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         return temp_dir
     
+    def get_selfie_dir(self) -> Path:
+        """获取自拍保存目录"""
+        # 优先使用工作目录
+        workspace = Path.home() / '.openclaw/workspace'
+        selfie_dir = workspace / 'xiaorou-selfies'
+        selfie_dir.mkdir(mode=0o755, parents=True, exist_ok=True)
+        return selfie_dir
+    
     def get_log_level(self) -> str:
         """获取日志级别"""
         return os.environ.get('XIAOROU_LOG_LEVEL', 'INFO').upper()
@@ -64,6 +72,14 @@ class Config:
     def get_feishu_target(self) -> str:
         """获取飞书目标用户"""
         return os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
+
+
+def get_temp_file(suffix: str = '.png') -> Path:
+    """生成临时文件路径"""
+    import tempfile
+    fd, path = tempfile.mkstemp(suffix=suffix, dir=str(config.get_temp_dir()))
+    os.close(fd)
+    return Path(path)
 
 
 # 全局实例
