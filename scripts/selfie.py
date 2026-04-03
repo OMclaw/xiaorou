@@ -98,9 +98,32 @@ def validate_channel(channel: Optional[str]) -> Optional[str]:
     valid_channels = {'feishu', 'telegram', 'discord', 'whatsapp'}
     return channel.lower() if channel.lower() in valid_channels else None
 
+#!/usr/bin/env python3
+"""image_analyzer.py - 参考图分析模块 (使用 qwen3.5-plus 视觉能力)
+
+分析参考图，提取场景、姿势、服装、光线等描述，用于后续图生图。
+"""
+
+import dashscope
+import os
+import sys
+import json
+import base64
+import logging
+import re
+from pathlib import Path
+from typing import Optional
+
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stderr)
+logger = logging.getLogger(__name__)
+
+
+class ConfigurationError(Exception): pass
+class ImageAnalysisError(Exception): pass
+
 
 def validate_config() -> str:
-    """验证并加载 API Key，支持环境变量和 OpenClaw 配置文件"""
+    """验证并加载 API Key"""
     api_key = os.environ.get('DASHSCOPE_API_KEY', '')
     if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
         logger.info("✓ 从环境变量加载 API Key")
@@ -120,697 +143,219 @@ def validate_config() -> str:
         except Exception as e:
             logger.debug(f"读取配置文件失败：{e}")
     
-    raise ConfigurationError("API Key 未设置，请配置环境变量或 ~/.openclaw/openclaw.json")
+    raise ConfigurationError("API Key 未设置")
 
 
-def validate_character_image() -> Path:
-    script_dir = Path(__file__).resolve().parent
-    character_path = script_dir.parent / 'assets/default-character.png'
-    if not character_path.exists():
-        raise FileNotFoundError(f"头像文件不存在：{character_path}")
-    return character_path
-
-
-def get_image_base64(image_path: Path) -> str:
+def get_image_base64(image_path: str) -> str:
+    """读取图片并转换为 base64"""
     with open(image_path, 'rb') as f:
-        return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        image_data = base64.b64encode(f.read()).decode('utf-8')
+    return f"data:image/jpeg;base64,{image_data}"
 
 
-def build_prompt(context: str) -> Tuple[str, str]:
-    """构建网红风格图片生成 prompt - 自然真实版本"""
-    context_lower = context.lower()
-    
-    # 网红风格基础元素 - 减少 AI 感，增加真实感，清淡妆容，无腮红
-    influencer_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红"
-    
-    # 真实感增强标签 - 自然光滑，无黑点，淡粉色嘴唇，无腮红，色彩自然，正确人体结构，清淡妆容
-    realistic_tags = "真实摄影，自然光滑皮肤，清透肌肤，真实光影，柔和光线，生活照风格，无 AI 感，无塑料感，无黑点，无瑕疵，无口红，裸唇，唇色自然，无妆感，嘴唇本色，无腮红，清淡底妆，底妆轻薄透明，腮红极淡，几乎无腮红，裸妆效果，妆容极淡，色彩柔和自然，低饱和度，避免过度鲜艳，正确人体结构，正常双手，无多余肢体，妆容清淡自然，脸部妆容自然，避免浓妆，色彩素雅，莫兰迪色系，极低饱和度，色彩非常淡，淡雅色调，低对比度，柔和色彩"
-    
-    # 质量标签 - 强调色彩自然和正确结构
-    quality_tags = "8K 超高清，电影级布光，细节丰富，色彩自然柔和，低饱和度，真实色调，正确人体比例，妆容自然，素雅色彩，极低饱和度"
-    
-    mirror_keywords = ['穿', '衣服', '穿搭', '全身', '镜子']
-    if any(kw in context_lower for kw in mirror_keywords):
-        return "mirror", f"{influencer_style}，{context}，全身照，对镜拍摄，网红打卡场景，自然光线，{realistic_tags}，{quality_tags}"
-    
-    # 默认网红风格 prompt - 强调自然真实
-    return "direct", f"{influencer_style}，{context}，眼神直视镜头，自然微笑，真实五官，时尚造型，网红打卡背景，{realistic_tags}，{quality_tags}"
-
-
-def generate_single_image(model_name: str, image_path: Path, prompt: str, api_key: str) -> Tuple[str, Optional[str]]:
+def analyze_image(image_path: str, api_key: str) -> str:
     """
-    使用指定模型生成单张图片
-    
-    Returns:
-        (model_name, image_url) 或 (model_name, None) 如果失败
-    """
-    try:
-        dashscope.api_key = api_key
-        input_image_base64 = get_image_base64(image_path)
-        logger.info(f"🖼️ 使用本地头像，模型：{model_name}")
-        
-        # 不同模型的尺寸参数格式不同 - 全部改成 1K
-        if model_name == 'qwen-image-2.0-pro':
-            size_param = '1024*1024'  # qwen-image-2.0-pro 使用 1K 分辨率
-        else:
-            size_param = DEFAULT_IMAGE_SIZE  # wan2.7-image 使用 1K
-        
-        payload = {
-            'model': model_name,
-            'input': {'messages': [{'role': 'user', 'content': [{'image': input_image_base64}, {'text': prompt}]}]},
-            'parameters': {'prompt_extend': PROMPT_EXTEND, 'watermark': False, 'n': 1, 'enable_interleave': False, 'size': size_param}
-        }
-        
-        response = requests.post(
-            'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
-            headers={
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json',
-                'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'
-            },
-            json=payload, timeout=120
-        )
-        
-        result_json = response.json()
-        if response.status_code == 200 and result_json.get('output'):
-            output = result_json['output']
-            if 'choices' in output and len(output['choices']) > 0:
-                image_url = output['choices'][0]['message']['content'][0]['image']
-                logger.info(f"✅ {model_name} 生成成功")
-                return (model_name, image_url)
-        
-        logger.error(f"❌ {model_name} API 错误：{result_json}")
-        return (model_name, None)
-        
-    except Exception as e:
-        logger.error(f"❌ {model_name} 错误：{e}")
-        return (model_name, None)
-
-
-def generate_images_dual_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
-    """
-    使用两个模型并发生成图片
-    
-    Returns:
-        [(model_name, image_url), ...] 成功生成的图片列表
-    """
-    models = ['wan2.7-image', 'qwen-image-2.0-pro']
-    results = []
-    
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = {
-            executor.submit(generate_single_image, model, image_path, prompt, api_key): model
-            for model in models
-        }
-        
-        for future in as_completed(futures):
-            model_name, image_url = future.result()
-            if image_url:
-                results.append((model_name, image_url))
-    
-    return results
-
-
-def get_feishu_credentials():
-    """获取飞书 API 凭证"""
-    import json
-    config_file = os.path.expanduser('~/.openclaw/openclaw.json')
-    
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            app_id = config.get('channels', {}).get('feishu', {}).get('appId', '')
-            app_secret = config.get('channels', {}).get('feishu', {}).get('appSecret', '')
-            
-            if not app_id or not app_secret:
-                default_account = config.get('channels', {}).get('feishu', {}).get('defaultAccount', 'main')
-                accounts = config.get('channels', {}).get('feishu', {}).get('accounts', {})
-                app_id = accounts.get(default_account, {}).get('appId', '')
-                app_secret = accounts.get(default_account, {}).get('appSecret', '')
-            
-            if app_id and app_secret:
-                return app_id, app_secret
-        except Exception as e:
-            logger.debug(f"读取飞书配置失败：{e}")
-    
-    app_id = os.environ.get('FEISHU_APP_ID', '')
-    app_secret = os.environ.get('FEISHU_APP_SECRET', '')
-    if app_id and app_secret:
-        return app_id, app_secret
-    
-    return None, None
-
-
-def upload_feishu_image(image_file: str) -> Optional[str]:
-    """上传图片到飞书，返回 image_key"""
-    import requests
-    
-    app_id, app_secret = get_feishu_credentials()
-    if not app_id or not app_secret:
-        logger.warning("未配置飞书凭证，无法使用原生图片格式")
-        return None
-    
-    token_url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/"
-    token_response = requests.post(
-        token_url,
-        headers={"Content-Type": "application/json"},
-        json={"app_id": app_id, "app_secret": app_secret},
-        timeout=30
-    )
-    token_data = token_response.json()
-    access_token = token_data.get('tenant_access_token', '')
-    
-    if not access_token:
-        logger.warning("获取飞书 access_token 失败")
-        return None
-    
-    upload_url = "https://open.feishu.cn/open-apis/im/v1/images"
-    with open(image_file, 'rb') as f:
-        files = {'image': (os.path.basename(image_file), f, 'image/jpeg')}
-        data = {'image_type': 'message'}  # 飞书要求
-        upload_response = requests.post(
-            upload_url,
-            headers={"Authorization": f"Bearer {access_token}"},
-            files=files,
-            data=data,
-            timeout=60
-        )
-    
-    upload_data = upload_response.json()
-    if upload_data.get('code') == 0:
-        image_key = upload_data.get('data', {}).get('image_key', '')
-        logger.info(f"✅ 飞书图片上传成功：{image_key}")
-        return image_key
-    
-    logger.warning(f"飞书图片上传失败：{upload_data}")
-    return None
-
-
-def send_feishu_image_message(image_key: str, caption: str, receive_id: str, receive_id_type: str = "open_id") -> bool:
-    """发送飞书原生图片消息"""
-    import requests
-    
-    app_id, app_secret = get_feishu_credentials()
-    if not app_id or not app_secret:
-        return False
-    
-    token_url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/"
-    token_response = requests.post(
-        token_url,
-        headers={"Content-Type": "application/json"},
-        json={"app_id": app_id, "app_secret": app_secret},
-        timeout=30
-    )
-    token_data = token_response.json()
-    access_token = token_data.get('tenant_access_token', '')
-    
-    if not access_token:
-        return False
-    
-    message_url = f"https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type={receive_id_type}"
-    content = json.dumps({"image_key": image_key, "text": caption})
-    message_data = {
-        "receive_id": receive_id,
-        "msg_type": "image",
-        "content": content
-    }
-    
-    response = requests.post(
-        message_url,
-        headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
-        json=message_data,
-        timeout=60
-    )
-    
-    result = response.json()
-    if result.get('code') == 0:
-        logger.info("✅ 飞书原生图片消息发送成功")
-        return True
-    
-    logger.error(f"飞书图片消息发送失败：{result}")
-    return False
-
-
-def get_model_display(model_name: str) -> str:
-    """获取模型名称的 emoji 显示格式"""
-    model_map = {
-        'wan2.7-image': '🎨【万相 2.7】',
-        'qwen-image-2.0-pro': '🖼️【千问 2.0 Pro】'
-    }
-    return model_map.get(model_name, f'📷【{model_name}】')
-
-
-def send_to_channel(image_url: str, caption: str, channel: str, model_name: str, target: Optional[str] = None) -> bool:
-    """发送图片到频道，飞书使用原生图片格式，其他平台使用文件"""
-    try:
-        logger.info(f"📤 发送到：{channel} (model: {model_name})")
-        import requests, subprocess
-        
-        # 模型名称放在 caption 最开头，使用 emoji 标识
-        model_display = get_model_display(model_name)
-        full_caption = f"{model_display} {caption}"
-        
-        timestamp = int(time.time())
-        temp_file = f'/tmp/openclaw/selfie_{model_name}_{timestamp}.jpg'
-        os.makedirs('/tmp/openclaw', exist_ok=True)
-        
-        response = requests.get(image_url, timeout=30)
-        response.raise_for_status()
-        
-        with open(temp_file, 'wb') as f:
-            f.write(response.content)
-        
-        if os.path.getsize(temp_file) == 0:
-            logger.error("下载的图片文件为空")
-            os.remove(temp_file)
-            return False
-        
-        # 验证文件类型（防止恶意文件）
-        import imghdr
-        img_type = imghdr.what(temp_file)
-        if img_type not in ['jpeg', 'png', 'webp']:
-            logger.error(f"文件类型不正确：{img_type}，仅支持 jpeg/png/webp")
-            os.remove(temp_file)
-            return False
-        
-        if channel == "feishu":
-            send_target = target or os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
-            receive_id = send_target.replace('user:', '') if send_target.startswith('user:') else send_target
-            
-            image_key = upload_feishu_image(temp_file)
-            if image_key:
-                success = send_feishu_image_message(image_key, full_caption, receive_id, "open_id")
-                
-                # 保留一份最新的小柔照片到固定路径（供视频生成使用）
-                latest_path = '/tmp/openclaw/selfie_latest.jpg'
-                try:
-                    import shutil
-                    shutil.copy2(temp_file, latest_path)
-                    logger.info(f"✓ 已保存最新自拍到：{latest_path}")
-                except Exception as e:
-                    logger.warning(f"保存自拍失败：{e}")
-                
-                os.remove(temp_file)
-                return success
-        
-        send_target = target or os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
-        
-        cmd_args = [
-            'openclaw', 'message', 'send',
-            '--channel', channel,
-            '--target', send_target,
-            '--message', full_caption,
-            '--media', temp_file
-        ]
-        
-        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
-        
-        # 保留一份最新的小柔照片到固定路径（供视频生成使用）
-        # 使用原子操作避免 TOCTOU 竞争条件
-        latest_path = config.get_temp_dir() / 'selfie_latest.jpg'
-        try:
-            import shutil
-            # 先写入临时文件，再原子重命名
-            temp_dst = str(latest_path) + '.tmp'
-            shutil.copy2(temp_file, temp_dst)
-            os.replace(temp_dst, str(latest_path))  # 原子操作
-            logger.info(f"✓ 已保存最新自拍到：{latest_path}")
-        except Exception as e:
-            logger.warning(f"保存自拍失败：{e}")
-            # 清理临时文件
-            if os.path.exists(temp_dst):
-                os.remove(temp_dst)
-        
-        try:
-            os.remove(temp_file)
-        except:
-            logger.warning(f"清理临时文件失败：{temp_file}")
-        
-        if result.returncode == 0:
-            logger.info("✓ 图片发送成功")
-            return True
-        
-        logger.error(f"发送失败：{result.stderr}")
-        return False
-        
-    except requests.RequestException as e:
-        logger.error(f"下载图片异常：{e}")
-        return False
-    except subprocess.TimeoutExpired:
-        logger.error("发送超时")
-        return False
-    except Exception as e:
-        logger.error(f"发送异常：{e}")
-        return False
-
-
-def generate_selfie(context: str, caption: str = "给你看看我现在的样子~", channel: Optional[str] = None, target: Optional[str] = None) -> bool:
-    """普通模式：根据文字描述生成图片，双模型并发"""
-    try:
-        api_key = validate_config()
-        logger.info(f"✅ API Key 已加载")
-        
-        image_path = validate_character_image()
-        logger.info("✅ 头像文件验证通过")
-        
-        context = sanitize_input(context)
-        if not context:
-            logger.error("无效的场景描述")
-            return False
-        
-        channel = validate_channel(channel)
-        mode, prompt = build_prompt(context)
-        logger.info(f"📸 模式：{mode}")
-        
-        # 双模型并发生成
-        logger.info("🚀 双模型并发生成中...")
-        results = generate_images_dual_model(image_path, prompt, api_key)
-        
-        if not results:
-            logger.error("❌ 两个模型都生成失败")
-            return False
-        
-        # 发送所有成功生成的图片
-        success_count = 0
-        for model_name, image_url in results:
-            if channel and image_url:
-                if not target:
-                    target = os.environ.get('AEVIA_TARGET')
-                if send_to_channel(image_url, caption, channel, model_name, target):
-                    success_count += 1
-        
-        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
-        return success_count > 0
-        
-    except (ConfigurationError, FileNotFoundError) as e:
-        logger.error(f"❌ 错误：{e}")
-        return False
-    except Exception as e:
-        logger.error(f"❌ 错误：{e}")
-        return False
-
-
-def generate_from_reference(reference_image_path: str, caption: str = "这是模仿参考图生成的～", channel: Optional[str] = None, target: Optional[str] = None, multi_mode: bool = False) -> bool:
-    """
-    参考图模式（优化版 - 新流程）
-    
-    流程：
-    1. 分析参考图 → 提取场景、姿势、服装、光线等描述（**完全忽略人脸**）
-    2. 使用小柔头像作为图生图的输入
-    3. Prompt：保留小柔脸，套用参考图的场景/穿搭/姿态
-    4. 双模型并发生成（wan2.7-image + qwen-image-2.0-pro）
+    使用 qwen3.5-plus 分析参考图，提取场景、姿势、服装、光线等描述
     
     Args:
-        reference_image_path: 参考图路径
-        caption: 发送消息的配文
-        channel: 发送频道
-        target: 发送目标
-        multi_mode: 是否使用多图融合模式
+        image_path: 图片路径
+        api_key: DashScope API Key
     
     Returns:
-        是否成功
+        详细的图片描述 prompt
     """
+    import dashscope
+    from dashscope import MultiModalConversation
+    
+    dashscope.api_key = api_key
+    
     try:
-        api_key = validate_config()
-        logger.info(f"✅ API Key 已加载")
-        
-        # 1. 验证参考图
-        ref_path = Path(reference_image_path)
-        if not ref_path.exists():
-            logger.error(f"参考图不存在：{reference_image_path}")
-            return False
-        logger.info("✅ 参考图验证通过")
-        
-        # 2. 加载小柔头像
-        image_path = validate_character_image()
-        logger.info("✅ 头像文件验证通过（使用小柔头像）")
-        
-        channel = validate_channel(channel)
-        
-        if multi_mode:
-            # ===== 方案二：多图融合模式 =====
-            logger.info("🔀 多图融合模式：小柔头像 + 参考图直接融合")
-            
-            # 多图融合 prompt
-            fusion_prompt = """这是一张人物肖像融合创作。
-图 1 是小柔的头像，请保持她的脸部特征：五官、脸型、发型、妆容风格。
-图 2 是参考图，请学习参考图的场景、姿势、服装、光线、氛围。
-
-要求：
-1. 必须严格保持图 1 人物的脸部特征一致性，不要改变她的眼睛、鼻子、嘴巴、眉毛形状
-2. 采用图 2 的场景、姿势、服装、光线
-3. 保持图 1 人物的身份特征，确保是小柔本人
-4. 妆容清淡自然，裸妆效果，无腮红，无口红，裸唇，唇色自然，无妆感，嘴唇本色
-5. 真实摄影风格，自然光滑皮肤，清透肌肤，无 AI 感，无塑料感
-
-将图 1 的人物完美融入图 2 的场景中，保持脸部一致性的同时，学习参考图的整体风格和氛围。"""
-            
-            logger.info("🚀 正在生成图片（多图融合）...")
-            image_url = generate_images_multi_model(image_path, ref_path, fusion_prompt, api_key)
-            
-            if not image_url:
-                logger.error("❌ 生成失败")
-                return False
-            
-            # 发送图片
-            success_count = 0
-            if channel and image_url:
-                if not target:
-                    target = os.environ.get('AEVIA_TARGET')
-                if send_to_channel(image_url, caption, channel, "qwen-image-2.0-pro", target):
-                    success_count += 1
-            
-            logger.info(f"✅ 成功发送 {success_count} 张图片")
-            return success_count > 0
-            
-        else:
-            # ===== 方案一：分析 + 图生图模式（双模型并发） =====
-            logger.info("🔍 分析参考图模式：提取 prompt 后双模型并发生成")
-            
-            # 3. 分析参考图，提取 prompt
-            script_dir = Path(__file__).resolve().parent
-            analyzer_path = script_dir / 'image_analyzer.py'
-            
-            if not analyzer_path.exists():
-                logger.error(f"图片分析模块不存在：{analyzer_path}")
-                return False
-            
-            import subprocess
-            result = subprocess.run(
-                ['python3.11', str(analyzer_path), reference_image_path],
-                capture_output=True,
-                text=True,
-                timeout=120
-            )
-            
-            if result.returncode != 0:
-                logger.error(f"图片分析失败：{result.stderr}")
-                return False
-            
-            prompt = result.stdout.strip()
-            logger.info(f"✅ 参考图分析完成：{prompt[:100]}...")
-            
-            # 4. 双模型并发生成（wan2.7-image + qwen-image-2.0-pro）
-            logger.info("🚀 双模型并发生成中...")
-            results = generate_images_dual_model(image_path, prompt, api_key)
-            
-            if not results:
-                logger.error("❌ 两个模型都生成失败")
-                return False
-            
-            # 5. 发送所有成功生成的图片
-            success_count = 0
-            for model_name, image_url in results:
-                if channel and image_url:
-                    if not target:
-                        target = os.environ.get('AEVIA_TARGET')
-                    if send_to_channel(image_url, caption, channel, model_name, target):
-                        success_count += 1
-            
-            logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
-            return success_count > 0
-        
-    except (ConfigurationError, FileNotFoundError) as e:
-        logger.error(f"❌ 错误：{e}")
-        return False
+        image_base64 = get_image_base64(image_path)
     except Exception as e:
-        logger.error(f"❌ 错误：{e}")
-        return False
+        raise ImageAnalysisError(f"读取图片失败：{e}")
+    
+    # 构建分析 prompt - 提取场景、姿势、服装、光线等（完全忽略人脸）
+    analysis_prompt = """请对这张图片进行特征提取，**完全忽略人脸、五官、面部特征、发型**，只提取以下内容：
+
+1. **背景环境**：场景、光线、色调、氛围
+2. **人物姿态**：动作、站姿/坐姿/朝向、肢体
+3. **穿着服饰**：风格、款式、颜色、材质
+4. **整体风格**：画质、光影、氛围感、镜头感
+
+**输出格式**：纯关键词，逗号分隔，不要句子，不要描述人脸。"""
+
+    messages = [{
+        'role': 'user',
+        'content': [
+            {'image': image_base64},
+            {'text': analysis_prompt}
+        ]
+    }]
+    
+    try:
+        # 使用 SDK 调用，添加 X-DashScope-DataInspection header 禁用数据检查
+        response = MultiModalConversation.call(
+            model='qwen3.5-plus',
+            messages=messages,
+            api_key=api_key,
+            headers={'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'}
+        )
+        
+        if response.status_code == 200 and response.output:
+            result = response.output.choices[0].message.content[0]['text']
+            logger.info("✅ 图片分析成功")
+            return result
+        
+        raise ImageAnalysisError(f"API 错误：{response.message}")
+    
+    except Exception as e:
+        raise ImageAnalysisError(f"图片分析失败：{e}")
 
 
-def generate_face_swap(target_image_path: str, caption: str = "换脸完成～看看效果怎么样？", channel: Optional[str] = None, target: Optional[str] = None) -> bool:
+def build_reference_prompt(description: str) -> str:
     """
-    换脸模式：把小柔的脸换到用户照片的场景中
-    
-    **核心**：精准换脸 - 小柔的脸 + 目标图场景精确还原
-    
-    方案：
-    - 方案二（precise）：精准换脸 - 小柔的脸 + 目标图场景精确还原，场景不变
-    
-    用两个模型各生成一张 = 2 张图
-    **使用小柔头像作为输入图**（图生图模式）
+    基于参考图分析结果，构建用于图生图的 prompt
     
     Args:
-        target_image_path: 目标图（用户的照片）路径
-        caption: 发送消息的配文
-        channel: 发送频道
-        target: 发送目标
+        description: 参考图分析结果（场景/穿搭/姿态关键词）
     
     Returns:
-        是否成功
+        完整的 prompt，包含保持人物一致性的描述
+    """
+    # 新流程优化版提示词 - 更简洁明确
+    # 开头：明确指令 - 保留 B 脸，套用 A 的场景/穿搭/姿态
+    instruction = "以图生图，严格保留输入图片的人脸五官、脸型、神态不变，替换为参考图的全身穿搭、姿态、背景与风格"
+    
+    # 基础风格标签 - 减少妆容感，清淡妆容，性感妩媚
+    base_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红，性感妩媚，女人味十足，迷人眼神，撩人姿态"
+    
+    # 真实感标签 - 强调自然融合
+    realistic_tags = "超高写实，面部清晰自然，光影统一，细节真实，比例正常，无违和融合，高质量人像"
+    
+    # 质量标签 - 强调自然摄影、真实无 AI 感
+    quality_tags = "自然摄影，真实照片，无 AI 感，无塑料感，真实光影，自然质感，细节丰富，色彩自然，人物高清，脸部高清，五官清晰，皮肤细腻，发丝清晰"
+    
+    # 动作自然标签 - 强调姿势自然、表情生动、生活化
+    natural_pose_tags = "动作自然，姿势舒展，表情生动，神态自然，肢体放松，不僵硬，不做作，生活化姿态，日常动作，自然互动，抓拍感，动态感，流畅动作，舒展肢体，放松状态，姿势自然，体态优美，动作流畅，姿态优雅，肢体协调，动作舒展"
+    
+    # 反向提示词 - 避免多手多腿等畸形问题 + 避免动作僵硬 + 避免奇怪姿势
+    negative_tags = "避免畸形，避免多手多腿，避免肢体扭曲，避免多余肢体，避免肢体融合，避免肢体重复，正常人体结构，双手双脚，比例正确，避免动作僵硬，避免姿势刻板，避免表情呆板，避免摆拍感，避免奇怪姿势，避免不自然动作，避免扭曲肢体，避免怪异体态，避免不协调动作"
+    
+    # 组合完整 prompt - 加入动作自然化
+    full_prompt = f"{instruction}。{description}。{base_style}。{realistic_tags}。{quality_tags}。{natural_pose_tags}。{negative_tags}"
+    
+    return full_prompt
+
+
+def analyze_image_for_face_swap(image_path: str, api_key: str) -> str:
+    """
+    换脸模式专用：只提取场景、姿势、服装、光线，不包含脸部和发型
+    
+    Args:
+        image_path: 图片路径
+        api_key: DashScope API Key
+    
+    Returns:
+        场景描述（不含脸部/发型）
+    """
+    import dashscope
+    from dashscope import MultiModalConversation
+    
+    dashscope.api_key = api_key
+    
+    try:
+        image_base64 = get_image_base64(image_path)
+    except Exception as e:
+        raise ImageAnalysisError(f"读取图片失败：{e}")
+    
+    # 换脸模式专用 prompt - 只提取场景，不提取脸部/发型
+    analysis_prompt = """请分析这张图片，**只提取以下要素**（不要描述脸部和发型）：
+
+1. **场景环境**：室内/室外、具体地点、背景元素、建筑、装饰
+2. **人物姿态**：站姿/坐姿/蹲姿、手部动作、身体角度、与镜头的关系
+3. **服装穿搭**：衣服款式、颜色、风格、配饰（包包、首饰等）
+4. **光线氛围**：自然光/人造光、光线方向、整体色调、时间感（白天/夜晚）
+5. **构图特点**：拍摄角度、景深、构图方式
+
+**不要描述**：
+- ❌ 脸部特征（五官、脸型、妆容）
+- ❌ 发型发色
+
+请用简洁的中文描述，要素之间用逗号分隔，适合作为 AI 绘画的场景 prompt。"""
+
+    messages = [{
+        'role': 'user',
+        'content': [
+            {'image': image_base64},
+            {'text': analysis_prompt}
+        ]
+    }]
+    
+    try:
+        # 使用 SDK 调用，添加 X-DashScope-DataInspection header 禁用数据检查
+        response = MultiModalConversation.call(
+            model='qwen3.5-plus',
+            messages=messages,
+            api_key=api_key,
+            headers={'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'}
+        )
+        
+        if response.status_code == 200 and response.output:
+            result = response.output.choices[0].message.content[0]['text']
+            logger.info("✅ 换脸模式场景分析成功")
+            return result
+        
+        raise ImageAnalysisError(f"API 错误：{response.message}")
+    
+    except Exception as e:
+        raise ImageAnalysisError(f"图片分析失败：{e}")
+
+
+def analyze_image_file(image_path: str) -> Optional[str]:
+    """
+    分析图片文件，返回优化后的 prompt
+    
+    Args:
+        image_path: 图片路径
+    
+    Returns:
+        优化后的 prompt，失败返回 None
     """
     try:
         api_key = validate_config()
-        logger.info(f"✅ API Key 已加载")
         
-        # 1. 验证目标图（防止路径遍历攻击）
-        target_path = Path(target_image_path)
+        # 分析参考图
+        description = analyze_image(image_path, api_key)
+        logger.info(f"📝 分析结果：{description[:100]}...")
         
-        # 安全检查：确保文件在允许的路径内
-        allowed_dirs = [
-            Path('/home/admin/.openclaw/media/inbound'),
-            Path('/tmp/openclaw'),
-            config.get_temp_dir()
-        ]
+        # 构建用于图生图的 prompt
+        prompt = build_reference_prompt(description)
         
-        is_allowed = any(is_safe_path(base_dir, target_image_path) for base_dir in allowed_dirs)
-        if not is_allowed:
-            logger.error(f"⚠️ 文件路径不在允许的范围内：{target_image_path}")
-            logger.error("可能路径遍历攻击，已拒绝访问")
-            return False
+        return prompt
         
-        if not target_path.exists():
-            logger.error(f"目标图不存在：{target_image_path}")
-            return False
-        
-        logger.info("✅ 目标图验证通过")
-        
-        # 2. 加载小柔头像
-        image_path = validate_character_image()
-        logger.info("✅ 头像文件验证通过（使用小柔头像）")
-        
-        channel = validate_channel(channel)
-        
-        # 3. 分析目标图，提取场景描述（换脸模式专用，不含脸部/发型）
-        script_dir = Path(__file__).resolve().parent
-        analyzer_path = script_dir / 'image_analyzer.py'
-        
-        if not analyzer_path.exists():
-            logger.error(f"图片分析模块不存在：{analyzer_path}")
-            return False
-        
-        # 导入 analyzer 模块，使用换脸模式专用函数
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("image_analyzer", analyzer_path)
-        analyzer_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(analyzer_module)
-        
-        try:
-            scene_description = analyzer_module.analyze_image_for_face_swap(str(target_path), api_key)
-            logger.info(f"✅ 目标图场景分析完成：{scene_description[:100]}...")
-        except Exception as e:
-            logger.error(f"图片分析失败：{e}")
-            return False
-        
-        # 4. 生成精准换脸方案的 prompt（新流程优化版）
-        # 方案二：精准换脸 - 小柔的脸 + 场景精确还原
-        prompt_precise = f"""以图生图，严格保留输入图片的人脸五官、脸型、神态不变，替换为目标场景的全身穿搭、姿态、背景与风格。
-
-目标场景描述：{scene_description}
-
-网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红。超高写实，面部清晰自然，光影统一，细节真实，比例正常，无违和融合，高质量人像。8K 超高清，电影级布光，细节丰富，色彩自然。"""
-        
-        # 5. 生成 2 张图片（2 个模型）- 使用小柔头像作为输入，图生图
-        models = ['wan2.7-image', 'qwen-image-2.0-pro']
-        results = []
-        
-        # 精准换脸 - 用小柔头像作为输入，图生图
-        logger.info("🎯 精准换脸模式生成中...")
-        for model_name in models:
-            logger.info(f"  使用模型：{model_name}")
-            model_result = generate_single_image(model_name, image_path, prompt_precise, api_key)
-            if model_result[1]:
-                results.append(('precise', model_name, model_result[1]))
-        
-        if not results:
-            logger.error("❌ 所有生成均失败")
-            return False
-        
-        # 6. 发送所有成功生成的图片
-        success_count = 0
-        for scheme, model_name, image_url in results:
-            if channel and image_url:
-                if not target:
-                    target = os.environ.get('AEVIA_TARGET')
-                
-                # 精准换脸配文
-                scheme_caption = "【精准换脸】小柔的脸 + 场景精确还原"
-                full_caption = f"{scheme_caption} - {caption}"
-                
-                if send_to_channel(image_url, full_caption, channel, model_name, target):
-                    success_count += 1
-        
-        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
-        return success_count > 0
-        
-    except (ConfigurationError, FileNotFoundError) as e:
+    except (ConfigurationError, ImageAnalysisError) as e:
         logger.error(f"❌ 错误：{e}")
-        return False
+        return None
     except Exception as e:
         logger.error(f"❌ 错误：{e}")
-        return False
+        return None
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("用法：")
-        print("  普通模式：python3 selfie.py <场景描述> [频道] [配文] [target]")
-        print("  参考图模式：python3 selfie.py --reference <参考图路径> [--multi] [频道] [配文] [target]")
-        print("  换脸模式：python3 selfie.py --face-swap <目标图路径> [频道] [配文] [target]")
+        print("用法：python3 image_analyzer.py <图片路径>")
         sys.exit(1)
     
-    # 检测是否为换脸模式
-    if sys.argv[1] == '--face-swap' and len(sys.argv) >= 3:
-        target_image = sys.argv[2]
-        channel = sys.argv[3] if len(sys.argv) > 3 else None
-        caption = sys.argv[4] if len(sys.argv) > 4 else "换脸完成～看看效果怎么样？"
-        target = sys.argv[5] if len(sys.argv) > 5 else None
-        
-        if not os.path.exists(target_image):
-            logger.error(f"目标图不存在：{target_image}")
-            sys.exit(1)
-        
-        success = generate_face_swap(target_image, caption, channel, target)
+    image_path = sys.argv[1]
     
-    # 检测是否为参考图模式
-    elif sys.argv[1] == '--reference' and len(sys.argv) >= 3:
-        # 参考图模式
-        reference_image = sys.argv[2]
-        
-        # 检测是否启用多图融合模式
-        multi_mode = False
-        offset = 0
-        if len(sys.argv) > 3 and sys.argv[3] == '--multi':
-            multi_mode = True
-            offset = 1
-        
-        channel = sys.argv[3 + offset] if len(sys.argv) > 3 + offset else None
-        caption = sys.argv[4 + offset] if len(sys.argv) > 4 + offset else "这是模仿参考图生成的～"
-        target = sys.argv[5 + offset] if len(sys.argv) > 5 + offset else None
-        
-        if not os.path.exists(reference_image):
-            logger.error(f"参考图不存在：{reference_image}")
-            sys.exit(1)
-        
-        success = generate_from_reference(reference_image, caption, channel, target, multi_mode)
+    if not os.path.exists(image_path):
+        logger.error(f"图片不存在：{image_path}")
+        sys.exit(1)
+    
+    result = analyze_image_file(image_path)
+    
+    if result:
+        print(result)
+        sys.exit(0)
     else:
-        # 普通模式
-        context = sys.argv[1]
-        channel = sys.argv[2] if len(sys.argv) > 2 else None
-        caption = sys.argv[3] if len(sys.argv) > 3 else "给你看看我现在的样子~"
-        target = sys.argv[4] if len(sys.argv) > 4 else None
-        
-        success = generate_selfie(context, caption, channel, target)
-    
-    sys.exit(0 if success else 1)
+        sys.exit(1)
