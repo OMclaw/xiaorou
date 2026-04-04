@@ -61,7 +61,14 @@ def is_safe_path(base_dir: Path, file_path: str) -> bool:
     try:
         base_dir = base_dir.resolve()
         resolved = Path(file_path).resolve()
-        return str(resolved).startswith(str(base_dir))
+        
+        # 严格检查：必须是子目录，不能只是前缀匹配
+        # 例如：/tmp/openclaw_evil 不应该通过 /tmp/openclaw 的检查
+        try:
+            resolved.relative_to(base_dir)
+            return True
+        except ValueError:
+            return False
     except Exception:
         return False
 

@@ -30,7 +30,7 @@ class Config:
         
         # 环境变量优先
         api_key = os.environ.get('DASHSCOPE_API_KEY', '')
-        if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
+        if api_key and re.match(r'^sk-[a-zA-Z0-9]{32,64}$', api_key):
             self._api_key = api_key
             return api_key
         
@@ -43,7 +43,7 @@ class Config:
                     config.get('models', {}).get('providers', {}).get('dashscope', {}).get('apiKey', '') or
                     config.get('skills', {}).get('entries', {}).get('xiaorou', {}).get('env', {}).get('DASHSCOPE_API_KEY', '')
                 )
-                if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
+                if api_key and re.match(r'^sk-[a-zA-Z0-9]{32,64}$', api_key):
                     self._api_key = api_key
                     return api_key
             except Exception:
