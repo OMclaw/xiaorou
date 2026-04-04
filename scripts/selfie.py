@@ -396,26 +396,8 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             os.remove(temp_file)
             return False
         
-        if channel == "feishu":
-            send_target = target or os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
-            receive_id = send_target.replace('user:', '') if send_target.startswith('user:') else send_target
-            
-            image_key = upload_feishu_image(temp_file)
-            if image_key:
-                success = send_feishu_image_message(image_key, full_caption, receive_id, "open_id")
-                
-                # 保留一份最新的小柔照片到固定路径（供视频生成使用）
-                latest_path = '/tmp/openclaw/selfie_latest.jpg'
-                try:
-                    import shutil
-                    shutil.copy2(temp_file, latest_path)
-                    logger.info(f"✓ 已保存最新自拍到：{latest_path}")
-                except Exception as e:
-                    logger.warning(f"保存自拍失败：{e}")
-                
-                os.remove(temp_file)
-                return success
-        
+        # 所有平台统一使用 openclaw message send 命令（包括飞书）
+        # 这样可以避免跨应用 open_id 权限问题
         send_target = target or os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
         
         cmd_args = [

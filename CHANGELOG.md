@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.5.20] - 2026-04-04
+
+### 🐛 Fixed
+- **修复飞书跨应用发送图片问题**：统一使用 `openclaw message send` 命令发送图片
+- 解决 open_id 跨应用权限限制导致的发送失败
+
+### 🔧 Technical Details
+- 移除 `send_feishu_image_message()` 和 `upload_feishu_image()` 直接 API 调用
+- 所有平台（包括飞书）统一使用 `openclaw message send` 命令
+- 代码简化：从双路径处理变为单一路径
+- 减少约 30 行代码，降低维护复杂度
+
+### 📊 Impact
+- ✅ 飞书发送成功率提升（不再受跨应用限制）
+- ✅ 代码复杂度降低
+- ✅ 平台一致性提升
+- ✅ 全场景回归测试通过
+
+---
+
 ## [4.0.0] - 2026-03-30
 
 ### ✨ Added
