@@ -118,8 +118,12 @@ run_voice() {
   if python3 "$SCRIPT_DIR/tts.py" "$speech_text" "$temp_audio" 2>&1; then
     info "✓ 语音生成成功"
     openclaw message send --channel "$AEVIA_CHANNEL" --target "$target" --message "小柔的语音消息 💕" --media "$temp_audio"
+    # 清理临时音频文件
+    rm -f "$temp_audio" 2>/dev/null || true
   else
     error "语音生成失败"
+    # 清理失败的临时文件
+    rm -f "$temp_audio" 2>/dev/null || true
   fi
 }
 

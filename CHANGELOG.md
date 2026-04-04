@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.5.21] - 2026-04-04
+
+### 🐛 Fixed
+- **语音格式多平台适配**：根据平台自动选择 OPUS/MP3 格式
+- **视频生成多平台支持**：从环境变量读取 channel 和 target
+- **临时文件清理**：使用 try/finally 确保清理
+- **移除硬编码默认值**：强制通过环境变量配置
+- **Python 版本兼容**：从 python3.11 改为 python3
+
+### 🔧 Technical Details
+- `aevia.sh`: 根据 AEVIA_CHANNEL 选择音频格式 (feishu→opus, telegram/discord→mp3)
+- `generate_video.py`: 移除 FEISHU_TARGET 硬编码，支持 --channel 和 --target 参数
+- `selfie.py`: try/finally 确保临时文件清理，支持空 target 配置
+- `config.py`: 移除硬编码 open_id 默认值
+- 全面使用 `python3` 替代 `python3.11`
+
+### 📊 Impact
+✅ 飞书：完全兼容
+✅ Telegram：音频格式适配
+✅ Discord：音频格式适配
+✅ WhatsApp：音频格式适配
+✅ 多平台部署：无需修改代码
+
+---
+
 ## [4.5.20] - 2026-04-04
 
 ### 🐛 Fixed

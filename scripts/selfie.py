@@ -419,6 +419,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             # 保留一份最新的小柔照片到固定路径（供视频生成使用）
             # 使用原子操作避免 TOCTOU 竞争条件
             latest_path = config.get_temp_dir() / 'selfie_latest.jpg'
+            temp_dst = None
             try:
                 import shutil
                 # 先写入临时文件，再原子重命名
@@ -429,7 +430,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             except Exception as e:
                 logger.warning(f"保存自拍失败：{e}")
                 # 清理临时文件
-                if os.path.exists(temp_dst):
+                if temp_dst and os.path.exists(temp_dst):
                     os.remove(temp_dst)
             
             if result.returncode == 0:

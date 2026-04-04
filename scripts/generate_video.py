@@ -419,7 +419,11 @@ def download_video(video_url: str, output_path: str) -> bool:
         return False
 
 
-def send_to_feishu(video_path: str, caption: str, target: str = FEISHU_TARGET) -> bool:
+def send_to_feishu(video_path: str, caption: str, target: str = None) -> bool:
+    """发送到飞书（兼容旧签名）"""
+    # 如果没有指定 target，从环境变量读取
+    if target is None:
+        target = os.environ.get('AEVIA_TARGET', '')
     """发送视频到飞书"""
     logger.info(f"📤 发送视频到飞书...")
     
