@@ -28,10 +28,36 @@ MAX_RETRIES = 3
 RETRY_DELAY = 1.0
 MAX_TEXT_LENGTH = 500
 
+# 平台格式映射表
+CHANNEL_FORMATS = {
+    'feishu': (AudioFormat.OGG_OPUS_24KHZ_MONO_32KBPS, '.opus'),
+    'telegram': (AudioFormat.MP3_24000HZ_MONO_256KBPS, '.mp3'),
+    'discord': (AudioFormat.MP3_24000HZ_MONO_256KBPS, '.mp3'),
+    'whatsapp': (AudioFormat.OGG_OPUS_24KHZ_MONO_32KBPS, '.opus'),
+}
+
 
 class TTSError(Exception): pass
 class APIError(TTSError): pass
 class ValidationError(TTSError): pass
+
+
+def get_format_for_channel(channel: str, output_path: Optional[str] = None) -> Tuple[Optional[AudioFormat], Optional[str]]:
+    """
+    根据目标平台自动选择最优音频格式和文件后缀
+    
+    Args:
+        channel: 目标平台 (feishu/telegram/discord/whatsapp)
+        output_path: 输出文件路径（可选）
+    
+    Returns:
+        (audio_format, file_extension) 元组
+    """
+    if channel not in CHANNEL_FORMATS:
+        logger.warning(f"未知平台 '{channel}'，将根据文件后缀判断格式")
+        return None, None
+    
+    return CHANNEL_FORMATS[channel]
 
 
 def validate_text(text: str) -> str:
@@ -143,7 +169,7 @@ def validate_opus_file(file_path: str) -> bool:
         return True
 
 
-def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, model: str = DEFAULT_MODEL, retries: int = MAX_RETRIES) -> Tuple[bool, str]:
+def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, model: str = DEFAULT_MODEL, retries: int = MAX_RETRIES, channel: Optional[str] = None) -> Tuple[bool, str]:
     try:
         text = validate_text(text)
     except ValidationError as e:
@@ -169,12 +195,25 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
         try:
             logger.info(f"正在生成语音 (尝试 {attempt}/{retries})...")
             
-            if output_path.endswith('.opus'):
-                audio_format = AudioFormat.OGG_OPUS_24KHZ_MONO_32KBPS
-            elif output_path.endswith('.wav'):
-                audio_format = AudioFormat.WAV_24000HZ_MONO_16BIT
-            else:
-                audio_format = AudioFormat.MP3_24000HZ_MONO_256KBPS
+            # 根据平台自动选择格式
+            audio_format = None
+            if channel:
+                format_info, ext = get_format_for_channel(channel, output_path)
+                if format_info:
+                    audio_format = format_info
+                    # 如果文件路径没有后缀，自动添加
+                    if not any(output_path.endswith(s) for s in ['.opus', '.wav', '.mp3']):
+                        output_path = output_path + ext
+                        logger.info(f"自动添加文件后缀：{output_path}")
+            
+            # 如果没有指定 channel 或平台未知，根据文件后缀判断（向后兼容）
+            if not audio_format:
+                if output_path.endswith('.opus'):
+                    audio_format = AudioFormat.OGG_OPUS_24KHZ_MONO_32KBPS
+                elif output_path.endswith('.wav'):
+                    audio_format = AudioFormat.WAV_24000HZ_MONO_16BIT
+                else:
+                    audio_format = AudioFormat.MP3_24000HZ_MONO_256KBPS
             
             synthesizer = SpeechSynthesizer(model=model, voice=voice, format=audio_format)
             audio = synthesizer.call(text)
@@ -200,13 +239,38 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
 
 
 def main():
-    parser = argparse.ArgumentParser(description='阿里云 CosyVoice 文字转语音')
+    # 智能默认值：从环境变量读取默认平台
+    default_channel = os.environ.get('AEVIA_CHANNEL', None)
+    
+    parser = argparse.ArgumentParser(
+        description='阿里云 CosyVoice 文字转语音',
+        epilog='''
+使用示例：
+  # 飞书平台（自动选择 OPUS 格式）
+  python3 tts.py "早上好呀" /tmp/voice.mp3 --channel feishu
+  
+  # 或让脚本自动添加后缀
+  python3 tts.py "早上好呀" /tmp/voice --channel feishu
+  
+  # Telegram/Discord（自动选择 MP3 格式）
+  python3 tts.py "Hello" /tmp/voice.mp3 --channel telegram
+  
+  # 使用环境变量自动选择（推荐）
+  export AEVIA_CHANNEL=feishu
+  python3 tts.py "早上好呀" /tmp/voice
+  
+  # 向后兼容：直接指定文件格式
+  python3 tts.py "早上好呀" /tmp/voice.opus
+        ''',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument('text', nargs='?', help='待转换的文本')
     parser.add_argument('output', nargs='?', help='输出文件路径')
     parser.add_argument('--text', '-t', dest='text_arg', help='待转换的文本')
     parser.add_argument('--output', '-o', dest='output_arg', help='输出文件路径')
     parser.add_argument('--voice', '-v', default=DEFAULT_VOICE, help=f'音色名称 (默认：{DEFAULT_VOICE})')
     parser.add_argument('--model', '-m', default=DEFAULT_MODEL, help=f'模型名称')
+    parser.add_argument('--channel', '-c', default=default_channel, help=f'目标平台 (feishu/telegram/discord/whatsapp)，自动选择最优格式 (默认：{default_channel or "根据文件后缀判断"})')
     parser.add_argument('--list-voices', action='store_true', help='列出可用音色')
     parser.add_argument('--verbose', action='store_true', help='显示详细日志')
     
@@ -229,7 +293,7 @@ def main():
     if not output:
         parser.error("请提供输出文件路径")
     
-    success, message = text_to_speech(text=text, output_path=output, voice=args.voice, model=args.model)
+    success, message = text_to_speech(text=text, output_path=output, voice=args.voice, model=args.model, channel=args.channel)
     
     if success:
         # 获取音频时长并输出（供 shell 脚本使用）
