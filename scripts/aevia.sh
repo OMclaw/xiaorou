@@ -85,17 +85,37 @@ run_voice() {
   speech_text=$(echo "$input" | sed -E 's/^(发语音 [:：]?|语音消息 [:：]?)//i' | xargs)
   [ -z "$speech_text" ] && speech_text="你好呀，我是小柔～"
   
+  # 根据平台选择音频格式
+  local audio_ext
+  case "$AEVIA_CHANNEL" in
+    feishu)
+      audio_ext="opus"  # 飞书支持 OPUS
+      ;;
+    telegram)
+      audio_ext="mp3"   # Telegram 推荐 MP3
+      ;;
+    discord)
+      audio_ext="mp3"   # Discord 推荐 MP3
+      ;;
+    whatsapp)
+      audio_ext="opus"  # WhatsApp 支持 OPUS
+      ;;
+    *)
+      audio_ext="mp3"   # 默认 MP3
+      ;;
+  esac
+  
   # 使用 mktemp 创建不可预测的临时文件（避免竞争条件攻击）
   local temp_audio
-  temp_audio=$(mktemp "/tmp/openclaw/xiaorou_voice_XXXXXX.opus" 2>/dev/null) || {
+  temp_audio=$(mktemp "/tmp/openclaw/xiaorou_voice_XXXXXX.$audio_ext" 2>/dev/null) || {
     # fallback: 使用时间戳
-    temp_audio="/tmp/openclaw/xiaorou_voice_$(date +%s)_$$.opus"
+    temp_audio="/tmp/openclaw/xiaorou_voice_$(date +%s)_$$.$audio_ext"
   }
   mkdir -p /tmp/openclaw
   chmod 700 /tmp/openclaw 2>/dev/null || true
   
-  info "正在生成语音：$speech_text"
-  if python3.11 "$SCRIPT_DIR/tts.py" "$speech_text" "$temp_audio" 2>&1; then
+  info "正在生成语音：$speech_text (格式：$audio_ext, 平台：$AEVIA_CHANNEL)"
+  if python3 "$SCRIPT_DIR/tts.py" "$speech_text" "$temp_audio" 2>&1; then
     info "✓ 语音生成成功"
     openclaw message send --channel "$AEVIA_CHANNEL" --target "$target" --message "小柔的语音消息 💕" --media "$temp_audio"
   else
@@ -120,7 +140,7 @@ run_video() {
     
     # 调用 selfie.py 生成小柔照片（参考用户图片）
     local selfie_output
-    selfie_output=$(python3.11 "$SCRIPT_DIR/selfie.py" --reference "$image_path" "$AEVIA_CHANNEL" "准备生成视频～" "$target" 2>&1)
+    selfie_output=$(python3 "$SCRIPT_DIR/selfie.py" --reference "$image_path" "$AEVIA_CHANNEL" "准备生成视频～" "$target" 2>&1)
     
     # 等待 1 秒让图片发送完成
     sleep 1
@@ -137,7 +157,7 @@ run_video() {
       # 优化 prompt，强调动作自然
       local video_prompt="$prompt，动作自然舒展，表情生动，真实摄影感"
       
-      python3.11 "$SCRIPT_DIR/generate_video.py" \
+      python3 "$SCRIPT_DIR/generate_video.py" \
         --image "$latest_selfie" \
         --prompt "$video_prompt" \
         --model "wan2.7-i2v" \
@@ -147,7 +167,7 @@ run_video() {
       info "✅ 视频生成完成"
     else
       warn "⚠️ 未找到小柔照片，使用原图生成视频"
-      python3.11 "$SCRIPT_DIR/generate_video.py" --image "$image_path" --prompt "$prompt" --target "$target"
+      python3 "$SCRIPT_DIR/generate_video.py" --image "$image_path" --prompt "$prompt" --target "$target"
     fi
   else
     error "视频生成需要提供图片"
@@ -165,14 +185,14 @@ run_selfie() {
   
   if [ -n "$image_path" ]; then
     info "参考图模式"
-    python3.11 "$SCRIPT_DIR/selfie.py" --reference "$image_path" "$AEVIA_CHANNEL" "$caption" "$target"
+    python3 "$SCRIPT_DIR/selfie.py" --reference "$image_path" "$AEVIA_CHANNEL" "$caption" "$target"
   else
     # 提取场景描述
     local context
     context=$(echo "$input" | sed -E 's/^(自拍 | 照片 | 图片 | 发张)[:：]?//i' | xargs)
     [ -z "$context" ] && context="时尚穿搭，自然微笑"
     
-    python3.11 "$SCRIPT_DIR/selfie.py" "$context" "$AEVIA_CHANNEL" "$caption" "$target"
+    python3 "$SCRIPT_DIR/selfie.py" "$context" "$AEVIA_CHANNEL" "$caption" "$target"
   fi
 }
 

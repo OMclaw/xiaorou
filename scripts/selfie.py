@@ -398,7 +398,11 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         
         # 所有平台统一使用 openclaw message send 命令（包括飞书）
         # 这样可以避免跨应用 open_id 权限问题
-        send_target = target or os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
+        send_target = target or os.environ.get('AEVIA_TARGET', '')
+        
+        # 如果没有配置 target，尝试从默认配置读取
+        if not send_target:
+            send_target = config.get_feishu_target() if channel == 'feishu' else ''
         
         cmd_args = [
             'openclaw', 'message', 'send',
@@ -408,35 +412,39 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             '--media', temp_file
         ]
         
-        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
-        
-        # 保留一份最新的小柔照片到固定路径（供视频生成使用）
-        # 使用原子操作避免 TOCTOU 竞争条件
-        latest_path = config.get_temp_dir() / 'selfie_latest.jpg'
+        result = None
         try:
-            import shutil
-            # 先写入临时文件，再原子重命名
-            temp_dst = str(latest_path) + '.tmp'
-            shutil.copy2(temp_file, temp_dst)
-            os.replace(temp_dst, str(latest_path))  # 原子操作
-            logger.info(f"✓ 已保存最新自拍到：{latest_path}")
-        except Exception as e:
-            logger.warning(f"保存自拍失败：{e}")
-            # 清理临时文件
-            if os.path.exists(temp_dst):
-                os.remove(temp_dst)
-        
-        try:
-            os.remove(temp_file)
-        except:
-            logger.warning(f"清理临时文件失败：{temp_file}")
-        
-        if result.returncode == 0:
-            logger.info("✓ 图片发送成功")
-            return True
-        
-        logger.error(f"发送失败：{result.stderr}")
-        return False
+            result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
+            
+            # 保留一份最新的小柔照片到固定路径（供视频生成使用）
+            # 使用原子操作避免 TOCTOU 竞争条件
+            latest_path = config.get_temp_dir() / 'selfie_latest.jpg'
+            try:
+                import shutil
+                # 先写入临时文件，再原子重命名
+                temp_dst = str(latest_path) + '.tmp'
+                shutil.copy2(temp_file, temp_dst)
+                os.replace(temp_dst, str(latest_path))  # 原子操作
+                logger.info(f"✓ 已保存最新自拍到：{latest_path}")
+            except Exception as e:
+                logger.warning(f"保存自拍失败：{e}")
+                # 清理临时文件
+                if os.path.exists(temp_dst):
+                    os.remove(temp_dst)
+            
+            if result.returncode == 0:
+                logger.info("✓ 图片发送成功")
+                return True
+            
+            logger.error(f"发送失败：{result.stderr}")
+            return False
+        finally:
+            # 确保临时文件被清理
+            try:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+            except Exception as e:
+                logger.warning(f"清理临时文件失败：{temp_file} - {e}")
         
     except requests.RequestException as e:
         logger.error(f"下载图片异常：{e}")
@@ -582,7 +590,7 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
             
             import subprocess
             result = subprocess.run(
-                ['python3.11', str(analyzer_path), reference_image_path],
+                ['python3', str(analyzer_path), reference_image_path],
                 capture_output=True,
                 text=True,
                 timeout=120

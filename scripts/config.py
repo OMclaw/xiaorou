@@ -63,7 +63,7 @@ class Config:
     
     def get_feishu_target(self) -> str:
         """获取飞书目标用户"""
-        return os.environ.get('AEVIA_TARGET', 'user:ou_0668d1ec503978ef15adadd736f34c46')
+        return os.environ.get('AEVIA_TARGET', '')
 
 
 # 全局实例

@@ -37,7 +37,9 @@ TEMP_DIR = config.get_temp_dir() / 'videos'
 TEMP_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
 POLL_INTERVAL = int(os.environ.get('XIAOROU_POLL_INTERVAL', '10'))
 MAX_WAIT = int(os.environ.get('XIAOROU_MAX_WAIT', '600'))
-FEISHU_TARGET = config.get_feishu_target()
+# 从环境变量读取目标平台，支持多平台
+DEFAULT_TARGET = os.environ.get('AEVIA_TARGET', '')
+DEFAULT_CHANNEL = os.environ.get('AEVIA_CHANNEL', 'feishu')
 
 # 创建 requests session（连接池）
 session = requests.Session()
@@ -456,11 +458,12 @@ def image_to_video(
     resolution: str = "720P",
     duration: int = 5,
     model: str = "wan2.7-i2v",
-    target: str = FEISHU_TARGET,
+    channel: str = None,
+    target: str = None,
     send_message: bool = True
 ) -> Optional[str]:
     """
-    图生视频完整流程（支持图片 + 音频）
+    图生视频完整流程（支持图片 + 音频，支持多平台）
     
     Args:
         image_path: 本地图片路径
@@ -469,12 +472,18 @@ def image_to_video(
         resolution: 分辨率
         duration: 视频时长
         model: 模型名称
-        target: 飞书目标用户
-        send_message: 是否发送到飞书
+        channel: 目标平台（默认从环境变量读取）
+        target: 目标用户（默认从环境变量读取）
+        send_message: 是否发送到目标平台
     
     Returns:
         视频文件路径（失败返回 None）
     """
+    # 从环境变量读取默认值
+    if channel is None:
+        channel = DEFAULT_CHANNEL
+    if target is None:
+        target = DEFAULT_TARGET
     logger.info("=" * 60)
     logger.info("🎬 小柔图生视频流程启动")
     logger.info("=" * 60)
@@ -581,8 +590,9 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, default='wan2.7-i2v', help='模型名称 (wan2.7-i2v / wan2.6-i2v)')
     parser.add_argument('--resolution', type=str, default='720P', help='分辨率 (720P/1080P)')
     parser.add_argument('--duration', type=int, default=5, help='视频时长（秒）')
-    parser.add_argument('--target', type=str, default=FEISHU_TARGET, help='飞书目标用户')
-    parser.add_argument('--no-send', action='store_true', help='不自动发送到飞书')
+    parser.add_argument('--channel', type=str, default=None, help='目标平台（默认从环境变量读取）')
+    parser.add_argument('--target', type=str, default=None, help='目标用户（默认从环境变量读取）')
+    parser.add_argument('--no-send', action='store_true', help='不自动发送')
     
     args = parser.parse_args()
     
@@ -594,6 +604,7 @@ if __name__ == "__main__":
             resolution=args.resolution,
             duration=args.duration,
             model=args.model,
+            channel=args.channel,
             target=args.target,
             send_message=not args.no_send
         )
