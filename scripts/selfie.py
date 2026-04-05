@@ -555,54 +555,51 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         
         channel = validate_channel(channel)
         
-        if multi_mode:
-            logger.warning("⚠️ multi_mode 参数已废弃，自动切换到普通模式")
-            # 原多图融合模式需要 generate_images_multi_model 函数，该函数未实现
-            # ===== 方案一：分析 + 图生图模式（双模型并发） =====
-            logger.info("🔍 分析参考图模式：提取 prompt 后双模型并发生成")
-            
-            # 3. 分析参考图，提取 prompt
-            script_dir = Path(__file__).resolve().parent
-            analyzer_path = script_dir / 'image_analyzer.py'
-            
-            if not analyzer_path.exists():
-                logger.error(f"图片分析模块不存在：{analyzer_path}")
-                return False
-            
-            import subprocess
-            result = subprocess.run(
-                ['python3', str(analyzer_path), reference_image_path],
-                capture_output=True,
-                text=True,
-                timeout=120
-            )
-            
-            if result.returncode != 0:
-                logger.error(f"图片分析失败：{result.stderr}")
-                return False
-            
-            prompt = result.stdout.strip()
-            logger.info(f"✅ 参考图分析完成：{prompt[:100]}...")
-            
-            # 4. 双模型并发生成（wan2.7-image + qwen-image-2.0-pro）
-            logger.info("🚀 双模型并发生成中...")
-            results = generate_images_dual_model(image_path, prompt, api_key)
-            
-            if not results:
-                logger.error("❌ 两个模型都生成失败")
-                return False
-            
-            # 5. 发送所有成功生成的图片
-            success_count = 0
-            for model_name, image_url in results:
-                if channel and image_url:
-                    if not target:
-                        target = os.environ.get('AEVIA_TARGET')
-                    if send_to_channel(image_url, caption, channel, model_name, target):
-                        success_count += 1
-            
-            logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
-            return success_count > 0
+        # 忽略 multi_mode 参数，始终使用分析 + 图生图模式
+        logger.info("🔍 分析参考图模式：提取 prompt 后双模型并发生成")
+        
+        # 3. 分析参考图，提取 prompt
+        script_dir = Path(__file__).resolve().parent
+        analyzer_path = script_dir / 'image_analyzer.py'
+        
+        if not analyzer_path.exists():
+            logger.error(f"图片分析模块不存在：{analyzer_path}")
+            return False
+        
+        import subprocess
+        result = subprocess.run(
+            ['python3', str(analyzer_path), reference_image_path],
+            capture_output=True,
+            text=True,
+            timeout=120
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"图片分析失败：{result.stderr}")
+            return False
+        
+        prompt = result.stdout.strip()
+        logger.info(f"✅ 参考图分析完成：{prompt[:100]}...")
+        
+        # 4. 双模型并发生成（wan2.7-image + qwen-image-2.0-pro）
+        logger.info("🚀 双模型并发生成中...")
+        results = generate_images_dual_model(image_path, prompt, api_key)
+        
+        if not results:
+            logger.error("❌ 两个模型都生成失败")
+            return False
+        
+        # 5. 发送所有成功生成的图片
+        success_count = 0
+        for model_name, image_url in results:
+            if channel and image_url:
+                if not target:
+                    target = os.environ.get('AEVIA_TARGET')
+                if send_to_channel(image_url, caption, channel, model_name, target):
+                    success_count += 1
+        
+        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
+        return success_count > 0
         
     except (ConfigurationError, FileNotFoundError) as e:
         logger.error(f"❌ 错误：{e}")

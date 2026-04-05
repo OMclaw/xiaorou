@@ -247,7 +247,7 @@ def analyze_image_for_face_swap(image_path: str, api_key: str) -> str:
 
 def analyze_image_file(image_path: str) -> Optional[str]:
     """
-    分析图片文件，返回优化后的 prompt
+    分析图片文件，返回优化后的 prompt（P1 修复 - 添加路径验证）
     
     Args:
         image_path: 图片路径
@@ -256,6 +256,28 @@ def analyze_image_file(image_path: str) -> Optional[str]:
         优化后的 prompt，失败返回 None
     """
     try:
+        # P1 修复：验证路径安全性
+        from pathlib import Path
+        import os
+        
+        # 检查文件是否存在
+        if not os.path.exists(image_path):
+            logger.error(f"文件不存在：{image_path}")
+            return None
+        
+        # 检查文件是否在允许的目录
+        allowed_dirs = [
+            Path('/home/admin/.openclaw/media/inbound'),
+            Path('/tmp/openclaw'),
+            Path('/tmp/xiaorou')
+        ]
+        
+        image_path_obj = Path(image_path).resolve()
+        is_allowed = any(str(image_path_obj).startswith(str(d)) for d in allowed_dirs)
+        if not is_allowed:
+            logger.error(f"⚠️ 文件路径不在允许范围内：{image_path}")
+            return None
+        
         api_key = validate_config()
         
         # 分析参考图
