@@ -154,15 +154,18 @@ def build_prompt(context: str) -> Tuple[str, str]:
     # 真实感增强标签 - 自然光滑，无黑点，淡粉色嘴唇，无腮红，色彩自然，正确人体结构，清淡妆容
     realistic_tags = "真实摄影，自然光滑皮肤，清透肌肤，真实光影，柔和光线，生活照风格，无 AI 感，无塑料感，无黑点，无瑕疵，无口红，裸唇，唇色自然，无妆感，嘴唇本色，无腮红，清淡底妆，底妆轻薄透明，腮红极淡，几乎无腮红，裸妆效果，妆容极淡，色彩柔和自然，低饱和度，避免过度鲜艳，正确人体结构，正常双手，无多余肢体，妆容清淡自然，脸部妆容自然，避免浓妆，色彩素雅，莫兰迪色系，极低饱和度，色彩非常淡，淡雅色调，低对比度，柔和色彩"
     
+    # 腿部质量标签 - 专门针对腿部优化
+    leg_quality_tags = "完美腿部比例，标准人体结构，腿部细节清晰，膝盖结构正确，脚踝结构正确，腿部光影自然，腿部皮肤质感真实，腿部线条优美，正常腿长比例，双腿完整，腿部无畸形"
+    
     # 质量标签 - 强调色彩自然和正确结构
-    quality_tags = "8K 超高清，电影级布光，细节丰富，色彩自然柔和，低饱和度，真实色调，正确人体比例，妆容自然，素雅色彩，极低饱和度"
+    quality_tags = "8K 超高清，电影级布光，细节丰富，色彩自然柔和，低饱和度，真实色调，正确人体比例，妆容自然，素雅色彩，极低饱和度，完美腿部比例，腿部无畸形，腿部结构正确"
     
     mirror_keywords = ['穿', '衣服', '穿搭', '全身', '镜子']
     if any(kw in context_lower for kw in mirror_keywords):
-        return "mirror", f"{influencer_style}，{context}，全身照，对镜拍摄，网红打卡场景，自然光线，{realistic_tags}，{quality_tags}"
+        return "mirror", f"{influencer_style}，{context}，全身照，对镜拍摄，网红打卡场景，自然光线，{realistic_tags}，{leg_quality_tags}，{quality_tags}"
     
     # 默认网红风格 prompt - 强调自然真实
-    return "direct", f"{influencer_style}，{context}，眼神直视镜头，自然微笑，真实五官，时尚造型，网红打卡背景，{realistic_tags}，{quality_tags}"
+    return "direct", f"{influencer_style}，{context}，眼神直视镜头，自然微笑，真实五官，时尚造型，网红打卡背景，{realistic_tags}，{leg_quality_tags}，{quality_tags}"
 
 
 def generate_single_image(model_name: str, image_path: Path, prompt: str, api_key: str) -> Tuple[str, Optional[str]]:

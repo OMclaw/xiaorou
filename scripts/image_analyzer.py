@@ -160,11 +160,14 @@ facial distortion, inconsistent face, changed features, altered identity"""
     # 动作自然标签 - 强调姿势自然、表情生动、生活化
     natural_pose_tags = "动作自然，姿势舒展，表情生动，神态自然，肢体放松，不僵硬，不做作，生活化姿态，日常动作，自然互动，抓拍感，动态感，流畅动作，舒展肢体，放松状态，姿势自然，体态优美，动作流畅，姿态优雅，肢体协调，动作舒展"
     
-    # 反向提示词 - 强化避免畸形问题
-    negative_tags = "避免畸形，避免多手多腿，避免多余肢体，避免肢体扭曲，避免肢体融合，避免肢体重复，正常人体结构，双手双脚，比例正确，避免动作僵硬，避免姿势刻板，避免表情呆板，避免摆拍感，避免奇怪姿势，避免不自然动作，避免扭曲肢体，避免怪异体态，避免不协调动作，(worst quality, low quality:1.4), (deformed, distorted, disfigured:1.3), bad anatomy, extra limbs, mutated hands, poorly drawn hands, poorly drawn face, mutation, cloned face, bad proportions, floating limbs, disconnected limbs, malformed hands, blur, out of focus, long neck, long body, bad hands, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry"
+    # 腿部质量标签 - 专门针对腿部优化
+    leg_quality_tags = "完美腿部比例，标准人体结构，腿部细节清晰，膝盖结构正确，脚踝结构正确，腿部光影自然，腿部皮肤质感真实，腿部线条优美，正常腿长比例，双腿完整，腿部无畸形"
     
-    # 组合完整 prompt - 加入动作自然化
-    full_prompt = f"{instruction}。{description}。{base_style}。{realistic_tags}。{quality_tags}。{natural_pose_tags}。{negative_tags}"
+    # 反向提示词 - 强化避免畸形问题（特别加强腿部约束）
+    negative_tags = "避免畸形，避免多手多腿，避免多余肢体，避免肢体扭曲，避免肢体融合，避免肢体重复，正常人体结构，双手双脚，比例正确，避免动作僵硬，避免姿势刻板，避免表情呆板，避免摆拍感，避免奇怪姿势，避免不自然动作，避免扭曲肢体，避免怪异体态，避免不协调动作，避免腿部畸形，避免腿部融合，避免腿部扭曲，避免多余膝盖，避免腿部消失，避免腿部过长，避免腿部过短，避免腿部比例失调，避免腿部细节模糊，避免腿部结构错误，避免膝盖畸形，避免脚踝畸形，(worst quality, low quality:1.4), (deformed, distorted, disfigured:1.3), bad anatomy, extra limbs, mutated hands, poorly drawn hands, poorly drawn face, mutation, cloned face, bad proportions, floating limbs, disconnected limbs, malformed hands, malformed legs, extra legs, missing legs, fused legs, mutated legs, (malformed legs:1.4), (extra legs:1.4), (fused legs:1.3), (bad legs:1.3), (missing legs:1.3), (mutated legs:1.3), blur, out of focus, long neck, long body, bad hands, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry"
+    
+    # 组合完整 prompt - 加入动作自然化和腿部优化
+    full_prompt = f"{instruction}。{description}。{base_style}。{realistic_tags}。{quality_tags}。{natural_pose_tags}。{leg_quality_tags}。{negative_tags}"
     
     return full_prompt
 
