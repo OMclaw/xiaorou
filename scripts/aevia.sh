@@ -72,9 +72,21 @@ detect_mode() {
     return
   fi
   
+  # 换脸模式（有图，且包含换脸相关关键词）
+  if [ -n "$has_image" ] && echo "$input" | grep -qiE "换脸 | 换成你 | 变成你 | 用你的脸 | 你的脸"; then
+    echo "face-swap"
+    return
+  fi
+  
   # 自拍模式（有参考图）
   if [ -n "$has_image" ] && echo "$input" | grep -qiE "参考 | 模仿 | 照著 | 学这张"; then
     echo "selfie-reference"
+    return
+  fi
+  
+  # 🎯 智能默认：用户发了一张图，默认换脸模式
+  if [ -n "$has_image" ]; then
+    echo "face-swap"
     return
   fi
   
@@ -217,6 +229,23 @@ run_selfie() {
   fi
 }
 
+run_face_swap() {
+  local input="$1"
+  local target="$2"
+  local image_path="${AEVIA_IMAGE_PATH:-}"
+  
+  info "🎭 换脸模式"
+  
+  if [ -z "$image_path" ]; then
+    error "换脸需要提供一张照片"
+  fi
+  
+  info "正在换脸：将小柔的脸换到你照片的场景中..."
+  
+  # Python 脚本会输出 JSON 到 stdout，由上层 agent 读取并发送图片
+  python3 "$SCRIPT_DIR/selfie.py" --face-swap "$image_path" "$AEVIA_CHANNEL" "换好了～你看看喜欢吗 💕" "$target"
+}
+
 run_chat() {
   local input="$1"
   local target="$2"
@@ -289,6 +318,9 @@ main() {
       ;;
     video)
       run_video "$user_input" "$target"
+      ;;
+    face-swap)
+      run_face_swap "$user_input" "$target"
       ;;
     selfie-reference|selfie)
       run_selfie "$user_input" "$target"

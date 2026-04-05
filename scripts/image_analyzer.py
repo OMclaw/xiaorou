@@ -53,13 +53,14 @@ def get_image_base64(image_path: str) -> str:
     return f"data:image/jpeg;base64,{image_data}"
 
 
-def analyze_image(image_path: str, api_key: str) -> str:
+def analyze_image(image_path: str, api_key: str, language: str = "zh") -> str:
     """
     使用 qwen3.5-plus 分析参考图，提取场景、姿势、服装、光线等描述
     
     Args:
         image_path: 图片路径
         api_key: DashScope API Key
+        language: 输出语言 ('en' 英文 / 'zh' 中文)
     
     Returns:
         详细的图片描述 prompt
@@ -74,8 +75,18 @@ def analyze_image(image_path: str, api_key: str) -> str:
     except Exception as e:
         raise ImageAnalysisError(f"读取图片失败：{e}")
     
-    # 构建分析 prompt - 提取场景、姿势、服装、光线等（完全忽略人脸）
-    analysis_prompt = """请对这张图片进行特征提取，**完全忽略人脸、五官、面部特征、发型**，只提取以下内容：
+    # 根据语言构建分析 prompt
+    if language == "en":
+        analysis_prompt = """Extract features from this image, **completely ignore face, facial features, and hairstyle**, only extract the following:
+
+1. **Background/Environment**: scene, lighting, color tone, atmosphere
+2. **Pose/Posture**: action, standing/sitting/kneeling orientation, body language
+3. **Clothing/Outfit**: style, type, color, material, accessories
+4. **Overall Style**: image quality, light & shadow, mood, camera feel
+
+**Output format**: keywords only, comma-separated, no sentences, no face description."""
+    else:
+        analysis_prompt = """请对这张图片进行特征提取，**完全忽略人脸、五官、面部特征、发型**，只提取以下内容：
 
 1. **背景环境**：场景、光线、色调、氛围
 2. **人物姿态**：动作、站姿/坐姿/朝向、肢体
@@ -112,20 +123,69 @@ def analyze_image(image_path: str, api_key: str) -> str:
         raise ImageAnalysisError(f"图片分析失败：{e}")
 
 
-def build_reference_prompt(description: str) -> str:
+def build_reference_prompt(description: str, language: str = "zh") -> str:
     """
     基于参考图分析结果，构建用于图生图的 prompt
     
     Args:
         description: 参考图分析结果（场景/穿搭/姿态关键词）
+        language: 输出语言 ('en' 英文 / 'zh' 中文)
     
     Returns:
         完整的 prompt，包含保持人物一致性的描述
     """
-    # 新流程优化版提示词 - 更简洁明确
-    # 开头：明确指令 - 保留 B 脸，套用 A 的场景/穿搭/姿态
-    # 强化人物一致性指令，放在最前面确保模型优先遵循
-    instruction = """【极高优先级 - 必须 100% 遵守】这是一张人物一致性图生图任务。输入图片是小柔的头像，必须严格保持小柔的脸部特征完全不变！
+    if language == "en":
+        # ====== 英文 prompt（万相 2.7 用） ======
+        instruction = (
+            "Same face as the input image. Keep the face identity, facial features, "
+            "face shape, expression, eyes, nose, mouth, and eyebrows exactly the same. "
+            "Only change the outfit, pose, background and style to match the reference description below. "
+            "Do not change the person's face."
+        )
+        
+        base_style = (
+            "influencer style, fashionable outfit, professional photography, "
+            "light makeup, natural nude makeup, no blush, sexy and charming, alluring gaze"
+        )
+        
+        realistic_tags = (
+            "ultra realistic, clear and natural face, unified lighting, "
+            "authentic details, correct proportions, seamless blend, high quality portrait"
+        )
+        
+        quality_tags = (
+            "natural photography, real photo, no AI look, no plastic look, "
+            "real lighting, natural texture, rich details, natural colors, "
+            "HD person, HD face, clear features, smooth skin, visible hair strands"
+        )
+        
+        natural_pose_tags = (
+            "natural pose, relaxed posture, vivid expression, natural demeanor, "
+            "relaxed limbs, not stiff, not artificial, lifestyle photography, "
+            "candid feel, dynamic, fluid movement, graceful posture"
+        )
+        
+        negative_tags = (
+            "avoid deformity, avoid extra limbs, avoid extra hands, "
+            "avoid mutated limbs, avoid body distortion, avoid body fusion, "
+            "avoid body duplication, normal anatomy, correct proportions, "
+            "both hands visible, both feet visible, avoid stiff pose, "
+            "avoid stiff expression, avoid bad pose, avoid unnatural gesture, "
+            "avoid distorted limbs, avoid weird posture, avoid uncoordinated motion, "
+            "(worst quality, low quality:1.4), "
+            "(deformed, distorted, disfigured:1.3), "
+            "bad anatomy, extra limbs, mutated hands, "
+            "poorly drawn hands, poorly drawn face, mutation, cloned face, "
+            "bad proportions, floating limbs, disconnected limbs, malformed hands, "
+            "blur, out of focus, long neck, long body, bad hands, "
+            "missing fingers, extra digit, fewer digits, cropped, "
+            "jpeg artifacts, signature, watermark, username, blurry"
+        )
+        
+        full_prompt = f"{instruction} {description}. {base_style}. {realistic_tags}. {quality_tags}. {natural_pose_tags}. {negative_tags}"
+    else:
+        # ====== 中文 prompt（千问 2.0 Pro 用） ======
+        instruction = """【极高优先级 - 必须 100% 遵守】这是一张人物一致性图生图任务。输入图片是小柔的头像，必须严格保持小柔的脸部特征完全不变！
 
 【脸部锁定 - 禁止改变】
 - 严格保留输入图片的人脸五官、脸型、神态、眼睛、鼻子、嘴巴、眉毛、耳朵完全不变
@@ -147,24 +207,24 @@ bad anatomy, cloned face, different face, different person, wrong identity,
 face change, face swap, morphed face, altered face, modified features, 
 poorly drawn face, mutation, bad proportions, (blur, out of focus:1.2),
 facial distortion, inconsistent face, changed features, altered identity"""
-    
-    # 基础风格标签 - 减少妆容感，清淡妆容，性感妩媚
-    base_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红，性感妩媚，女人味十足，迷人眼神，撩人姿态"
-    
-    # 真实感标签 - 强调自然融合
-    realistic_tags = "超高写实，面部清晰自然，光影统一，细节真实，比例正常，无违和融合，高质量人像"
-    
-    # 质量标签 - 强调自然摄影、真实无 AI 感
-    quality_tags = "自然摄影，真实照片，无 AI 感，无塑料感，真实光影，自然质感，细节丰富，色彩自然，人物高清，脸部高清，五官清晰，皮肤细腻，发丝清晰"
-    
-    # 动作自然标签 - 强调姿势自然、表情生动、生活化
-    natural_pose_tags = "动作自然，姿势舒展，表情生动，神态自然，肢体放松，不僵硬，不做作，生活化姿态，日常动作，自然互动，抓拍感，动态感，流畅动作，舒展肢体，放松状态，姿势自然，体态优美，动作流畅，姿态优雅，肢体协调，动作舒展"
-    
-    # 反向提示词 - 强化避免畸形问题
-    negative_tags = "避免畸形，避免多手多腿，避免多余肢体，避免肢体扭曲，避免肢体融合，避免肢体重复，正常人体结构，双手双脚，比例正确，避免动作僵硬，避免姿势刻板，避免表情呆板，避免摆拍感，避免奇怪姿势，避免不自然动作，避免扭曲肢体，避免怪异体态，避免不协调动作，(worst quality, low quality:1.4), (deformed, distorted, disfigured:1.3), bad anatomy, extra limbs, mutated hands, poorly drawn hands, poorly drawn face, mutation, cloned face, bad proportions, floating limbs, disconnected limbs, malformed hands, blur, out of focus, long neck, long body, bad hands, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry"
-    
-    # 组合完整 prompt - 加入动作自然化
-    full_prompt = f"{instruction}。{description}。{base_style}。{realistic_tags}。{quality_tags}。{natural_pose_tags}。{negative_tags}"
+        
+        # 基础风格标签 - 减少妆容感，清淡妆容，性感妩媚
+        base_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红，性感妩媚，女人味十足，迷人眼神，撩人姿态"
+        
+        # 真实感标签 - 强调自然融合
+        realistic_tags = "超高写实，面部清晰自然，光影统一，细节真实，比例正常，无违和融合，高质量人像"
+        
+        # 质量标签 - 强调自然摄影、真实无 AI 感
+        quality_tags = "自然摄影，真实照片，无 AI 感，无塑料感，真实光影，自然质感，细节丰富，色彩自然，人物高清，脸部高清，五官清晰，皮肤细腻，发丝清晰"
+        
+        # 动作自然标签 - 强调姿势自然、表情生动、生活化
+        natural_pose_tags = "动作自然，姿势舒展，表情生动，神态自然，肢体放松，不僵硬，不做作，生活化姿态，日常动作，自然互动，抓拍感，动态感，流畅动作，舒展肢体，放松状态，姿势自然，体态优美，动作流畅，姿态优雅，肢体协调，动作舒展"
+        
+        # 反向提示词 - 强化避免畸形问题
+        negative_tags = "避免畸形，避免多手多腿，避免多余肢体，避免肢体扭曲，避免肢体融合，避免肢体重复，正常人体结构，双手双脚，比例正确，避免动作僵硬，避免姿势刻板，避免表情呆板，避免摆拍感，避免奇怪姿势，避免不自然动作，避免扭曲肢体，避免怪异体态，避免不协调动作，(worst quality, low quality:1.4), (deformed, distorted, disfigured:1.3), bad anatomy, extra limbs, mutated hands, poorly drawn hands, poorly drawn face, mutation, cloned face, bad proportions, floating limbs, disconnected limbs, malformed hands, blur, out of focus, long neck, long body, bad hands, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry"
+        
+        # 组合完整 prompt - 加入动作自然化
+        full_prompt = f"{instruction}。{description}。{base_style}。{realistic_tags}。{quality_tags}。{natural_pose_tags}。{negative_tags}"
     
     return full_prompt
 
