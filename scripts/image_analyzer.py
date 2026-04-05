@@ -114,8 +114,6 @@ def analyze_image(image_path: str, api_key: str) -> str:
                     return result
         
         raise ImageAnalysisError(f"API 响应格式异常：{response}")
-        
-        raise ImageAnalysisError(f"API 错误：{response.message}")
     
     except Exception as e:
         raise ImageAnalysisError(f"图片分析失败：{e}")
@@ -235,11 +233,16 @@ def analyze_image_for_face_swap(image_path: str, api_key: str) -> str:
         )
         
         if response.status_code == 200 and response.output:
-            result = response.output.choices[0].message.content[0]['text']
-            logger.info("✅ 换脸模式场景分析成功")
-            return result
+            output = response.output
+            # P0 修复：添加空值检查
+            if output.choices and len(output.choices) > 0:
+                choice = output.choices[0]
+                if choice.message and choice.message.content:
+                    result = choice.message.content[0]['text']
+                    logger.info("✅ 换脸模式场景分析成功")
+                    return result
         
-        raise ImageAnalysisError(f"API 错误：{response.message}")
+        raise ImageAnalysisError(f"API 响应格式异常：{response}")
     
     except Exception as e:
         raise ImageAnalysisError(f"图片分析失败：{e}")
