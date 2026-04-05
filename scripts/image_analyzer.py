@@ -125,7 +125,28 @@ def build_reference_prompt(description: str) -> str:
     # 新流程优化版提示词 - 更简洁明确
     # 开头：明确指令 - 保留 B 脸，套用 A 的场景/穿搭/姿态
     # 强化人物一致性指令，放在最前面确保模型优先遵循
-    instruction = "【重要】这是一张人物一致性图生图任务。输入图片是小柔的头像，必须 100% 保持小柔的脸部特征不变！严格保留输入图片的人脸五官、脸型、神态、眼睛、鼻子、嘴巴、眉毛完全不变，只替换参考图的全身穿搭、姿态、背景与风格。人物身份必须是小柔，不能变成其他人！"
+    instruction = """【极高优先级 - 必须 100% 遵守】这是一张人物一致性图生图任务。输入图片是小柔的头像，必须严格保持小柔的脸部特征完全不变！
+
+【脸部锁定 - 禁止改变】
+- 严格保留输入图片的人脸五官、脸型、神态、眼睛、鼻子、嘴巴、眉毛、耳朵完全不变
+- 不要改变脸型、下巴轮廓、颧骨形状、下颌线
+- 不要改变眼睛形状、大小、间距、眼神
+- 不要改变鼻子形状、鼻梁高度、鼻翼宽度
+- 不要改变嘴唇厚度、嘴角形状、唇色
+- 不要改变发型、发色、发量、刘海
+- 人物身份必须是小柔，绝对不能变成其他人
+
+【允许改变的内容】
+- 只替换参考图的全身穿搭、姿态、背景与风格
+- 可以调整光线、色调、氛围
+- 可以改变拍摄角度、景深、构图
+
+【反向提示词 - 防止脸部变化】
+(worst quality, low quality:1.4), (deformed, distorted, disfigured:1.3), 
+bad anatomy, cloned face, different face, different person, wrong identity, 
+face change, face swap, morphed face, altered face, modified features, 
+poorly drawn face, mutation, bad proportions, (blur, out of focus:1.2),
+facial distortion, inconsistent face, changed features, altered identity"""
     
     # 基础风格标签 - 减少妆容感，清淡妆容，性感妩媚
     base_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红，性感妩媚，女人味十足，迷人眼神，撩人姿态"
