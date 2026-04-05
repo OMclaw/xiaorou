@@ -10,6 +10,7 @@ allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write Bash(python3:*) Bash(ffm
 
 - 💬 **情感聊天** - Qwen3.5-plus
 - 📸 **自拍生成** - Wan2.6-image / qwen-image-2.0-pro
+- 🔄 **换脸生成** - 4 模型并发（wan2.7-image / wan2.7-image-pro / qwen-image-2.0 / qwen-image-2.0-pro）
 - 🎬 **视频生成** - wan2.6-i2v（图片 + 文字 → 视频）
 - 🎨 **角色定制** - Z-image
 - 🎙️ **语音消息** - CosyVoice-v3-flash（飞书语音气泡）
@@ -31,6 +32,11 @@ bash scripts/aevia.sh "早安"
 
 # 自拍
 bash scripts/aevia.sh "发张自拍" feishu
+
+# 换脸（4 模型并发）
+python3 scripts/face_swap.py /path/to/image.jpg
+python3 scripts/face_swap.py /path/to/image.jpg --image2 /path/to/target.jpg
+python3 scripts/face_swap.py /path/to/image.jpg --models wan2.7-image qwen-image-2.0
 
 # 视频生成（单步）
 python3 scripts/video_generator.py --img photo.jpg --prompt "一个女孩在海边散步" --output video.mp4
@@ -74,6 +80,34 @@ export AEVIA_CHARACTER_NAME="小柔"
 | mirror | 穿、衣服、穿搭、全身 | 对镜自拍 |
 | direct | 咖啡厅、餐厅、特写 | 直接自拍 |
 | auto | 其他 | 自动判断 |
+
+## 换脸模式
+
+**使用方式**：用户发送一张图片 + 说"换脸"
+
+**生成流程**：
+1. 使用用户提供的图片作为图 1
+2. 使用小柔默认头像（assets/default-character.png）作为图 2
+3. 4 个模型并发生成（wan2.7-image / wan2.7-image-pro / qwen-image-2.0 / qwen-image-2.0-pro）
+4. 统一 Prompt：「我想让图 1 的脸换成图 2 的脸部特征，其他图 1 的部分全部不变，最后要自然、无 AI 感、去掉水印」
+5. 输出 4 张生成的图片
+
+**命令行用法**：
+```bash
+# 使用默认小柔头像换脸
+python3 scripts/face_swap.py /path/to/image.jpg
+
+# 指定目标头像
+python3 scripts/face_swap.py /path/to/image.jpg --image2 /path/to/target.jpg
+
+# 指定使用的模型
+python3 scripts/face_swap.py /path/to/image.jpg --models wan2.7-image qwen-image-2.0
+
+# 详细输出
+python3 scripts/face_swap.py /path/to/image.jpg --verbose
+```
+
+**输出位置**：`/tmp/openclaw/face_swaps/face_swap_<timestamp>/`
 
 ## API
 
