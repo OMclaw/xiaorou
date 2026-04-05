@@ -22,6 +22,10 @@ from typing import Optional, Tuple
 _face_analysis_cache = None
 _swapper_cache = None
 
+# 线程安全锁（P3 修复 - 防止多线程竞争）
+import threading
+_cache_lock = threading.Lock()
+
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stderr)
 logger = logging.getLogger(__name__)
 
@@ -61,9 +65,11 @@ def init_face_analysis(providers: list = None):
     global _face_analysis_cache
     
     # 使用缓存避免重复加载（P1 修复）
-    if _face_analysis_cache is not None:
-        logger.debug("使用缓存的人脸分析模型")
-        return _face_analysis_cache
+    # 使用线程锁保证线程安全（P3 修复）
+    with _cache_lock:
+        if _face_analysis_cache is not None:
+            logger.debug("使用缓存的人脸分析模型")
+            return _face_analysis_cache
     
     from insightface.app import FaceAnalysis
     
@@ -222,14 +228,16 @@ def enhance_face_consistency(generated_image: str, reference_face_image: str,
     target_face = gen_faces[0]
     
     # 加载换脸模型（带缓存）（P1 修复）
+    # 使用线程锁保证线程安全（P3 修复）
     global _swapper_cache
-    if _swapper_cache is None:
-        logger.info("🎭 加载换脸模型...")
-        _swapper_cache = get_model('inswapper_128.onnx', download=True)
-        logger.info("✅ 换脸模型加载完成（已缓存）")
-    else:
-        logger.debug("使用缓存的换脸模型")
-    swapper = _swapper_cache
+    with _cache_lock:
+        if _swapper_cache is None:
+            logger.info("🎭 加载换脸模型...")
+            _swapper_cache = get_model('inswapper_128.onnx', download=True)
+            logger.info("✅ 换脸模型加载完成（已缓存）")
+        else:
+            logger.debug("使用缓存的换脸模型")
+        swapper = _swapper_cache
     
     # 执行换脸
     logger.info("✨ 执行换脸...")
