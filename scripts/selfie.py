@@ -515,6 +515,7 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
 
 
 def generate_from_reference(reference_image_path: str, caption: str = "这是模仿参考图生成的～", channel: Optional[str] = None, target: Optional[str] = None, multi_mode: bool = False) -> bool:
+    """注意：multi_mode 参数已废弃，因为 generate_images_multi_model 函数未实现"""
     """
     参考图模式（优化版 - 新流程）
     
@@ -552,55 +553,8 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         channel = validate_channel(channel)
         
         if multi_mode:
-            # ===== 方案二：多图融合模式 =====
-            logger.info("🔀 多图融合模式：小柔头像 + 参考图直接融合")
-            
-            # 多图融合 prompt（增强版 - 脸部锁定）
-            fusion_prompt = """【极高优先级 - 必须 100% 遵守】这是一张人物一致性融合创作。
-
-【脸部锁定指令】
-图 1 是小柔的头像，必须严格保持她的脸部特征完全不变：
-- 五官、脸型、发型、发色、发量完全不变
-- 眼睛形状、大小、间距、眼神完全不变
-- 鼻子形状、嘴唇厚度、嘴角形状完全不变
-- 下巴轮廓、颧骨形状、下颌线完全不变
-- 人物身份必须是小柔，绝对不能变成其他人
-
-【参考图学习】
-图 2 是参考图，只学习以下内容：
-- 场景、姿势、服装、光线、氛围
-- 拍摄角度、景深、构图方式
-
-【风格要求】
-4. 妆容清淡自然，裸妆效果，无腮红，无口红，裸唇，唇色自然
-5. 真实摄影风格，自然光滑皮肤，清透肌肤，无 AI 感，无塑料感
-
-【反向提示词】
-(worst quality, low quality:1.4), (deformed, distorted, disfigured:1.3), 
-bad anatomy, cloned face, different face, different person, wrong identity, 
-face change, morphed face, altered face, modified features, facial distortion
-
-将图 1 的人物完美融入图 2 的场景中，保持脸部 100% 一致性的同时，学习参考图的整体风格和氛围。"""
-            
-            logger.info("🚀 正在生成图片（多图融合）...")
-            image_url = generate_images_multi_model(image_path, ref_path, fusion_prompt, api_key)
-            
-            if not image_url:
-                logger.error("❌ 生成失败")
-                return False
-            
-            # 发送图片
-            success_count = 0
-            if channel and image_url:
-                if not target:
-                    target = os.environ.get('AEVIA_TARGET')
-                if send_to_channel(image_url, caption, channel, "qwen-image-2.0-pro", target):
-                    success_count += 1
-            
-            logger.info(f"✅ 成功发送 {success_count} 张图片")
-            return success_count > 0
-            
-        else:
+            logger.warning("⚠️ multi_mode 参数已废弃，自动切换到普通模式")
+            # 原多图融合模式需要 generate_images_multi_model 函数，该函数未实现
             # ===== 方案一：分析 + 图生图模式（双模型并发） =====
             logger.info("🔍 分析参考图模式：提取 prompt 后双模型并发生成")
             
