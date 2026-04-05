@@ -18,6 +18,10 @@ import numpy as np
 from pathlib import Path
 from typing import Optional, Tuple
 
+# 全局模型缓存（P1 修复 - 避免重复加载）
+_face_analysis_cache = None
+_swapper_cache = None
+
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stderr)
 logger = logging.getLogger(__name__)
 
@@ -53,7 +57,14 @@ def check_dependencies() -> Tuple[bool, str]:
 
 
 def init_face_analysis(providers: list = None):
-    """初始化人脸分析模型"""
+    """初始化人脸分析模型（带缓存）"""
+    global _face_analysis_cache
+    
+    # 使用缓存避免重复加载（P1 修复）
+    if _face_analysis_cache is not None:
+        logger.debug("使用缓存的人脸分析模型")
+        return _face_analysis_cache
+    
     from insightface.app import FaceAnalysis
     
     if providers is None:
@@ -71,8 +82,11 @@ def init_face_analysis(providers: list = None):
         except:
             providers = ['CPUExecutionProvider']
     
+    logger.info("🔧 初始化人脸分析模型...")
     app = FaceAnalysis(providers=providers)
     app.prepare(ctx_id=0, det_size=(640, 640))
+    _face_analysis_cache = app
+    logger.info("✅ 人脸分析模型加载完成（已缓存）")
     return app
 
 
@@ -164,6 +178,19 @@ def enhance_face_consistency(generated_image: str, reference_face_image: str,
     if not os.path.exists(reference_face_image):
         raise FaceEnhancerError(f"参考头像不存在：{reference_face_image}")
     
+    # 验证图片类型和大小（P1 修复）
+    import mimetypes
+    for img_path in [generated_image, reference_face_image]:
+        # 检查文件大小（最大 20MB）
+        file_size = os.path.getsize(img_path)
+        if file_size > 20 * 1024 * 1024:
+            raise FaceEnhancerError(f"图片文件过大：{img_path} ({file_size / 1024 / 1024:.2f}MB > 20MB)")
+        
+        # 检查 MIME 类型
+        mime_type, _ = mimetypes.guess_type(img_path)
+        if mime_type not in ['image/jpeg', 'image/png', 'image/webp']:
+            raise FaceEnhancerError(f"不支持的图片类型：{img_path} (MIME: {mime_type})")
+    
     # 初始化模型
     logger.info("🔧 初始化人脸分析模型...")
     app = init_face_analysis()
@@ -194,9 +221,15 @@ def enhance_face_consistency(generated_image: str, reference_face_image: str,
     
     target_face = gen_faces[0]
     
-    # 加载换脸模型
-    logger.info("🎭 加载换脸模型...")
-    swapper = get_model('inswapper_128.onnx', download=True)
+    # 加载换脸模型（带缓存）（P1 修复）
+    global _swapper_cache
+    if _swapper_cache is None:
+        logger.info("🎭 加载换脸模型...")
+        _swapper_cache = get_model('inswapper_128.onnx', download=True)
+        logger.info("✅ 换脸模型加载完成（已缓存）")
+    else:
+        logger.debug("使用缓存的换脸模型")
+    swapper = _swapper_cache
     
     # 执行换脸
     logger.info("✨ 执行换脸...")

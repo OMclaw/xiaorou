@@ -8,6 +8,7 @@ import os
 import sys
 import time
 import re
+import random
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -229,8 +230,10 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
             error_msg = str(e)
             logger.error(f"API 错误：{error_msg}")
             if attempt < retries:
-                wait_time = RETRY_DELAY * attempt
-                logger.warning(f"{wait_time}秒后重试...")
+                # 添加随机抖动避免同时重试（P2 修复）
+                jitter = random.uniform(0, 0.5)
+                wait_time = (RETRY_DELAY * attempt) + jitter
+                logger.warning(f"{wait_time:.2f}秒后重试...")
                 time.sleep(wait_time)
             else:
                 return False, f"API 错误：{error_msg}"

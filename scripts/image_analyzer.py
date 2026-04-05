@@ -14,6 +14,9 @@ import re
 from pathlib import Path
 from typing import Optional
 
+# 超时配置（P1 修复）
+API_TIMEOUT = int(os.environ.get('XIAOROU_API_TIMEOUT', '120'))
+
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stderr)
 logger = logging.getLogger(__name__)
 
@@ -102,9 +105,15 @@ def analyze_image(image_path: str, api_key: str) -> str:
         )
         
         if response.status_code == 200 and response.output:
-            result = response.output.choices[0].message.content[0]['text']
-            logger.info("✅ 图片分析成功")
-            return result
+            output = response.output
+            if output.choices and len(output.choices) > 0:
+                choice = output.choices[0]
+                if choice.message and choice.message.content:
+                    result = choice.message.content[0]['text']
+                    logger.info("✅ 图片分析成功")
+                    return result
+        
+        raise ImageAnalysisError(f"API 响应格式异常：{response}")
         
         raise ImageAnalysisError(f"API 错误：{response.message}")
     

@@ -152,8 +152,12 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.7-
         
         logger.info(f"✅ 上传凭证获取成功")
         
-        # 2. 上传文件到 OSS
+        # 2. 上传文件到 OSS（P2 修复 - 文件名二次验证）
         file_name = Path(file_path).name
+        # 验证文件名安全性
+        if not file_name or '..' in file_name or file_name.startswith('/'):
+            logger.error(f"❌ 无效的文件名：{file_name}")
+            return None
         key = f"{policy_data['upload_dir']}/{file_name}"
         
         logger.info(f"📤 正在上传文件...")

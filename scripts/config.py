@@ -46,8 +46,8 @@ class Config:
                 if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
                     self._api_key = api_key
                     return api_key
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"读取配置文件失败：{e}")  # P2 修复：使用 debug 避免泄露路径
         
         raise ConfigurationError("API Key 未配置")
     

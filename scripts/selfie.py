@@ -32,6 +32,9 @@ TEMP_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
 MAX_INPUT_LENGTH = 500
 DEFAULT_IMAGE_SIZE = "1K"
 PROMPT_EXTEND = False
+# 超时配置（P1 修复 - 可从环境变量定制）
+API_TIMEOUT = int(os.environ.get('XIAOROU_API_TIMEOUT', '120'))
+IMAGE_DOWNLOAD_TIMEOUT = int(os.environ.get('XIAOROU_IMAGE_DOWNLOAD_TIMEOUT', '30'))
 
 # 配置日志级别
 log_level = config.get_log_level()
@@ -199,7 +202,7 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                 'Content-Type': 'application/json',
                 'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'
             },
-            json=payload, timeout=120
+            json=payload, timeout=API_TIMEOUT
         )
         
         result_json = response.json()
@@ -242,8 +245,8 @@ def generate_images_dual_model(image_path: Path, prompt: str, api_key: str) -> L
     return results
 
 
-def get_feishu_credentials():
-    """获取飞书 API 凭证"""
+def get_feishu_credentials() -> Tuple[Optional[str], Optional[str]]:
+    """获取飞书 API 凭证（P2 修复 - 添加类型注解）"""
     import json
     config_file = os.path.expanduser('~/.openclaw/openclaw.json')
     
@@ -384,9 +387,9 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         
         timestamp = int(time.time())
         temp_file = f'/tmp/openclaw/selfie_{model_name}_{timestamp}.jpg'
-        os.makedirs('/tmp/openclaw', exist_ok=True)
+        os.makedirs('/tmp/openclaw', mode=0o700, exist_ok=True)
         
-        response = requests.get(image_url, timeout=30)
+        response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT)
         response.raise_for_status()
         
         with open(temp_file, 'wb') as f:
