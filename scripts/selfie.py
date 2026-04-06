@@ -194,47 +194,79 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                 json=payload, timeout=API_TIMEOUT
             )
         
-        result_json = response.json()
-        if response.status_code == 200 and result_json.get('output'):
-            output = result_json['output']
-            if 'choices' in output and len(output['choices']) > 0:
-                image_url = output['choices'][0]['message']['content'][0]['image']
-                logger.info(f"✅ {model_name} 生成成功")
-                return (model_name, image_url)
+            result_json = response.json()
+            if response.status_code == 200 and result_json.get('output'):
+                output = result_json['output']
+                if 'choices' in output and len(output['choices']) > 0:
+                    image_url = output['choices'][0]['message']['content'][0]['image']
+                    logger.info(f"✅ {model_name} 生成成功")
+                    return (model_name, image_url)
         
-        logger.error(f"❌ {model_name} API 错误：{result_json}")
-        if attempt < max_retries:
-            logger.warning(f"⚠️ {model_name} 重试中...")
-            time.sleep(1 * (attempt + 1))  # 指数退避
-            continue
-        return (model_name, None)
+            logger.error(f"❌ {model_name} API 错误：{result_json}")
+            if attempt < max_retries:
+                logger.warning(f"⚠️ {model_name} 重试中...")
+                time.sleep(1 * (attempt + 1))  # 指数退避
+                continue
+            return (model_name, None)
         
-    except json.JSONDecodeError as e:
-        logger.error(f"❌ {model_name} JSON 解析失败：{e}")
-        if attempt < max_retries:
-            logger.warning(f"⚠️ {model_name} 重试中...")
-            time.sleep(1 * (attempt + 1))
-            continue
-        return (model_name, None)
-    except requests.RequestException as e:
-        logger.error(f"❌ {model_name} 请求异常：{e}")
-        if attempt < max_retries:
-            logger.warning(f"⚠️ {model_name} 重试中...")
-            time.sleep(1 * (attempt + 1))
-            continue
-        return (model_name, None)
-    except Exception as e:
-        logger.error(f"❌ {model_name} 错误：{e}")
-        if attempt < max_retries:
-            logger.warning(f"⚠️ {model_name} 重试中...")
-            time.sleep(1 * (attempt + 1))
-            continue
-        return (model_name, None)
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ {model_name} JSON 解析失败：{e}")
+            if attempt < max_retries:
+                logger.warning(f"⚠️ {model_name} 重试中...")
+                time.sleep(1 * (attempt + 1))
+                continue
+            return (model_name, None)
+        except requests.RequestException as e:
+            logger.error(f"❌ {model_name} 请求异常：{e}")
+            if attempt < max_retries:
+                logger.warning(f"⚠️ {model_name} 重试中...")
+                time.sleep(1 * (attempt + 1))
+                continue
+            return (model_name, None)
+        except Exception as e:
+            logger.error(f"❌ {model_name} 错误：{e}")
+            if attempt < max_retries:
+                logger.warning(f"⚠️ {model_name} 重试中...")
+                time.sleep(1 * (attempt + 1))
+                continue
+            return (model_name, None)
+
+
+def generate_images_dual_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
+    """
+    使用 2 个模型并发生成图片（参考生图模式）- wan2.7-image + qwen-image-2.0-pro
+    
+    Returns:
+        [(model_name, image_url), ...] 成功生成的图片列表
+    """
+    models = ['wan2.7-image', 'qwen-image-2.0-pro']
+    results = []
+    
+    # 并发执行两个模型
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = {
+            executor.submit(generate_single_image, model_name, image_path, prompt, api_key): model_name
+            for model_name in models
+        }
+        for future in as_completed(futures):
+            model_name = futures[future]
+            try:
+                result = future.result()
+                if result[1]:
+                    results.append(result)
+                    logger.info(f"✅ {model_name} 生成成功")
+                else:
+                    logger.warning(f"⚠️ {model_name} 生成失败")
+            except Exception as e:
+                logger.error(f"❌ {model_name} 异常：{e}")
+    
+    logger.info(f"📊 生成结果：{len(results)}/{len(models)} 成功")
+    return results
 
 
 def generate_images_single_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
     """
-    使用 1 个模型生成图片（参考生图模式）- 只用 wan2.7-image
+    使用 1 个模型生成图片（场景生图模式）- 只用 wan2.7-image
     
     Returns:
         [(model_name, image_url), ...] 成功生成的图片列表
@@ -399,7 +431,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         
         timestamp = int(time.time())
         # 安全处理 model_name，避免特殊字符
-        safe_model_name = model_name.replace('.', '_').replace('-', '_')
+        safe_model_name = model_name.replace('.', '_').replace('-', '_')[:50]  # 限制长度
         temp_file = f'/tmp/openclaw/selfie_{safe_model_name}_{timestamp}.jpg'
         os.makedirs('/tmp/openclaw', mode=0o700, exist_ok=True)
         
@@ -539,7 +571,7 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
     1. 分析参考图 → 提取场景、姿势、服装、光线等描述（**完全忽略人脸**）
     2. 使用小柔头像作为图生图的输入
     3. Prompt：保留小柔脸，套用参考图的场景/穿搭/姿态
-    4. 单模型生成（wan2.7-image）
+    4. 双模型并发生成（wan2.7-image + qwen-image-2.0-pro）
     
     Args:
         reference_image_path: 参考图路径
@@ -567,8 +599,8 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         
         channel = validate_channel(channel)
         
-        # 忽略 multi_mode 参数，始终使用分析 + 图生图模式
-        logger.info("🔍 分析参考图模式：提取 prompt 后单模型生成")
+        # 忽略 multi_mode 参数，始终使用分析 + 双模型图生图模式
+        logger.info("🔍 分析参考图模式：提取 prompt 后双模型并发生成")
         
         # 3. 分析参考图，提取 prompt
         script_dir = Path(__file__).resolve().parent
@@ -591,12 +623,17 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
                 return False
         
         import subprocess
-        result = subprocess.run(
-            ['python3', str(analyzer_path), reference_image_path],
-            capture_output=True,
-            text=True,
-            timeout=int(os.environ.get('XIAOROU_API_TIMEOUT', '120'))
-        )
+        try:
+            result = subprocess.run(
+                ['python3', str(analyzer_path), reference_image_path],
+                capture_output=True,
+                text=True,
+                timeout=int(os.environ.get('XIAOROU_API_TIMEOUT', '120')),
+                shell=False  # 显式声明不使用 shell
+            )
+        except subprocess.TimeoutExpired:
+            logger.error(f"图片分析超时（超过 {os.environ.get('XIAOROU_API_TIMEOUT', '120')} 秒）")
+            return False
         
         if result.returncode != 0:
             logger.error(f"图片分析失败：{result.stderr}")
@@ -605,15 +642,15 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         prompt = result.stdout.strip()
         logger.info(f"✅ 参考图分析完成：{prompt[:100]}...")
         
-        # 4. 单模型生成（wan2.7-image）
-        logger.info("🚀 万相 2.7 生成中...")
-        results = generate_images_single_model(image_path, prompt, api_key)
+        # 4. 双模型并发生成（wan2.7-image + qwen-image-2.0-pro）
+        logger.info("🚀 双模型并发中...")
+        results = generate_images_dual_model(image_path, prompt, api_key)
         
         if not results:
-            logger.error("❌ 4 个模型都生成失败")
+            logger.error("❌ 所有模型都生成失败")
             return False
         
-        # 5. 发送所有成功生成的图片（4 模型并发）
+        # 5. 发送所有成功生成的图片（双模型并发）
         success_count = 0
         failed_models = []
         for model_name, image_url in results:
@@ -630,7 +667,7 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         
         if failed_models:
             logger.error(f"⚠️ 发送失败的模型：{', '.join(failed_models)}")
-        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片（1 模型）")
+        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片（双模型）")
         return success_count > 0
         
     except (ConfigurationError, FileNotFoundError) as e:
@@ -649,7 +686,7 @@ if __name__ == "__main__":
         sys.exit(1)
     
     # 检测是否为参考图模式
-    elif sys.argv[1] == '--reference' and len(sys.argv) >= 3:
+    if sys.argv[1] == '--reference' and len(sys.argv) >= 3:
         reference_image = sys.argv[2]
         channel = sys.argv[3] if len(sys.argv) > 3 else None
         caption = sys.argv[4] if len(sys.argv) > 4 else "这是模仿参考图生成的～"

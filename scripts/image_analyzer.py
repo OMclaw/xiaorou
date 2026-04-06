@@ -14,6 +14,9 @@ import re
 from pathlib import Path
 from typing import Optional
 
+# 导入统一配置
+from config import config, ConfigurationError
+
 # 超时配置（P1 修复）
 API_TIMEOUT = int(os.environ.get('XIAOROU_API_TIMEOUT', '120'))
 
@@ -27,6 +30,11 @@ class ImageAnalysisError(Exception): pass
 
 def get_image_base64(image_path: str) -> str:
     """读取图片并转换为 base64"""
+    # 检查文件大小（限制 10MB）
+    file_size = os.path.getsize(image_path)
+    if file_size > 10 * 1024 * 1024:
+        raise ImageAnalysisError(f"图片文件过大：{file_size / 1024 / 1024:.2f}MB（限制 10MB）")
+    
     with open(image_path, 'rb') as f:
         image_data = base64.b64encode(f.read()).decode('utf-8')
     return f"data:image/jpeg;base64,{image_data}"
@@ -267,7 +275,8 @@ def analyze_image_file(image_path: str) -> Optional[str]:
             logger.error(f"⚠️ 文件路径不在允许范围内：{image_path}")
             return None
         
-        api_key = validate_config()
+        # 加载 API Key
+        api_key = config.get_api_key()
         
         # 分析参考图
         description = analyze_image(image_path, api_key)
@@ -295,6 +304,26 @@ if __name__ == "__main__":
     
     if not os.path.exists(image_path):
         logger.error(f"图片不存在：{image_path}")
+        sys.exit(1)
+    
+    # 路径白名单验证
+    allowed_dirs = [
+        Path('/home/admin/.openclaw/media/inbound'),
+        Path('/tmp/openclaw'),
+        Path('/tmp/xiaorou'),
+    ]
+    
+    is_allowed = False
+    for allowed_dir in allowed_dirs:
+        try:
+            Path(image_path).relative_to(allowed_dir.resolve())
+            is_allowed = True
+            break
+        except ValueError:
+            continue
+    
+    if not is_allowed:
+        logger.error(f"图片路径不在允许范围内：{image_path}")
         sys.exit(1)
     
     result = analyze_image_file(image_path)
