@@ -478,9 +478,16 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             logger.error(f"图片过大（{int(content_length) / 1024 / 1024:.1f}MB > 20MB），拒绝下载")
             return False
         
+        # H-2 修复：流式下载并限制总大小
+        max_download_size = 20 * 1024 * 1024  # 20MB
+        downloaded = 0
         with open(temp_file, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
+                if chunk:
+                    downloaded += len(chunk)
+                    if downloaded > max_download_size:
+                        raise ValueError(f"下载超出大小限制（{downloaded / 1024 / 1024:.1f}MB > 20MB）")
+                    f.write(chunk)
         
         if os.path.getsize(temp_file) == 0:
             logger.error("下载的图片文件为空")

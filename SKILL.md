@@ -88,7 +88,7 @@ bash scripts/aevia.sh --selfie-reference "参考这张图" feishu
 python3 scripts/selfie.py --reference /path/to/reference.jpg feishu
 ```
 
-**关键词**: `参考`、`模仿`、`照着`、`学这张`、`类似的`、`同样的`、`照这个`、`按这个`
+**关键词**: `参考`、`模仿`、`照着/照著`、`学这张`、`类似的`、`同样的`、`照这个`、`按这个`、`生成一张`、`来一张`
 
 **流程**:
 1. 分析参考图 → 提取场景、姿势、服装、光线等描述（忽略人脸）

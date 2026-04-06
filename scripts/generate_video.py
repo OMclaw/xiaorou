@@ -88,7 +88,8 @@ class SafeLogger:
     
     def debug(self, msg, *args, **kwargs):
         self._logger.debug(safe_log(msg), *args, **kwargs)
-    
+
+
     def critical(self, msg, *args, **kwargs):
         self._logger.critical(safe_log(msg), *args, **kwargs)
     
@@ -98,6 +99,12 @@ class SafeLogger:
     def log(self, level, msg, *args, **kwargs):
         self._logger.log(level, safe_log(msg), *args, **kwargs)
     
+
+
+# 初始化日志记录器
+_base_logger = logging.getLogger('generate_video')
+_base_logger.setLevel(logging.DEBUG)
+logger = SafeLogger(_base_logger)
 
 
 # ============ 重试装饰器 ============
@@ -121,7 +128,7 @@ def retry_on_failure(max_attempts: int = 3, delay: float = 1.0):
                     # 网络异常，可重试
                     last_exception = e
                     if attempt < max_attempts:
-                        logger.warning(f"⚠️ 尝试 {attempt}/{max_attempts} 失败（网络异常）：{e}，{delay}秒后重试...")
+                        logger.warning(f"⚠️ 尝试 {attempt}/{max_attempts} 失败（网络异常）：{e}，{current_delay:.1f}秒后重试...")
                         time.sleep(current_delay)
                         current_delay *= 2  # 指数退避
                     else:
@@ -249,6 +256,12 @@ def generate_video(
     # M-9 修复：prompt 空值校验
     if not prompt or not prompt.strip():
         return (False, "prompt 不能为空")
+    
+    # L-1 修复：参数校验
+    if resolution not in ('720P', '1080P'):
+        return (False, f"不支持的分辨率：{resolution}（支持 720P/1080P）")
+    if not (2 <= duration <= 10):
+        return (False, f"不支持的时长：{duration}秒（支持 2-10 秒）")
     
     logger.info(f"🎬 开始生成视频...")
     logger.info(f"  模型：{model}")

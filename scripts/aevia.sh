@@ -77,10 +77,10 @@ detect_mode() {
   fi
   
   # ========== 参考生图模式 ==========
-  # 关键词：参考、模仿、照著、学这张、生成一张类似的、同样的场景
+  # 关键词：参考、模仿、照[著着]、学这张、生成一张类似的、同样的场景
   # 条件：必须有图片 + 参考类关键词
   if [ -n "$has_image" ]; then
-    if printf '%s' "$input" | grep -qiE "参考|模仿|照著|学这张|类似的|同样的|照这个|按这个|生成一张|来一张"; then
+    if printf '%s' "$input" | grep -qiE "参考|模仿|照[著着]|学这张|类似的|同样的|照这个|按这个|生成一张|来一张"; then
       echo "selfie-reference"
       return
     fi
@@ -268,14 +268,15 @@ run_chat() {
   
   info "💬 聊天模式"
   
-  # 使用 jq 安全构造 JSON（必须安装 jq）
-  local temp_json
-  temp_json=$(mktemp)
-  trap 'rm -f "$temp_json"' EXIT
-  
+  # L-4 修复：先检查 jq，再创建临时文件
   if ! command -v jq &>/dev/null; then
     error "jq 未安装，请运行：apt install jq 或 brew install jq"
   fi
+  
+  # 使用 jq 安全构造 JSON
+  local temp_json
+  temp_json=$(mktemp)
+  trap 'rm -f "$temp_json"' EXIT
   
   jq -n \
     --arg input "$input" \
