@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.7.0] - 2026-04-06
+
+### ✨ Added
+- **face_swap.py 跨平台支持**: 完整支持 feishu/telegram/discord/whatsapp 多平台
+- **环境变量配置**: 支持 AEVIA_CHANNEL 和 AEVIA_TARGET 默认值
+- **自动保存功能**: 最新换脸结果保存到固定路径供其他功能使用
+- **模型 emoji 标识**: 每个模型生成结果带 emoji 显示
+
+### 🔧 Changed
+- **统一发送逻辑**: 所有平台使用 `openclaw message send` 命令
+- **命令行参数优化**: 支持 `--auto-send/--no-send` 控制发送行为
+- **架构文档**: 新增 ARCHITECTURE.md 详细说明三种生图模式
+
+### 🧹 Cleaned
+- **删除重复代码**: 移除 selfie.py 中的换脸功能（150+ 行）
+- **明确模式定位**:
+  - 场景生图 (selfie.py): 1 模型 1 张
+  - 参考生图 (selfie.py): 2 模型 2 张
+  - 换脸生图 (face_swap.py): 4 模型 4 张
+
+### 📦 Files Changed
+- `scripts/face_swap.py` - 添加跨平台发送功能
+- `scripts/selfie.py` - 删除换脸功能，专注场景/参考生图
+- `scripts/aevia.sh` - 更新换脸模式调用 face_swap.py
+- `SKILL.md` - 更新三种模式说明
+- `ARCHITECTURE.md` - 新增架构说明文档
+
+### 📊 Technical Details
+- 换脸生图 4 模型并发成功率提升至 ~100%
+- 修复 qwen-image 系列模型 size 参数格式问题
+- 支持从配置文件读取默认 target
+
+---
+
 ## [4.6.0] - 2026-04-06
 
 ### ✨ Added
