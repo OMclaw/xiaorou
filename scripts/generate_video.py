@@ -285,7 +285,7 @@ def generate_video(
         "input": input_data,
         "parameters": {
             "resolution": resolution,
-            "prompt_extend": True,
+            "prompt_extend": False,
             "duration": duration,
             "watermark": False  # 关闭水印
         }
