@@ -344,9 +344,15 @@ def main():
     parser.add_argument('--models', '-m', nargs='+', choices=FACE_SWAP_MODELS, help='指定使用的模型')
     parser.add_argument('--output', '-o', help='输出目录')
     parser.add_argument('--verbose', '-v', action='store_true', help='详细输出')
-    parser.add_argument('--channel', '-c', choices=['feishu', 'telegram', 'discord', 'whatsapp'], help='发送频道')
-    parser.add_argument('--target', '-t', help='发送目标（open_id 或 chat_id）')
-    parser.add_argument('--caption', help='发送消息的配文')
+    parser.add_argument('--channel', '-c', choices=['feishu', 'telegram', 'discord', 'whatsapp'], 
+                       default=os.environ.get('AEVIA_CHANNEL', 'feishu'), help='发送频道')
+    parser.add_argument('--target', '-t', default=os.environ.get('AEVIA_TARGET', ''), 
+                       help='发送目标（open_id 或 chat_id）')
+    parser.add_argument('--caption', default='换脸完成～看看效果怎么样？', help='发送消息的配文')
+    parser.add_argument('--auto-send', action='store_true', default=True, 
+                       help='生成完成后自动发送（默认启用）')
+    parser.add_argument('--no-send', action='store_false', dest='auto_send', 
+                       help='只生成不发送')
     
     args = parser.parse_args()
     
@@ -374,31 +380,75 @@ def main():
         print(f"\n📁 输出目录：{results['output_dir']}")
         print("="*50)
         
-        # 如果指定了频道和目标，发送图片
-        if args.channel and args.target and results['success']:
-            print(f"\n📤 正在发送到 {args.channel}...")
-            import subprocess
-            caption = args.caption or "换脸完成～看看效果怎么样？"
+        # 如果启用自动发送，发送图片
+        if args.auto_send and results['success']:
+            # 尝试从环境变量或配置读取 target
+            send_target = args.target or os.environ.get('AEVIA_TARGET', '')
             
-            for model_name in results['success']:
-                image_path = results['images'][model_name]
-                print(f"  发送：{image_path}")
+            # 如果没有配置 target，尝试从默认配置读取
+            if not send_target and args.channel == 'feishu':
+                send_target = config.get_feishu_target()
+            
+            if not send_target:
+                print("\n⚠️  警告：未指定发送目标，跳过发送")
+                print("请使用 --target 指定目标，或配置 AEVIA_TARGET 环境变量")
+            else:
+                print(f"\n📤 正在发送到 {args.channel} (target: {send_target})...")
+                import subprocess
+                import shutil
                 
-                # 使用 openclaw message send 发送
+                caption = args.caption
+            
+            # 模型名称映射（带 emoji）
+            model_display_map = {
+                'wan2.7-image': '🎨【万相 2.7】',
+                'wan2.7-image-pro': '🎨【万相 2.7 Pro】',
+                'qwen-image-2.0': '🖼️【千问 2.0】',
+                'qwen-image-2.0-pro': '🖼️【千问 2.0 Pro】'
+            }
+            
+            # 保存最新换脸结果到固定路径（供其他功能使用）
+            latest_path = config.get_temp_dir() / 'face_swap_latest.jpg'
+            
+            for i, model_name in enumerate(results['success']):
+                image_path = results['images'][model_name]
+                model_emoji = model_display_map.get(model_name, f'📷【{model_name}】')
+                
+                # 第一个图片附带完整文字说明
+                if i == 0:
+                    full_caption = f"🎭 换脸生图完成！\n\n{model_emoji}\n{caption}\n\n共生成 {len(results['success'])} 张"
+                else:
+                    full_caption = f"{model_emoji} 换脸生图"
+                
+                print(f"  发送：{image_path} ({model_emoji})")
+                
+                # 使用 openclaw message send 发送（所有平台统一）
                 cmd = [
                     'openclaw', 'message', 'send',
                     '--channel', args.channel,
-                    '--target', args.target,
+                    '--target', send_target,
+                    '--message', full_caption,
                     '--media', str(image_path)
                 ]
                 
-                # 第一个图片附带文字
-                if model_name == results['success'][0]:
-                    cmd.extend(['--message', caption])
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
                 
-                subprocess.run(cmd, check=True)
+                if result.returncode == 0:
+                    print(f"    ✅ 发送成功")
+                    
+                    # 保存最新结果到固定路径（原子操作）
+                    if i == 0:
+                        try:
+                            temp_dst = str(latest_path) + '.tmp'
+                            shutil.copy2(image_path, temp_dst)
+                            os.replace(temp_dst, str(latest_path))
+                            print(f"    ✓ 已保存最新结果到：{latest_path}")
+                        except Exception as e:
+                            print(f"    ⚠️ 保存失败：{e}")
+                else:
+                    print(f"    ❌ 发送失败：{result.stderr}")
             
-            print("✅ 发送完成！")
+            print("\n✅ 换脸生图全部完成！")
         
         # 返回成功状态
         sys.exit(0 if results['success'] else 1)
