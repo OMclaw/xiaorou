@@ -122,6 +122,8 @@ def get_image_base64(image_path: Path) -> str:
     """读取图片并转换为 base64 格式"""
     # 检查文件大小（限制 10MB，与 image_analyzer.py 保持一致）
     file_size = image_path.stat().st_size
+    if file_size == 0:
+        raise ValueError(f"图片文件为空：{image_path}")
     if file_size > 10 * 1024 * 1024:
         raise ValueError(f"图片文件过大：{file_size / 1024 / 1024:.2f}MB（限制 10MB）")
     
@@ -130,10 +132,14 @@ def get_image_base64(image_path: Path) -> str:
 
 
 def build_prompt(context: str) -> Tuple[str, str]:
-    """构建网红风格图片生成 prompt - 自然真实版本"""
+    """构建网红风格图片生成 prompt - 自然真实版本
+    
+    Raises:
+        ValueError: 如果检测到 Prompt Injection 模式
+    """
     context_lower = context.lower()
     
-    # H-6 修复：检测 prompt injection 模式
+    # H-6 修复：检测 prompt injection 模式，检测到则拒绝处理
     injection_patterns = [
         'ignore', 'disregard', 'system prompt', 'system instruction',
         'previous instructions', 'above instructions', 'override',
@@ -141,8 +147,7 @@ def build_prompt(context: str) -> Tuple[str, str]:
     ]
     for pattern in injection_patterns:
         if pattern in context_lower:
-            logger.warning(f"⚠️ 检测到潜在 Prompt Injection 模式：{pattern}")
-            # 不拒绝，但记录警告
+            raise ValueError(f"输入包含潜在 Prompt Injection 模式：{pattern}")
     
     # 网红风格基础元素 - 减少 AI 感，增加真实感，清淡妆容，无腮红
     influencer_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红"
@@ -458,7 +463,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         temp_file = f'{temp_dir}/selfie_{safe_model_name}_{timestamp}.jpg'
         os.makedirs(str(temp_dir), mode=0o700, exist_ok=True)
         
-        response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT)
+        response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT, stream=True)
         response.raise_for_status()
         
         # 先检查 Content-Type（L-5 修复：避免下载非图片内容）
@@ -467,8 +472,15 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             logger.error(f"远程资源不是图片类型：{content_type}")
             return False
         
+        # 检查 Content-Length（H-6 修复：防止 DoS 攻击）
+        content_length = response.headers.get('Content-Length')
+        if content_length and int(content_length) > 20 * 1024 * 1024:
+            logger.error(f"图片过大（{int(content_length) / 1024 / 1024:.1f}MB > 20MB），拒绝下载")
+            return False
+        
         with open(temp_file, 'wb') as f:
-            f.write(response.content)
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
         
         if os.path.getsize(temp_file) == 0:
             logger.error("下载的图片文件为空")
@@ -578,9 +590,8 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
         success_count = 0
         for model_name, image_url in results:
             if channel and image_url:
-                if not target:
-                    target = os.environ.get('AEVIA_TARGET')
-                if send_to_channel(image_url, caption, channel, model_name, target):
+                effective_target = target or os.environ.get('AEVIA_TARGET')
+                if send_to_channel(image_url, caption, channel, model_name, effective_target):
                     success_count += 1
         
         logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
@@ -686,10 +697,9 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         failed_models = []
         for model_name, image_url in results:
             if channel and image_url:
-                if not target:
-                    target = os.environ.get('AEVIA_TARGET')
+                effective_target = target or os.environ.get('AEVIA_TARGET')
                 logger.info(f"📤 准备发送：{model_name}")
-                if send_to_channel(image_url, caption, channel, model_name, target):
+                if send_to_channel(image_url, caption, channel, model_name, effective_target):
                     success_count += 1
                     logger.info(f"✅ {model_name} 发送成功")
                 else:
@@ -736,6 +746,11 @@ if __name__ == "__main__":
             channel = sys.argv[3] if len(sys.argv) > 3 else None
             caption = sys.argv[4] if len(sys.argv) > 4 else "这是模仿参考图生成的～"
             target = sys.argv[5] if len(sys.argv) > 5 else None
+        
+        # L-7 修复：路径安全检查
+        if '..' in reference_image or reference_image.startswith('/etc/') or reference_image.startswith('/proc/'):
+            logger.error(f"⚠️ 参考图路径包含危险字符：{reference_image}")
+            sys.exit(1)
         
         if not os.path.exists(reference_image):
             logger.error(f"参考图不存在：{reference_image}")

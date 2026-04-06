@@ -88,6 +88,15 @@ class SafeLogger:
     
     def debug(self, msg, *args, **kwargs):
         self._logger.debug(safe_log(msg), *args, **kwargs)
+    
+    def critical(self, msg, *args, **kwargs):
+        self._logger.critical(safe_log(msg), *args, **kwargs)
+    
+    def exception(self, msg, *args, **kwargs):
+        self._logger.exception(safe_log(msg), *args, **kwargs)
+    
+    def log(self, level, msg, *args, **kwargs):
+        self._logger.log(level, safe_log(msg), *args, **kwargs)
 
 
 # 使用安全日志包装器
@@ -371,12 +380,7 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
             logger.error("❌ 轮询超时")
             continue
         except requests.exceptions.RequestException as e:
-            # 区分 4xx 错误（不可恢复）和网络错误（可重试）
-            if hasattr(e, 'response') and e.response is not None:
-                status_code = e.response.status_code
-                if 400 <= status_code < 500:
-                    logger.error(f"❌ 轮询失败（客户端错误 {status_code}，不重试）：{e}")
-                    return (False, f"轮询失败：{status_code}")
+            # 网络异常，可重试
             logger.error(f"❌ 轮询失败（网络异常，可重试）：{type(e).__name__}: {e}")
             continue
         except Exception as e:

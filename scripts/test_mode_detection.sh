@@ -20,16 +20,7 @@ detect_mode() {
     return
   fi
   
-  # 换脸模式（优先级最高）
-  if echo "$input" | grep -qiE "换脸|换我的脸|把脸换成|用我的脸|face.?swap"; then
-    if [ -n "$has_image" ]; then
-      echo "face-swap"
-      return
-    else
-      echo "⚠️ 换脸模式需要提供图片" >&2
-    fi
-  fi
-  
+
   # 参考生图模式
   if [ -n "$has_image" ]; then
     if echo "$input" | grep -qiE "参考|模仿|照著|学这张|类似的|同样的|照这个|按这个|生成一张|来一张"; then
@@ -92,14 +83,6 @@ if run_test "参考这张图生成一张" "/tmp/test.jpg" "selfie-reference"; th
 if run_test "模仿这个场景来一张" "/tmp/test.jpg" "selfie-reference"; then passed=$((passed+1)); else failed=$((failed+1)); fi
 if run_test "照这个样子生成" "/tmp/test.jpg" "selfie-reference"; then passed=$((passed+1)); else failed=$((failed+1)); fi
 if run_test "生成一张类似的" "/tmp/test.jpg" "selfie-reference"; then passed=$((passed+1)); else failed=$((failed+1)); fi
-if run_test "同样的场景，用我的脸" "/tmp/test.jpg" "face-swap"; then passed=$((passed+1)); else failed=$((failed+1)); fi
-
-# 换脸生图（有图）
-if run_test "换脸" "/tmp/test.jpg" "face-swap"; then passed=$((passed+1)); else failed=$((failed+1)); fi
-if run_test "把脸换成小柔" "/tmp/test.jpg" "face-swap"; then passed=$((passed+1)); else failed=$((failed+1)); fi
-if run_test "用我的脸，换成小柔" "/tmp/test.jpg" "face-swap"; then passed=$((passed+1)); else failed=$((failed+1)); fi
-if run_test "face swap" "/tmp/test.jpg" "face-swap"; then passed=$((passed+1)); else failed=$((failed+1)); fi
-if run_test "换我的脸" "/tmp/test.jpg" "face-swap"; then passed=$((passed+1)); else failed=$((failed+1)); fi
 
 # 聊天模式
 if run_test "早安" "" "chat"; then passed=$((passed+1)); else failed=$((failed+1)); fi
