@@ -605,13 +605,21 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         
         # 5. 发送所有成功生成的图片（4 模型并发）
         success_count = 0
+        failed_models = []
         for model_name, image_url in results:
             if channel and image_url:
                 if not target:
                     target = os.environ.get('AEVIA_TARGET')
+                logger.info(f"📤 准备发送：{model_name}")
                 if send_to_channel(image_url, caption, channel, model_name, target):
                     success_count += 1
+                    logger.info(f"✅ {model_name} 发送成功")
+                else:
+                    failed_models.append(model_name)
+                    logger.error(f"❌ {model_name} 发送失败")
         
+        if failed_models:
+            logger.error(f"⚠️ 发送失败的模型：{', '.join(failed_models)}")
         logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片（4 模型并发）")
         return success_count > 0
         
