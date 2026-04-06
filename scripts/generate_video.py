@@ -459,7 +459,7 @@ def download_video(video_url: str, output_path: str) -> bool:
         return False
 
 
-def send_to_channel(video_path: str, caption: str, channel: str = 'feishu', target: str = None) -> bool:
+def send_to_channel(video_path: str, caption: str, channel: str = 'feishu', target: Optional[str] = None) -> bool:
     """
     发送视频到指定平台
     

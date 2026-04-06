@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.17.0] - 2026-04-06
+
+### 🔥 第 16 轮 Code Review 修复
+
+**小柔 AI v5.17.0 - 最终验证通过**
+
+### 🛡️ 修复统计
+| 优先级 | 问题数 | 状态 |
+|--------|--------|------|
+| 🟡 Medium | 3 | ✅ |
+| 🟢 Low | 1 | ✅ |
+
+### 修复内容
+| # | 文件 | 问题 | 修复 |
+|---|------|------|------|
+| 1 | test_mode_detection.sh | set -euo pipefail 语法错误 | 修正注释格式 |
+| 2 | generate_video.py | target 参数缺少 Optional 注解 | 补充类型注解 |
+| 3 | selfie.py | 路径验证逻辑冗余 | 简化为直接检查 allowed_dirs |
+| 4 | image_analyzer.py | 路径验证代码重复 | 提取 _is_path_allowed 公共函数 |
+
+### 全面验证结果
+| 检查项 | 状态 |
+|--------|------|
+| 死代码 | ✅ 无 |
+| 重复导入 | ✅ 无 |
+| DataInspection | ✅ 全部清除 |
+| 文档一致性 | ✅ 无矛盾 |
+| 语法检查 | ✅ 全部通过 |
+| 参考生图模型 | ✅ 单模型（wan2.7-image） |
+| 视频模型 | ✅ wan2.6-i2v |
+| prompt_extend | ✅ 全部关闭 |
+| 超时控制 | ✅ 10 分钟（600 秒） |
+
+---
+
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
 ## [5.15.0] - 2026-04-06
 
 ### 🔥 第 14 轮 Code Review 修复

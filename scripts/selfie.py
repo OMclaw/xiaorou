@@ -634,16 +634,15 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
             return False
         
         # 安全检查：验证参考图路径
-        if not is_safe_path(config.get_temp_dir(), reference_image_path):
-            allowed_dirs = [
-                Path('/home/admin/.openclaw/media/inbound'),
-                Path('/tmp/openclaw'),
-                config.get_temp_dir()
-            ]
-            is_allowed = any(is_safe_path(base_dir, reference_image_path) for base_dir in allowed_dirs)
-            if not is_allowed:
-                logger.error(f"⚠️ 参考图路径不在允许范围内：{reference_image_path}")
-                return False
+        allowed_dirs = [
+            Path('/home/admin/.openclaw/media/inbound'),
+            Path('/tmp/openclaw'),
+            config.get_temp_dir()
+        ]
+        is_allowed = any(is_safe_path(base_dir, reference_image_path) for base_dir in allowed_dirs)
+        if not is_allowed:
+            logger.error(f"⚠️ 参考图路径不在允许范围内：{reference_image_path}")
+            return False
         
         import subprocess
         try:
