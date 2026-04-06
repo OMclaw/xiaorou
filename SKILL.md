@@ -146,7 +146,7 @@ export AEVIA_CHARACTER_NAME="小柔"
 
 ## 视频生成 API
 
-**模型**：wan2.7-i2v（推荐）/ wan2.6-i2v
+**模型**：wan2.7-i2v
 
 **支持模式**：
 - 图片 + 文字 → 视频

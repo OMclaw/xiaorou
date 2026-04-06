@@ -6,8 +6,7 @@
 2. 图片 + 音频 → 视频
 
 支持模型：
-- wan2.7-i2v（推荐，最新）
-- wan2.6-i2v
+- wan2.7-i2v
 
 优化内容：
 - 使用统一配置模块
@@ -223,7 +222,7 @@ def generate_video(
     api_key: Optional[str] = None
 ) -> Tuple[bool, str]:
     """
-    使用 wan2.7-i2v / wan2.6-i2v 生成视频
+    使用 wan2.7-i2v 生成视频
     
     Args:
         prompt: 视频描述提示词
@@ -231,7 +230,7 @@ def generate_video(
         audio_url: 音频 URL（可选，oss:// 或 https://）
         resolution: 分辨率 (720P/1080P)
         duration: 视频时长 (秒)
-        model: 模型名称 (wan2.7-i2v / wan2.6-i2v)
+        model: 模型名称 (wan2.7-i2v)
         api_key: DashScope API Key
     
     Returns:
@@ -248,47 +247,25 @@ def generate_video(
     logger.info(f"  分辨率：{resolution}")
     logger.info(f"  时长：{duration}秒")
     
-    # 构建请求体
-    if model == "wan2.7-i2v":
-        # wan2.7-i2v 新格式：使用 media 数组
-        input_data = {"prompt": prompt, "media": []}
-        
-        if img_url:
-            input_data["media"].append({"type": "first_frame", "url": img_url})
-        
-        if audio_url:
-            input_data["media"].append({"type": "driving_audio", "url": audio_url})
-        
-        payload = {
-            "model": model,
-            "input": input_data,
-            "parameters": {
-                "resolution": resolution,
-                "prompt_extend": True,
-                "duration": duration,
-                "watermark": False  # 关闭水印
-            }
+    # 构建请求体（wan2.7-i2v 格式）
+    input_data = {"prompt": prompt, "media": []}
+    
+    if img_url:
+        input_data["media"].append({"type": "first_frame", "url": img_url})
+    
+    if audio_url:
+        input_data["media"].append({"type": "driving_audio", "url": audio_url})
+    
+    payload = {
+        "model": model,
+        "input": input_data,
+        "parameters": {
+            "resolution": resolution,
+            "prompt_extend": True,
+            "duration": duration,
+            "watermark": False  # 关闭水印
         }
-    else:
-        # wan2.6-i2v 旧格式：使用 img_url
-        input_data = {"prompt": prompt}
-        
-        if img_url:
-            input_data["img_url"] = img_url
-        
-        if audio_url:
-            input_data["audio_url"] = audio_url
-        
-        payload = {
-            "model": model,
-            "input": input_data,
-            "parameters": {
-                "resolution": resolution,
-                "prompt_extend": True,
-                "duration": duration,
-                "shot_type": "multi"
-            }
-        }
+    }
     
     # 提交异步任务
     try:
@@ -630,7 +607,7 @@ if __name__ == "__main__":
     parser.add_argument('--image', type=str, required=True, help='输入图片路径')
     parser.add_argument('--prompt', type=str, required=True, help='视频描述提示词')
     parser.add_argument('--audio', type=str, help='输入音频路径（可选）')
-    parser.add_argument('--model', type=str, default='wan2.7-i2v', help='模型名称 (wan2.7-i2v / wan2.6-i2v)')
+    parser.add_argument('--model', type=str, default='wan2.7-i2v', help='模型名称 (wan2.7-i2v)')
     parser.add_argument('--resolution', type=str, default='720P', help='分辨率 (720P/1080P)')
     parser.add_argument('--duration', type=int, default=5, help='视频时长（秒）')
     parser.add_argument('--channel', type=str, default=None, help='目标平台（默认从环境变量读取）')
