@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.12.0] - 2026-04-06
+
+### 🔧 功能调整 + 安全修复
+
+**小柔 AI v5.12.0 - 参考生图单模型 + 移除 DataInspection**
+
+### 变更内容
+| 项目 | 修改 |
+|------|------|
+| 参考生图模型 | 单模型（wan2.7-image），1 张图 |
+| X-DashScope-DataInspection | 全部移除（4 个文件） |
+| SKILL.md 文档 | 更新为单模型描述 |
+
+### 删除的 DataInspection 位置
+| 文件 | 删除内容 |
+|------|---------|
+| scripts/selfie.py | X-DashScope-DataInspection header |
+| scripts/generate_video.py | X-DashScope-DataInspection header |
+| scripts/image_analyzer.py | X-DashScope-DataInspection header |
+| scripts/tts.py | DASHSCOPE_DATA_INSPECTION 环境变量 |
+
+---
+
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
 ## [5.11.0] - 2026-04-06
 
 ### 🔥 第 11 轮 Code Review 修复
