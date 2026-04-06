@@ -3,7 +3,7 @@
 
 支持两种模式：
 1. 场景生图：根据场景描述生成 - 1 个模型，1 张图（wan2.7-image）
-2. 参考生图：分析参考图后生成 - 2 个模型并发，2 张图（wan2.7-image + qwen-image-2.0-pro）
+2. 参考生图：分析参考图后生成 - 1 个模型，1 张图（wan2.7-image）
 """
 
 import dashscope
@@ -622,7 +622,7 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
     1. 分析参考图 → 提取场景、姿势、服装、光线等描述（**完全忽略人脸**）
     2. 使用小柔头像作为图生图的输入
     3. Prompt：保留小柔脸，套用参考图的场景/穿搭/姿态
-    4. 双模型并发生成（wan2.7-image + qwen-image-2.0-pro）
+    4. 单模型生成（wan2.7-image）
     
     Args:
         reference_image_path: 参考图路径
@@ -650,8 +650,8 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         
         channel = validate_channel(channel)
         
-        # 忽略 multi_mode 参数，始终使用分析 + 双模型图生图模式
-        logger.info("🔍 分析参考图模式：提取 prompt 后双模型并发生成")
+        # 忽略 multi_mode 参数，始终使用分析 + 单模型图生图模式
+        logger.info("🔍 分析参考图模式：提取 prompt 后单模型生成")
         
         # 3. 分析参考图，提取 prompt
         script_dir = Path(__file__).resolve().parent
@@ -693,15 +693,15 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         prompt = result.stdout.strip()
         logger.info(f"✅ 参考图分析完成：{prompt[:100]}...")
         
-        # 4. 双模型并发生成（wan2.7-image + qwen-image-2.0-pro）
-        logger.info("🚀 双模型并发中...")
-        results = generate_images_dual_model(image_path, prompt, api_key)
+        # 4. 单模型生成（wan2.7-image）
+        logger.info("🚀 wan2.7-image 生成中...")
+        results = generate_images_single_model(image_path, prompt, api_key)
         
         if not results:
             logger.error("❌ 所有模型都生成失败")
             return False
         
-        # 5. 发送所有成功生成的图片（双模型并发）
+        # 5. 发送生成的图片（单模型）
         success_count = 0
         failed_models = []
         for model_name, image_url in results:
@@ -717,7 +717,7 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         
         if failed_models:
             logger.error(f"⚠️ 发送失败的模型：{', '.join(failed_models)}")
-        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片（双模型）")
+        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片（单模型）")
         return success_count > 0
         
     except (ConfigurationError, FileNotFoundError) as e:
