@@ -185,6 +185,13 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-
         if not file_name or '..' in file_name or file_name.startswith('/'):
             logger.error(f"❌ 无效的文件名：{file_name}")
             return None
+        required_keys = ['upload_dir', 'oss_access_key_id', 'signature', 'policy', 
+                         'x_oss_object_acl', 'x_oss_forbid_overwrite', 'upload_host']
+        missing = [k for k in required_keys if k not in policy_data]
+        if missing:
+            logger.error(f"❌ 上传凭证缺少字段：{', '.join(missing)}")
+            return None
+        
         key = f"{policy_data['upload_dir']}/{file_name}"
         
         logger.info(f"📤 正在上传文件...")
@@ -386,6 +393,9 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
                 poll_interval = min(poll_interval * 1.5, 30)
                 continue
             
+            elif task_status in ('CANCELLED',):
+                logger.error("❌ 任务已被取消")
+                return (False, "任务已被取消")
             else:
                 logger.warning(f"⚠️ 未知状态：{task_status}")
                 time.sleep(poll_interval)

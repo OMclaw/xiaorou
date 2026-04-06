@@ -38,9 +38,14 @@ def get_image_base64(image_path: str) -> str:
     if file_size > 10 * 1024 * 1024:
         raise ImageAnalysisError(f"图片文件过大：{file_size / 1024 / 1024:.2f}MB（限制 10MB）")
     
+    import mimetypes
+    mime_type, _ = mimetypes.guess_type(image_path)
+    if not mime_type or not mime_type.startswith('image/'):
+        mime_type = 'image/jpeg'
+    
     with open(image_path, 'rb') as f:
         image_data = base64.b64encode(f.read()).decode('utf-8')
-    return f"data:image/jpeg;base64,{image_data}"
+    return f"data:{mime_type};base64,{image_data}"
 
 
 def _call_multimodal_api(image_base64: str, analysis_prompt: str, api_key: str, model: str = 'qwen3.5-plus') -> str:

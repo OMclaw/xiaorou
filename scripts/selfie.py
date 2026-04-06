@@ -321,7 +321,7 @@ def get_feishu_credentials() -> Tuple[Optional[str], Optional[str]]:
     if os.path.exists(config_file):
         try:
             with open(config_file, 'r', encoding='utf-8') as f:
-                openclaw_openclaw_cfg = json.load(f)
+                openclaw_config = json.load(f)
             app_id = openclaw_config.get('channels', {}).get('feishu', {}).get('appId', '')
             app_secret = openclaw_config.get('channels', {}).get('feishu', {}).get('appSecret', '')
             

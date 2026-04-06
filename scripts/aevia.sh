@@ -190,7 +190,7 @@ run_video() {
     # 使用最新生成的小柔照片（固定路径，与 selfie.py 保持一致）
     # selfie.py 写入: config.get_temp_dir() / f'selfie_latest_{user_id}.jpg'
     # 默认: /tmp/xiaorou/selfie_latest_default.jpg
-    local latest_selfie="/tmp/xiaorou/selfie_latest_default.jpg"
+    local latest_selfie="/tmp/xiaorou/selfie_latest_${target:-default}.jpg"
     
     if [ -f "$latest_selfie" ]; then
       info "🎬 步骤 2: 使用刚生成的小柔照片生成视频..."
