@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.2.0] - 2026-04-06
+
+### 🎉 参考生图模式 Bug 修复
+
+**小柔 AI v5.2.0 - 参考生图双模型并发 + 安全加固**
+
+### ✨ Added
+- **双模型并发生成**: 参考生图模式现支持 wan2.7-image + qwen-image-2.0-pro 并发
+- **图片大小限制**: 添加 10MB 文件大小限制防止 OOM
+- **路径白名单验证**: CLI 入口添加路径安全检查
+- **超时异常捕获**: subprocess.TimeoutExpired 单独处理
+
+### 🔧 Changed
+- **修复语法错误**: selfie.py __main__ 入口 elif → if (Critical Bug)
+- **安全加固**: subprocess 显式声明 shell=False
+- **文件名安全**: safe_model_name 限制 50 字符长度
+- **函数注释**: 更新参考生图为双模型描述
+
+### 🐛 Fixed
+- **C1**: elif 语法错误导致脚本崩溃
+- **H1**: safe_model_name 无长度限制
+- **H2**: subprocess 未显式声明 shell=False
+- **H3**: TimeoutExpired 未单独捕获
+- **H5**: CLI 入口缺少路径白名单验证
+- **M8**: 图片无大小限制可能 OOM
+
+### 📊 Code Review 统计
+
+| 类型 | 数量 | 状态 |
+|------|------|------|
+| Critical | 1 | ✅ 已修复 |
+| High | 5 | ✅ 已修复 |
+| Medium | 6 | ⚠️ 部分修复 |
+
+---
+
 ## [5.1.0] - 2026-04-06
 
 ### 🎉 Code Review 特别版
