@@ -423,13 +423,14 @@ def download_video(video_url: str, output_path: str) -> bool:
         return False
 
 
-def send_to_feishu(video_path: str, caption: str, target: str = None) -> bool:
+def send_to_channel(video_path: str, caption: str, channel: str = 'feishu', target: str = None) -> bool:
     """
-    发送视频到飞书（兼容旧签名）
+    发送视频到指定平台
     
     Args:
         video_path: 视频文件路径
         caption: 消息配文
+        channel: 目标平台 (feishu/telegram/discord/whatsapp)
         target: 目标用户 ID（默认从环境变量读取）
     
     Returns:
@@ -439,11 +440,11 @@ def send_to_feishu(video_path: str, caption: str, target: str = None) -> bool:
     if target is None:
         target = os.environ.get('AEVIA_TARGET', '')
     
-    logger.info(f"📤 发送视频到飞书...")
+    logger.info(f"📤 发送视频到 {channel}...")
     
     cmd = [
         'openclaw', 'message', 'send',
-        '--channel', 'feishu',
+        '--channel', channel,
         '--target', target,
         '--message', caption,
         '--media', str(video_path)

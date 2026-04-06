@@ -295,33 +295,21 @@ run_chat() {
   
   info "💬 聊天模式"
   
-  # 使用 jq 安全构造 JSON（避免注入攻击）
+  # 使用 jq 安全构造 JSON（必须安装 jq）
   local temp_json
   temp_json=$(mktemp)
   
-  # 检查是否有 jq
-  if command -v jq &>/dev/null; then
-    jq -n \
-      --arg input "$input" \
-      --arg char "$CHARACTER_NAME" \
-      '{model: "qwen3.5-plus", messages: [
-        {role: "system", content: "你是\($char)，用户的虚拟伴侣。性格温柔体贴，善解人意。用中文回复，语气自然亲切。"},
-        {role: "user", content: $input}
-      ]}' > "$temp_json"
-  else
-    # fallback: 手动转义（如果无 jq）
-    local escaped_input
-    escaped_input=$(echo "$input"|sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g'|tr '\n' ' ')
-    cat > "$temp_json" <<EOF
-{
-  "model": "qwen3.5-plus",
-  "messages": [
-    {"role": "system", "content": "你是${CHARACTER_NAME}，用户的虚拟伴侣。性格温柔体贴，善解人意。用中文回复，语气自然亲切。"},
-    {"role": "user", "content": "$escaped_input"}
-  ]
-}
-EOF
+  if ! command -v jq &>/dev/null; then
+    error "jq 未安装，请运行：apt install jq 或 brew install jq"
   fi
+  
+  jq -n \
+    --arg input "$input" \
+    --arg char "$CHARACTER_NAME" \
+    '{model: "qwen3.5-plus", messages: [
+      {role: "system", content: "你是\($char)，用户的虚拟伴侣。性格温柔体贴，善解人意。用中文回复，语气自然亲切。"},
+      {role: "user", content: $input}
+    ]}' > "$temp_json"
   
   local response
   response=$(curl -s -f -X POST "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions" \
@@ -330,7 +318,7 @@ EOF
     -d @"$temp_json" 2>/dev/null) || error "API 请求失败"
   
   local reply
-  reply=$(echo "$response"|jq -r '.choices[0].message.content // empty')
+  reply=$(echo "$response" | jq -r '.choices[0].message.content // empty')
   [ -z "$reply" ] && error "回复生成失败"
   
   echo "$reply"

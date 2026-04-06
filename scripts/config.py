@@ -5,6 +5,7 @@ import os
 import re
 import json
 import logging
+import threading
 from pathlib import Path
 from typing import Optional
 
@@ -19,13 +20,17 @@ class ConfigurationError(Exception):
 
 
 class Config:
-    """单例配置类"""
+    """线程安全的单例配置类"""
     _instance: Optional['Config'] = None
     _api_key: Optional[str] = None
+    _lock = threading.Lock()  # 线程锁
     
     def __new__(cls) -> 'Config':
+        # 双重检查锁定模式
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
         return cls._instance
     
     def get_api_key(self) -> str:

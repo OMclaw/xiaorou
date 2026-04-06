@@ -22,7 +22,8 @@ except ImportError:
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream=sys.stderr)
 logger = logging.getLogger('cosyvoice-tts')
 
-AVAILABLE_VOICES = ["longanyang", "longxiaochun", "longcheng", "longxiaoyu", "longxiaoxia", "longya", "longwan"]
+# 可用音色列表（包含小柔默认音色）
+AVAILABLE_VOICES = ["longanyang", "longxiaochun", "longcheng", "longxiaoyu", "longxiaoxia", "longya", "longwan", "longyingxiao_v3"]
 DEFAULT_VOICE = "longyingxiao_v3"
 DEFAULT_MODEL = "cosyvoice-v3-flash"
 MAX_RETRIES = 3

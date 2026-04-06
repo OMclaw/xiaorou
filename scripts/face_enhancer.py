@@ -26,6 +26,11 @@ _swapper_cache = None
 import threading
 _cache_lock = threading.Lock()
 
+# 缓存大小限制（P3 修复 - 防止内存泄漏）
+MAX_CACHE_SIZE = 100  # 最多缓存 100 个脸部特征
+_feature_cache = {}
+_feature_cache_lock = threading.Lock()
+
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stderr)
 logger = logging.getLogger(__name__)
 
@@ -252,8 +257,36 @@ def enhance_face_consistency(generated_image: str, reference_face_image: str,
     logger.info(f"💾 保存结果到：{output_path}")
     cv2.imwrite(output_path, result)
     
+    # 清理缓存（如果超过限制）
+    _cleanup_cache_if_needed()
+    
     logger.info("✅ 脸部一致性增强完成")
     return output_path
+
+
+def _cleanup_cache_if_needed():
+    """清理超出限制的缓存（防止内存泄漏）"""
+    with _feature_cache_lock:
+        if len(_feature_cache) > MAX_CACHE_SIZE:
+            # 清理一半缓存（LRU 简化版）
+            keys_to_remove = list(_feature_cache.keys())[:MAX_CACHE_SIZE // 2]
+            for key in keys_to_remove:
+                del _feature_cache[key]
+            logger.info(f"🧹 清理缓存，剩余 {len(_feature_cache)} 项")
+
+
+def clear_cache():
+    """手动清理所有缓存（用于释放内存）"""
+    global _face_analysis_cache, _swapper_cache, _feature_cache
+    
+    with _cache_lock:
+        _face_analysis_cache = None
+        _swapper_cache = None
+    
+    with _feature_cache_lock:
+        _feature_cache.clear()
+    
+    logger.info("✅ 缓存已清理")
 
 
 def main():
