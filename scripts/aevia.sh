@@ -262,14 +262,19 @@ run_face_swap() {
   local target="$2"
   local image_path="${AEVIA_IMAGE_PATH:-}"
   
-  info "🎭 换脸生图模式"
+  info "🎭 换脸生图模式（4 模型并发）"
   
   local caption="换脸完成～看看效果怎么样？"
   
   if [ -n "$image_path" ]; then
     info "  用户图片：$image_path"
     info "  小柔头像：使用默认头像"
-    python3 "$SCRIPT_DIR/selfie.py" --face-swap "$image_path" "$AEVIA_CHANNEL" "$caption" "$target"
+    info "  生成数量：4 张（wan2.7-image, wan2.7-image-pro, qwen-image-2.0, qwen-image-2.0-pro）"
+    # 使用 face_swap.py 进行 4 模型并发换脸
+    python3 "$SCRIPT_DIR/face_swap.py" "$image_path" \
+      --channel "$AEVIA_CHANNEL" \
+      --target "$target" \
+      --caption "$caption"
   else
     warn "⚠️ 换脸模式需要提供图片"
     return 1

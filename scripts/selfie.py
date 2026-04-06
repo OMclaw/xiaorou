@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""selfie.py - 自拍生成模块 (双模型并发)
+"""selfie.py - 自拍生成模块
 
 支持两种模式：
-1. 普通模式：根据文字描述生成
-2. 参考图模式：直接使用参考图进行图生图（不分析）
+1. 场景生图：根据场景描述生成 - 1 个模型，1 张图
+2. 参考生图：分析参考图后生成 - 2 个模型并发，2 张图
 
-每次生成使用两个模型各生成一张：
-- wan2.7-image
-- qwen-image-2.0-pro
+换脸生图请使用 face_swap.py（4 个模型并发，4 张图）
 """
 
 import dashscope
@@ -609,166 +607,13 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         return False
 
 
-def generate_face_swap(target_image_path: str, caption: str = "换脸完成～看看效果怎么样？", channel: Optional[str] = None, target: Optional[str] = None) -> bool:
-    """
-    换脸模式：把小柔的脸换到用户照片的场景中
-    
-    **核心**：精准换脸 - 小柔的脸 + 目标图场景精确还原
-    
-    方案：
-    - 方案二（precise）：精准换脸 - 小柔的脸 + 目标图场景精确还原，场景不变
-    
-    用两个模型各生成一张 = 2 张图
-    **使用小柔头像作为输入图**（图生图模式）
-    
-    Args:
-        target_image_path: 目标图（用户的照片）路径
-        caption: 发送消息的配文
-        channel: 发送频道
-        target: 发送目标
-    
-    Returns:
-        是否成功
-    """
-    try:
-        api_key = validate_config()
-        logger.info(f"✅ API Key 已加载")
-        
-        # 1. 验证目标图（防止路径遍历攻击）
-        target_path = Path(target_image_path)
-        
-        # 安全检查：确保文件在允许的路径内
-        allowed_dirs = [
-            Path('/home/admin/.openclaw/media/inbound'),
-            Path('/tmp/openclaw'),
-            config.get_temp_dir()
-        ]
-        
-        is_allowed = any(is_safe_path(base_dir, target_image_path) for base_dir in allowed_dirs)
-        if not is_allowed:
-            logger.error(f"⚠️ 文件路径不在允许的范围内：{target_image_path}")
-            logger.error("可能路径遍历攻击，已拒绝访问")
-            return False
-        
-        if not target_path.exists():
-            logger.error(f"目标图不存在：{target_image_path}")
-            return False
-        
-        logger.info("✅ 目标图验证通过")
-        
-        # 2. 加载小柔头像
-        image_path = validate_character_image()
-        logger.info("✅ 头像文件验证通过（使用小柔头像）")
-        
-        channel = validate_channel(channel)
-        
-        # 3. 分析目标图，提取场景描述（换脸模式专用，不含脸部/发型）
-        script_dir = Path(__file__).resolve().parent
-        analyzer_path = script_dir / 'image_analyzer.py'
-        
-        if not analyzer_path.exists():
-            logger.error(f"图片分析模块不存在：{analyzer_path}")
-            return False
-        
-        # 导入 analyzer 模块，使用换脸模式专用函数
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("image_analyzer", analyzer_path)
-        analyzer_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(analyzer_module)
-        
-        try:
-            scene_description = analyzer_module.analyze_image_for_face_swap(str(target_path), api_key)
-            logger.info(f"✅ 目标图场景分析完成：{scene_description[:100]}...")
-        except Exception as e:
-            logger.error(f"图片分析失败：{e}")
-            return False
-        
-        # 4. 生成精准换脸方案的 prompt（增强版 - 脸部锁定）
-        # 方案二：精准换脸 - 小柔的脸 + 场景精确还原
-        prompt_precise = f"""【极高优先级 - 必须 100% 遵守】以图生图，严格保留输入图片的人脸特征完全不变。
-
-【脸部锁定指令】
-- 严格保留输入图片的人脸五官、脸型、神态、眼睛、鼻子、嘴巴、眉毛、耳朵完全不变
-- 不要改变脸型、下巴轮廓、颧骨形状、下颌线
-- 不要改变眼睛形状、大小、间距、眼神
-- 不要改变鼻子形状、嘴唇厚度、嘴角形状
-- 不要改变发型、发色、发量
-- 人物身份必须是小柔，绝对不能变成其他人
-
-【允许改变】
-- 只替换为目标场景的全身穿搭、姿态、背景与风格
-
-目标场景描述：{scene_description}
-
-网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红。超高写实，面部清晰自然，光影统一，细节真实，比例正常，无违和融合，高质量人像。8K 超高清，电影级布光，细节丰富，色彩自然。
-
-【反向提示词】
-(worst quality, low quality:1.4), (deformed, distorted, disfigured:1.3), 
-bad anatomy, cloned face, different face, different person, wrong identity, 
-face change, morphed face, altered face, modified features, facial distortion,
-inconsistent face, changed features, altered identity"""
-        
-        # 5. 生成 2 张图片（2 个模型）- 使用小柔头像作为输入，图生图
-        models = ['wan2.7-image', 'qwen-image-2.0-pro']
-        results = []
-        
-        # 精准换脸 - 用小柔头像作为输入，图生图
-        logger.info("🎯 精准换脸模式生成中...")
-        for model_name in models:
-            logger.info(f"  使用模型：{model_name}")
-            model_result = generate_single_image(model_name, image_path, prompt_precise, api_key)
-            if model_result[1]:
-                results.append(('precise', model_name, model_result[1]))
-        
-        if not results:
-            logger.error("❌ 所有生成均失败")
-            return False
-        
-        # 6. 发送所有成功生成的图片
-        success_count = 0
-        for scheme, model_name, image_url in results:
-            if channel and image_url:
-                if not target:
-                    target = os.environ.get('AEVIA_TARGET')
-                
-                # 精准换脸配文
-                scheme_caption = "【精准换脸】小柔的脸 + 场景精确还原"
-                full_caption = f"{scheme_caption} - {caption}"
-                
-                if send_to_channel(image_url, full_caption, channel, model_name, target):
-                    success_count += 1
-        
-        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
-        return success_count > 0
-        
-    except (ConfigurationError, FileNotFoundError) as e:
-        logger.error(f"❌ 错误：{e}")
-        return False
-    except Exception as e:
-        logger.error(f"❌ 错误：{e}")
-        return False
-
-
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("用法：")
-        print("  普通模式：python3 selfie.py <场景描述> [频道] [配文] [target]")
-        print("  参考图模式：python3 selfie.py --reference <参考图路径> [--multi] [频道] [配文] [target]")
-        print("  换脸模式：python3 selfie.py --face-swap <目标图路径> [频道] [配文] [target]")
+        print("  场景生图：python3 selfie.py <场景描述> [频道] [配文] [target]")
+        print("  参考生图：python3 selfie.py --reference <参考图路径> [频道] [配文] [target]")
+        print("  换脸生图：python3 scripts/face_swap.py <图片路径> --channel feishu --target <open_id>")
         sys.exit(1)
-    
-    # 检测是否为换脸模式
-    if sys.argv[1] == '--face-swap' and len(sys.argv) >= 3:
-        target_image = sys.argv[2]
-        channel = sys.argv[3] if len(sys.argv) > 3 else None
-        caption = sys.argv[4] if len(sys.argv) > 4 else "换脸完成～看看效果怎么样？"
-        target = sys.argv[5] if len(sys.argv) > 5 else None
-        
-        if not os.path.exists(target_image):
-            logger.error(f"目标图不存在：{target_image}")
-            sys.exit(1)
-        
-        success = generate_face_swap(target_image, caption, channel, target)
     
     # 检测是否为参考图模式
     elif sys.argv[1] == '--reference' and len(sys.argv) >= 3:
@@ -790,9 +635,9 @@ if __name__ == "__main__":
             logger.error(f"参考图不存在：{reference_image}")
             sys.exit(1)
         
-        success = generate_from_reference(reference_image, caption, channel, target, multi_mode)
+        success = generate_from_reference(reference_image, caption, channel, target)
     else:
-        # 普通模式
+        # 场景生图模式
         context = sys.argv[1]
         channel = sys.argv[2] if len(sys.argv) > 2 else None
         caption = sys.argv[3] if len(sys.argv) > 3 else "给你看看我现在的样子~"
