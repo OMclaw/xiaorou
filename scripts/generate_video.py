@@ -363,7 +363,7 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
         try:
             response = session.get(
                 f'https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}',
-                headers={'Authorization': f'Bearer {api_key}', 'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'},
+                headers={'Authorization': f'Bearer {api_key}'},
                 timeout=30,
                 verify=True
             )
