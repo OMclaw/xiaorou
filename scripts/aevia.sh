@@ -112,7 +112,7 @@ run_voice() {
   
   info "🎙️ 语音模式"
   local speech_text
-  speech_text=$(printf '%s' "$input"|sed -E 's|^(发语音 [:：]?|语音消息 [:：]?)||i'|xargs)
+  speech_text=$(printf '%s' "$input"|sed -E 's|^(发语音 [:：]?|语音消息 [:：]?)||i' | xargs)
   [ -z "$speech_text" ] && speech_text="你好呀，我是小柔～"
   
   # 根据平台选择音频格式
@@ -202,7 +202,7 @@ run_video() {
       python3 "$SCRIPT_DIR/generate_video.py" \
         --image "$latest_selfie" \
         --prompt "$video_prompt" \
-        --model "wan2.7-i2v" \
+        --model "wan2.6-i2v" \
         --duration 5 \
         --target "$target"
       
@@ -287,7 +287,7 @@ run_chat() {
     ]}' > "$temp_json"
   
   local response
-  response=$(curl --tlsv1.2 --max-redirs 3 -f -X POST "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions" \
+  response=$(curl --tlsv1.2 --max-redirs 3 --max-time 120 -f -X POST "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions" \
     -H "Authorization: Bearer $DASHSCOPE_API_KEY" \
     -H "Content-Type: application/json" \
     -d @"$temp_json" 2>/dev/null) || error "API 请求失败"

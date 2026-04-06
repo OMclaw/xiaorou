@@ -156,7 +156,7 @@ export AEVIA_CHARACTER_NAME="小柔"
 | resolution | 分辨率 | 720P |
 | duration | 视频时长 | 5 秒 |
 | audio | 是否启用音频 | false |
-| prompt_extend | 是否扩展提示词 | true |
+| prompt_extend | 是否扩展提示词 | false |
 
 **生成时间**：约 3-10 分钟（异步任务）
 

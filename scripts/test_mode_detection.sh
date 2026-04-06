@@ -55,7 +55,7 @@ run_test() {
   local expected="$3"
   
   local result
-  result=$(detect_mode "$input" "$image" 2>&1)
+  result=$(AEVIA_IMAGE_PATH="$image" detect_mode "$input" 2>&1)
   
   if [ "$result" = "$expected" ]; then
     echo "✅ PASS: '$input' [图:$([ -n "$image" ] && echo "有" || echo "无")] → $result"

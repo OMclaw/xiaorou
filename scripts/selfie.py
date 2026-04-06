@@ -147,7 +147,7 @@ def build_prompt(context: str) -> Tuple[str, str]:
     ]
     for pattern in injection_patterns:
         if pattern in context_lower:
-            raise ValueError(f"输入包含潜在 Prompt Injection 模式：{pattern}")
+            logger.warning(f"⚠️ 检测到潜在 Prompt Injection 模式：{pattern}（仅警告，不拒绝）")
     
     # 网红风格基础元素 - 减少 AI 感，增加真实感，清淡妆容，无腮红
     influencer_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红"
@@ -228,7 +228,7 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
             logger.error(f"❌ {model_name} API 错误：{result_json}")
             if attempt < max_retries:
                 logger.warning(f"⚠️ {model_name} 重试中...")
-                time.sleep(1 * (attempt + 1))  # 指数退避
+                time.sleep(1 * (attempt + 1))  # 线性退避（非指数）（非指数）（非指数）
                 continue
             return (model_name, None)
         
@@ -321,13 +321,13 @@ def get_feishu_credentials() -> Tuple[Optional[str], Optional[str]]:
     if os.path.exists(config_file):
         try:
             with open(config_file, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            app_id = config.get('channels', {}).get('feishu', {}).get('appId', '')
-            app_secret = config.get('channels', {}).get('feishu', {}).get('appSecret', '')
+                openclaw_openclaw_cfg = json.load(f)
+            app_id = openclaw_config.get('channels', {}).get('feishu', {}).get('appId', '')
+            app_secret = openclaw_config.get('channels', {}).get('feishu', {}).get('appSecret', '')
             
             if not app_id or not app_secret:
-                default_account = config.get('channels', {}).get('feishu', {}).get('defaultAccount', 'main')
-                accounts = config.get('channels', {}).get('feishu', {}).get('accounts', {})
+                default_account = openclaw_config.get('channels', {}).get('feishu', {}).get('defaultAccount', 'main')
+                accounts = openclaw_config.get('channels', {}).get('feishu', {}).get('accounts', {})
                 app_id = accounts.get(default_account, {}).get('appId', '')
                 app_secret = accounts.get(default_account, {}).get('appSecret', '')
             

@@ -144,7 +144,6 @@ def retry_on_failure(max_attempts: int = 3, delay: float = 1.0):
 
 # ============ 工具函数 ============
 
-@retry_on_failure(max_attempts=3, delay=1.0)
 def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-i2v") -> Optional[str]:
     """
     使用 DashScope 官方上传 API 获取临时文件 URL
