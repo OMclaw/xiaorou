@@ -39,7 +39,7 @@ def _get_temp_dir() -> Path:
     temp_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     return temp_dir
 POLL_INTERVAL = int(os.environ.get('XIAOROU_POLL_INTERVAL', '10'))
-MAX_WAIT = int(os.environ.get('XIAOROU_MAX_WAIT', '600'))
+MAX_WAIT = int(os.environ.get('XIAOROU_MAX_WAIT', '900'))  # 15 分钟（M-7 修复：视频生成可能需要 3-10 分钟）
 # 从环境变量读取目标平台，支持多平台
 DEFAULT_TARGET = os.environ.get('AEVIA_TARGET', '')
 DEFAULT_CHANNEL = os.environ.get('AEVIA_CHANNEL', 'feishu')
@@ -47,11 +47,7 @@ DEFAULT_CHANNEL = os.environ.get('AEVIA_CHANNEL', 'feishu')
 # 创建 requests session（连接池）
 session = requests.Session()
 
-# 进程退出时清理连接池（H-2 修复 - 防止 fd 泄漏）
-import atexit
-atexit.register(lambda: session.close())
-
-# 进程退出时清理连接池（H-2 修复）
+# 进程退出时清理连接池（防止 fd 泄漏）
 import atexit
 atexit.register(lambda: session.close())
 

@@ -23,6 +23,8 @@ class Config:
     """线程安全的单例配置类（带缓存）"""
     _instance: Optional['Config'] = None
     _api_key: Optional[str] = None
+    _api_key_timestamp: float = 0  # API Key 缓存时间戳
+    _api_key_ttl: int = int(os.environ.get('XIAOROU_API_KEY_TTL', '60'))  # API Key 缓存 60 秒
     _config_cache: Optional[dict] = None  # 配置文件缓存
     _cache_timestamp: float = 0  # 缓存时间戳
     _cache_ttl: int = int(os.environ.get('XIAOROU_CONFIG_CACHE_TTL', '300'))  # 缓存有效期 5 分钟（可配置）
@@ -65,16 +67,19 @@ class Config:
             return {}
     
     def get_api_key(self) -> str:
-        """获取 API Key（环境变量 > 配置文件，带缓存）"""
+        """获取 API Key（环境变量 > 配置文件，带 TTL 缓存）"""
+        import time
+        
         # 环境变量优先（每次检查，支持运行时切换）
         api_key = os.environ.get('DASHSCOPE_API_KEY', '')
         if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
             self._api_key = api_key
+            self._api_key_timestamp = time.time()
             return api_key
         
-        # 使用缓存的配置
+        # 检查 API Key 缓存是否过期（H-2 修复：Key 轮换支持）
         with self._lock:
-            if self._api_key:
+            if self._api_key and (time.time() - self._api_key_timestamp) < self._api_key_ttl:
                 return self._api_key
         
         # 配置文件（使用缓存）
@@ -86,6 +91,7 @@ class Config:
             )
             if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
                 self._api_key = api_key
+                self._api_key_timestamp = time.time()
                 return api_key
         
         raise ConfigurationError("API Key 未配置")

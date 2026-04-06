@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.6.0] - 2026-04-06
+
+### 🔥 第 6 轮 Code Review 修复
+
+**小柔 AI v5.6.0 - 10 个关键问题修复**
+
+### 🛡️ Critical 修复
+- **C-1**: `MultiModalConversation` 未导入 → 参考图分析 100% 崩溃
+- **C-2**: `sanitize_input` 移除 `/` 字符 → 用户输入被破坏
+- **I-4**: `force_$mode` 直接调用不走预期模式 → CLI 失效
+
+### 🔧 High/Medium 修复
+- **C-5**: 双重 `atexit.register` 冗余 → 移除重复
+- **H-2**: config.py `_api_key` 永不过期 → 添加 TTL 缓存（60 秒）
+- **H-3**: image_analyzer.py 日志泄露分析结果 → 移除敏感内容
+- **H-5**: `send_to_channel` 硬编码 `/tmp/openclaw` → 使用 config
+- **H-6**: `build_prompt` Prompt Injection 检测 → 添加中/英文模式
+- **M-7**: `MAX_WAIT` 默认 10 分钟 → 15 分钟（视频生成可能需要 3-10 分钟）
+- **L-3**: tts.py `validate_opus_file` 路径错误 → 使用实际返回路径
+
+### 📊 修复统计
+
+| 严重度 | 数量 | 状态 |
+|--------|------|------|
+| Critical | 3 | ✅ 100% |
+| High | 4 | ✅ 100% |
+| Medium | 2 | ✅ 100% |
+| Low | 1 | ✅ 100% |
+| **总计** | **10** | **✅ 100%** |
+
+---
+
 ## [5.4.0] - 2026-04-06
 
 ### 🔥 第 5 轮 Code Review 修复

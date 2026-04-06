@@ -5,6 +5,7 @@
 """
 
 import dashscope
+from dashscope import MultiModalConversation
 import os
 import sys
 import json
@@ -267,7 +268,8 @@ def analyze_image_file(image_path: str) -> Optional[str]:
         
         # 分析参考图
         description = analyze_image(image_path, api_key)
-        logger.info(f"📝 分析结果：{description[:100]}...")
+        # H-3 修复：不记录分析结果内容，只记录成功状态（防止泄露敏感图片内容）
+        logger.info("✅ 图片分析成功")
         
         # 构建用于图生图的 prompt
         prompt = build_reference_prompt(description)

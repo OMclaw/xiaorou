@@ -302,18 +302,19 @@ def main():
     success, message = text_to_speech(text=text, output_path=output, voice=args.voice, model=args.model, channel=args.channel)
     
     if success:
-        # 获取音频时长并输出（供 shell 脚本使用）
-        duration = get_audio_duration(output)
-        if duration:
-            print(f"✅ 语音生成成功：{output} (时长：{duration}ms)")
-            # 不再创建 .duration 文件（避免临时文件泄漏）
-            # 调用方如需时长，可直接读取音频文件或用 ffprobe 获取
-        else:
-            print(f"✅ 语音生成成功：{output}")
+        # text_to_speech 可能修改输出路径（自动添加后缀），使用返回值中的实际路径
+        actual_path = message if isinstance(message, str) else output
         
-        # 如果是 OPUS 格式，进行验证
-        if output.endswith('.opus'):
-            validate_opus_file(output)
+        # 获取音频时长并输出（供 shell 脚本使用）
+        duration = get_audio_duration(actual_path)
+        if duration:
+            print(f"✅ 语音生成成功：{actual_path} (时长：{duration}ms)")
+        else:
+            print(f"✅ 语音生成成功：{actual_path}")
+        
+        # 如果是 OPUS 格式，进行验证（L-3 修复：使用实际路径而非原始参数）
+        if actual_path.endswith('.opus'):
+            validate_opus_file(actual_path)
         
         sys.exit(0)
     else:

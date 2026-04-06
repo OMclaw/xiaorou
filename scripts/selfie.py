@@ -133,6 +133,17 @@ def build_prompt(context: str) -> Tuple[str, str]:
     """构建网红风格图片生成 prompt - 自然真实版本"""
     context_lower = context.lower()
     
+    # H-6 修复：检测 prompt injection 模式
+    injection_patterns = [
+        'ignore', 'disregard', 'system prompt', 'system instruction',
+        'previous instructions', 'above instructions', 'override',
+        '忽略', '无视', '覆盖', '系统提示', '之前的指令',
+    ]
+    for pattern in injection_patterns:
+        if pattern in context_lower:
+            logger.warning(f"⚠️ 检测到潜在 Prompt Injection 模式：{pattern}")
+            # 不拒绝，但记录警告
+    
     # 网红风格基础元素 - 减少 AI 感，增加真实感，清淡妆容，无腮红
     influencer_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红"
     
@@ -442,8 +453,10 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         timestamp = int(time.time())
         # 安全处理 model_name，避免特殊字符
         safe_model_name = model_name.replace('.', '_').replace('-', '_')[:50]  # 限制长度
-        temp_file = f'/tmp/openclaw/selfie_{safe_model_name}_{timestamp}.jpg'
-        os.makedirs('/tmp/openclaw', mode=0o700, exist_ok=True)
+        # 使用配置模块的临时目录（H-5 修复：避免硬编码路径）
+        temp_dir = config.get_temp_dir()
+        temp_file = f'{temp_dir}/selfie_{safe_model_name}_{timestamp}.jpg'
+        os.makedirs(str(temp_dir), mode=0o700, exist_ok=True)
         
         response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT)
         response.raise_for_status()

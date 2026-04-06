@@ -32,9 +32,9 @@ sanitize_input() {
   local input="$1"
   # 严格长度限制（可配置）
   [ ${#input} -gt "$AEVIA_MAX_INPUT_LENGTH" ] && input="${input:0:$AEVIA_MAX_INPUT_LENGTH}"
-  # 只移除明确的危险字符，保留 Unicode（含中文）
-  # 移除控制字符和 shell 元字符
-  printf '%s' "$input"|tr -d '\x00-\x1f\x7f-\x9f`$\\|;&<>(){}[]!~#*?/'
+  # 只移除明确的危险字符，保留 Unicode（含中文）和 `/`（URL/路径需要）
+  # 移除控制字符和 shell 元字符（但保留 / 避免破坏 URL 和正常文本）
+  printf '%s' "$input"|tr -d '\x00-\x1f\x7f-\x9f`$\\|;&<>(){}[]!~#*?'
 }
 
 error() { 
@@ -343,7 +343,16 @@ case "${1:-}" in
   --selfie-scene|--selfie-reference|--voice|--video|--chat)
     mode="${1#--}"
     shift
-    main "$*" "force_$mode"
+    # 强制模式：直接调用对应函数，不经过 detect_mode
+    target="${2:-${AEVIA_TARGET:-}}"
+    user_input=$(printf '%s' "$*"|tr -d '\x00-\x1f\x7f-\x9f`$\\|;&<>(){}[]!~#*?')
+    case "$mode" in
+      selfie-scene) run_selfie_scene "$user_input" "$target" ;;
+      selfie-reference) run_selfie_reference "$user_input" "$target" ;;
+      voice) run_voice "$user_input" "$target" ;;
+      video) run_video "$user_input" "$target" ;;
+      chat) run_chat "$user_input" "$target" ;;
+    esac
     ;;
   *)
     main "$@"
