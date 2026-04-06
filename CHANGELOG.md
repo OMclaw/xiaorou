@@ -1,3 +1,32 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [5.11.0] - 2026-04-06
+
+### 🔥 第 11 轮 Code Review 修复
+
+**小柔 AI v5.11.0 - 关键 Bug 修复 + 安全加固**
+
+### 🛡️ 修复统计
+| 优先级 | 问题数 | 状态 |
+|--------|--------|------|
+| 🔴 Critical (H-1) | 1 | ✅ |
+| 🟠 High (H-2, H-3) | 2 | ✅ |
+| 🟡 Medium/Low (M-1~M-3) | 3 | ✅ |
+
+### 关键修复
+| 编号 | 问题 | 文件 |
+|------|------|------|
+| H-1 | selfie.py 变量名不匹配 → NameError | selfie.py:324 |
+| H-2 | aevia.sh run_video 硬编码路径 → 动态 target | aevia.sh:193 |
+| H-3 | generate_video.py 未知任务状态立即返回 | generate_video.py:389 |
+| M-1 | test_mode_detection.sh 正则同步主脚本 | test_mode_detection.sh:27 |
+| M-2 | image_analyzer.py MIME 动态检测 | image_analyzer.py:41 |
+| M-3 | generate_video.py 上传凭证字段防御 | generate_video.py:188 |
+
+---
+
 ## [5.8.0] - 2026-04-06
 
 ### 🧹 终极清理 + 第 8 轮 Code Review
