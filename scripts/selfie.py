@@ -3,7 +3,7 @@
 
 支持两种模式：
 1. 场景生图：根据场景描述生成 - 1 个模型，1 张图
-2. 参考生图：分析参考图后生成 - 2 个模型并发，2 张图
+2. 参考生图：分析参考图后生成 - 4 个模型并发，4 张图
 
 换脸生图请使用 face_swap.py（4 个模型并发，4 张图）
 """
@@ -219,17 +219,17 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
         return (model_name, None)
 
 
-def generate_images_dual_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
+def generate_images_quad_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
     """
-    使用两个模型并发生成图片
+    使用 4 个模型并发生成图片（换脸/参考生图模式）
     
     Returns:
         [(model_name, image_url), ...] 成功生成的图片列表
     """
-    models = ['wan2.7-image', 'qwen-image-2.0-pro']
+    models = ['wan2.7-image', 'wan2.7-image-pro', 'qwen-image-2.0', 'qwen-image-2.0-pro']
     results = []
     
-    with ThreadPoolExecutor(max_workers=2) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         futures = {
             executor.submit(generate_single_image, model, image_path, prompt, api_key): model
             for model in models
@@ -589,15 +589,15 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         prompt = result.stdout.strip()
         logger.info(f"✅ 参考图分析完成：{prompt[:100]}...")
         
-        # 4. 双模型并发生成（wan2.7-image + qwen-image-2.0-pro）
-        logger.info("🚀 双模型并发生成中...")
-        results = generate_images_dual_model(image_path, prompt, api_key)
+        # 4. 4 模型并发生成（wan2.7-image, wan2.7-image-pro, qwen-image-2.0, qwen-image-2.0-pro）
+        logger.info("🚀 4 模型并发生成中...")
+        results = generate_images_quad_model(image_path, prompt, api_key)
         
         if not results:
-            logger.error("❌ 两个模型都生成失败")
+            logger.error("❌ 4 个模型都生成失败")
             return False
         
-        # 5. 发送所有成功生成的图片
+        # 5. 发送所有成功生成的图片（4 模型并发）
         success_count = 0
         for model_name, image_url in results:
             if channel and image_url:
@@ -606,7 +606,7 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
                 if send_to_channel(image_url, caption, channel, model_name, target):
                     success_count += 1
         
-        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片")
+        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片（4 模型并发）")
         return success_count > 0
         
     except (ConfigurationError, FileNotFoundError) as e:
