@@ -34,7 +34,7 @@ sanitize_input() {
   [ ${#input} -gt "$AEVIA_MAX_INPUT_LENGTH" ] && input="${input:0:$AEVIA_MAX_INPUT_LENGTH}"
   # 只移除明确的危险字符，保留 Unicode（含中文）和 `/`（URL/路径需要）
   # 移除控制字符和 shell 元字符（但保留 / 避免破坏 URL 和正常文本）
-  printf '%s' "$input"|tr -d '\x00-\x1f\x7f-\x9f`$\\|;&<>(){}[]!~#*?'
+  printf '%s' "$input"|tr -d '\x00-\x1f\x7f-\x9f`$\\|;&<>(){}[]#*'
 }
 
 error() { 
@@ -302,6 +302,9 @@ run_chat() {
 # ============ 主流程 ============
 
 main() {
+  # M-2 修复：检查 jq 依赖
+  command -v jq &>/dev/null || error "jq 未安装，请运行：apt install jq 或 brew install jq"
+
   load_api_key || error "无法加载 API Key"
   
   local user_input="${1:-}"
@@ -344,7 +347,7 @@ case "${1:-}" in
     shift
     # 强制模式：直接调用对应函数，不经过 detect_mode
     target="${2:-${AEVIA_TARGET:-}}"
-    user_input=$(printf '%s' "$*"|tr -d '\x00-\x1f\x7f-\x9f`$\\|;&<>(){}[]!~#*?')
+    user_input=$(printf '%s' "$*"|tr -d '\x00-\x1f\x7f-\x9f`$\\|;&<>(){}[]#*')
     case "$mode" in
       selfie-scene) run_selfie_scene "$user_input" "$target" ;;
       selfie-reference) run_selfie_reference "$user_input" "$target" ;;

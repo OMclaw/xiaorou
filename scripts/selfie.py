@@ -519,7 +519,9 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             # 保留一份最新的小柔照片到固定路径（供视频生成使用）
             # 使用原子操作避免 TOCTOU 竞争条件
             # 多用户隔离：路径中包含 target 标识，避免并发冲突
+            # H-1 修复：清理 user_id 防止路径注入
             user_id = target or 'default'
+            user_id = re.sub(r'[^a-zA-Z0-9_\-]', '_', str(user_id))[:32]
             latest_path = config.get_temp_dir() / f'selfie_latest_{user_id}.jpg'
             temp_dst = None
             try:
@@ -746,11 +748,6 @@ if __name__ == "__main__":
             channel = sys.argv[3] if len(sys.argv) > 3 else None
             caption = sys.argv[4] if len(sys.argv) > 4 else "这是模仿参考图生成的～"
             target = sys.argv[5] if len(sys.argv) > 5 else None
-        
-        # L-7 修复：路径安全检查
-        if '..' in reference_image or reference_image.startswith('/etc/') or reference_image.startswith('/proc/'):
-            logger.error(f"⚠️ 参考图路径包含危险字符：{reference_image}")
-            sys.exit(1)
         
         if not os.path.exists(reference_image):
             logger.error(f"参考图不存在：{reference_image}")

@@ -98,18 +98,6 @@ class SafeLogger:
     def log(self, level, msg, *args, **kwargs):
         self._logger.log(level, safe_log(msg), *args, **kwargs)
     
-    def critical(self, msg, *args, **kwargs):
-        self._logger.critical(safe_log(msg), *args, **kwargs)
-    
-    def exception(self, msg, *args, **kwargs):
-        self._logger.exception(safe_log(msg), *args, **kwargs)
-    
-    def log(self, level, msg, *args, **kwargs):
-        self._logger.log(level, safe_log(msg), *args, **kwargs)
-
-
-# 使用安全日志包装器
-logger = SafeLogger(logging.getLogger(__name__))
 
 
 # ============ 重试装饰器 ============
@@ -174,7 +162,7 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.7-
         
         response = session.get(policy_url, headers=headers, params=params, timeout=30, verify=True)
         if response.status_code != 200:
-            logger.error(f"❌ 获取上传凭证失败：{response.text[:200]}")
+            logger.error(f"❌ 获取上传凭证失败：HTTP {response.status_code}")
             return None
         
         policy_data = response.json().get('data', {})
@@ -257,6 +245,10 @@ def generate_video(
     """
     if not api_key:
         api_key = config.get_api_key()
+    
+    # M-9 修复：prompt 空值校验
+    if not prompt or not prompt.strip():
+        return (False, "prompt 不能为空")
     
     logger.info(f"🎬 开始生成视频...")
     logger.info(f"  模型：{model}")

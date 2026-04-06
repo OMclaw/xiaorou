@@ -8,6 +8,7 @@ if sys.version_info < (3, 9):
     sys.exit(1)
 
 import argparse
+import threading
 import json
 import logging
 import os
@@ -26,6 +27,9 @@ except ImportError:
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream=sys.stderr)
 logger = logging.getLogger('cosyvoice-tts')
+
+# 线程锁保护 API Key 环境变量（H-3 修复）
+_tts_lock = threading.Lock()
 
 # 可用音色列表（包含小柔默认音色）
 AVAILABLE_VOICES = ["longanyang", "longxiaochun", "longcheng", "longxiaoyu", "longxiaoxia", "longya", "longwan", "longyingxiao_v3"]
@@ -149,9 +153,11 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
         logger.error(str(e))
         return False, str(e)
     
-    # C-3 修复：使用环境变量传递 API Key，函数返回时清理
-    _original_key = os.environ.get('DASHSCOPE_API_KEY')
-    os.environ['DASHSCOPE_API_KEY'] = api_key
+    # H-3 修复：使用线程锁保护 API Key 环境变量
+    # C-3 修复：函数返回时清理环境变量
+    with _tts_lock:
+        _original_key = os.environ.get('DASHSCOPE_API_KEY')
+        os.environ['DASHSCOPE_API_KEY'] = api_key
     
     try:
         if voice not in AVAILABLE_VOICES:

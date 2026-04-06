@@ -30,6 +30,14 @@ class Config:
     _cache_ttl: int = int(os.environ.get('XIAOROU_CONFIG_CACHE_TTL', '300'))  # 缓存有效期 5 分钟（可配置）
     _lock = threading.Lock()  # 线程锁
     
+    @property
+    def _api_key_ttl(self) -> int:
+        return int(os.environ.get('XIAOROU_API_KEY_TTL', '60'))
+    
+    @property
+    def _cache_ttl(self) -> int:
+        return int(os.environ.get('XIAOROU_CONFIG_CACHE_TTL', '300'))
+    
     def __new__(cls) -> 'Config':
         # 双重检查锁定模式
         if cls._instance is None:

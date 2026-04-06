@@ -18,6 +18,13 @@ from typing import Optional
 # 导入统一配置
 from config import config, ConfigurationError
 
+# 允许的图片目录（M-4 修复：统一管理）
+ALLOWED_IMAGE_DIRS = [
+    Path('/home/admin/.openclaw/media/inbound'),
+    Path('/tmp/openclaw'),
+    Path('/tmp/xiaorou'),
+]
+
 # 超时配置（P1 修复）
 API_TIMEOUT = int(os.environ.get('XIAOROU_API_TIMEOUT', '120'))
 

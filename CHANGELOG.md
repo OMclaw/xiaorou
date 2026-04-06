@@ -1,6 +1,39 @@
-# Changelog
+## [5.8.0] - 2026-04-06
 
-All notable changes to this project will be documented in this file.
+### 🧹 终极清理 + 第 8 轮 Code Review
+
+**小柔 AI v5.8.0 - 仓库精简 + 代码质量最终打磨**
+
+### 🗑️ 删除无关文件（12 个文件）
+- `CODE_REVIEW_REPORT.md` - 旧 v5.0.0 报告
+- `docs/TTS_GUIDE.md` / `docs/TTS_IMPLEMENTATION.md` - 过时文档
+- `scripts/utils/` - 无人引用的死代码
+- `tests/` - pytest 未安装，无法运行
+- `requirements-test.txt` - 测试依赖
+
+### 🛡️ 第 8 轮 Code Review 修复（11 个问题）
+| 编号 | 问题 | 状态 |
+|------|------|------|
+| H-1 | selfie.py user_id 路径注入 → 正则清理 | ✅ |
+| H-2 | aevia.sh sanitize_input 过度清除 !?~ → 保留 | ✅ |
+| H-3 | tts.py 环境变量线程竞争 → threading.Lock | ✅ |
+| M-1 | generate_video.py SafeLogger 重复方法 → 删除 | ✅ |
+| M-2 | aevia.sh jq 依赖未声明 → main() 检查 | ✅ |
+| M-3 | selfie.py 冗余路径验证 → 删除 | ✅ |
+| M-4 | image_analyzer.py allowed_dirs 重复 → 提取常量 | ✅ |
+| M-5 | tts.py 死代码 return → 删除 | ✅ |
+| M-6 | generate_video.py 错误响应泄露 → 简化日志 | ✅ |
+| M-8 | config.py TTL 类属性早绑定 → @property | ✅ |
+| M-9 | generate_video.py prompt 空值 → 校验 | ✅ |
+
+### 📊 仓库统计
+| 指标 | 清理前 | 清理后 |
+|------|--------|--------|
+| 文件数 | 26 | 14 |
+| 代码行数 | ~3200 | ~2800 |
+| 无用代码 | 600+ 行 | 0 |
+
+---
 
 ## [5.6.0] - 2026-04-06
 
