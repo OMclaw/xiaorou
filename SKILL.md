@@ -39,7 +39,7 @@ bash scripts/aevia.sh "发语音：早上好呀" feishu
 bash scripts/character.sh "一个温柔可爱的女孩"
 ```
 
-### 📸 三种生图模式
+### 📸 两种生图模式
 
 #### 1️⃣ 场景生图 - 根据场景描述生成
 **生成**: 1 个模型，1 张图
@@ -89,36 +89,6 @@ python3 scripts/selfie.py --reference /path/to/reference.jpg feishu
 
 ---
 
-#### 3️⃣ 换脸生图 - 精准换脸
-**生成**: 4 个模型并发，4 张图
-
-**用法**: 用用户提供的图片作为图 1，用小柔默认头像作为图 2，进行换脸
-
-```bash
-# 发送图片 + 说：
-"换脸"
-"把脸换成小柔"
-"用我的脸，换成小柔"
-"face swap"
-
-# 或直接调用：
-bash scripts/aevia.sh --face-swap "换脸" feishu
-python3 scripts/face_swap.py /path/to/image.jpg --channel feishu --target "ou_xxx" --caption "换脸完成～"
-```
-
-**关键词**: `换脸`、`换我的脸`、`把脸换成`、`用我的脸`、`face swap`
-
-**流程**:
-1. 使用用户提供的图片作为图 1（目标场景）
-2. 使用小柔默认头像作为图 2（脸部来源）
-3. 分析目标图场景（不含脸部）
-4. 生成精准换脸方案：小柔的脸 + 场景精确还原
-5. 4 模型并发生成（wan2.7-image, wan2.7-image-pro, qwen-image-2.0, qwen-image-2.0-pro）
-6. 发送 4 张图片
-
----
-
-### 🎬 视频生成
 
 ```bash
 # 单步生成

@@ -4,8 +4,6 @@
 支持两种模式：
 1. 场景生图：根据场景描述生成 - 1 个模型，1 张图
 2. 参考生图：分析参考图后生成 - 2 个模型并发，2 张图（wan2.7 系列）
-
-换脸生图请使用 face_swap.py（4 个模型并发，4 张图）
 """
 
 import dashscope
@@ -636,7 +634,6 @@ if __name__ == "__main__":
         print("用法：")
         print("  场景生图：python3 selfie.py <场景描述> [频道] [配文] [target]")
         print("  参考生图：python3 selfie.py --reference <参考图路径> [频道] [配文] [target]")
-        print("  换脸生图：python3 scripts/face_swap.py <图片路径> --channel feishu --target <open_id>")
         sys.exit(1)
     
     # 检测是否为参考图模式

@@ -76,14 +76,6 @@ detect_mode() {
     return
   fi
   
-  # ========== 换脸模式（优先级最高）==========
-  # 关键词：换脸、换我的脸、把脸换成、用我的脸、face swap
-  if echo "$input" | grep -qiE "换脸|换我的脸|把脸换成|用我的脸|face.?swap"; then
-    if [ -n "$has_image" ]; then
-      echo "face-swap"
-      return
-    else
-      warn "⚠️ 换脸模式需要提供图片"
     fi
   fi
   
@@ -260,29 +252,6 @@ run_selfie_reference() {
   fi
 }
 
-run_face_swap() {
-  local input="$1"
-  local target="$2"
-  local image_path="${AEVIA_IMAGE_PATH:-}"
-  
-  info "🎭 换脸生图模式（4 模型并发）"
-  
-  local caption="换脸完成～看看效果怎么样？"
-  
-  if [ -n "$image_path" ]; then
-    info "  用户图片：$image_path"
-    info "  小柔头像：使用默认头像"
-    info "  生成数量：4 张（wan2.7-image, wan2.7-image-pro, qwen-image-2.0, qwen-image-2.0-pro）"
-    # 使用 face_swap.py 进行 4 模型并发换脸
-    python3 "$SCRIPT_DIR/face_swap.py" "$image_path" \
-      --channel "$AEVIA_CHANNEL" \
-      --target "$target" \
-      --caption "$caption"
-  else
-    warn "⚠️ 换脸模式需要提供图片"
-    return 1
-  fi
-}
 
 run_selfie() {
   # 兼容旧版本调用
@@ -350,9 +319,6 @@ main() {
     video)
       run_video "$user_input" "$target"
       ;;
-    face-swap)
-      run_face_swap "$user_input" "$target"
-      ;;
     selfie-reference)
       run_selfie_reference "$user_input" "$target"
       ;;
@@ -370,7 +336,6 @@ main() {
 
 # 支持直接调用特定模式
 case "${1:-}" in
-  --voice|--video|--selfie|--selfie-scene|--selfie-reference|--face-swap|--chat)
     mode="${1#--}"
     shift
     main "$*" "force_$mode"
