@@ -209,11 +209,25 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
             continue
         return (model_name, None)
         
+    except json.JSONDecodeError as e:
+        logger.error(f"❌ {model_name} JSON 解析失败：{e}")
+        if attempt < max_retries:
+            logger.warning(f"⚠️ {model_name} 重试中...")
+            time.sleep(1 * (attempt + 1))
+            continue
+        return (model_name, None)
+    except requests.RequestException as e:
+        logger.error(f"❌ {model_name} 请求异常：{e}")
+        if attempt < max_retries:
+            logger.warning(f"⚠️ {model_name} 重试中...")
+            time.sleep(1 * (attempt + 1))
+            continue
+        return (model_name, None)
     except Exception as e:
         logger.error(f"❌ {model_name} 错误：{e}")
         if attempt < max_retries:
             logger.warning(f"⚠️ {model_name} 重试中...")
-            time.sleep(1 * (attempt + 1))  # 指数退避
+            time.sleep(1 * (attempt + 1))
             continue
         return (model_name, None)
 

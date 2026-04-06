@@ -25,7 +25,7 @@ class Config:
     _api_key: Optional[str] = None
     _config_cache: Optional[dict] = None  # 配置文件缓存
     _cache_timestamp: float = 0  # 缓存时间戳
-    _cache_ttl: int = 300  # 缓存有效期 5 分钟
+    _cache_ttl: int = int(os.environ.get('XIAOROU_CONFIG_CACHE_TTL', '300'))  # 缓存有效期 5 分钟（可配置）
     _lock = threading.Lock()  # 线程锁
     
     def __new__(cls) -> 'Config':

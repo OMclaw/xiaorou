@@ -77,7 +77,8 @@ def analyze_image(image_path: str, api_key: str) -> str:
             model='qwen3.5-plus',
             messages=messages,
             api_key=api_key,
-            headers={'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'}
+            headers={'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'},
+            timeout=API_TIMEOUT
         )
         
         if response.status_code == 200 and response.output:
@@ -205,7 +206,8 @@ def analyze_image_for_face_swap(image_path: str, api_key: str) -> str:
             model='qwen3.5-plus',
             messages=messages,
             api_key=api_key,
-            headers={'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'}
+            headers={'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'},
+            timeout=API_TIMEOUT
         )
         
         if response.status_code == 200 and response.output:
