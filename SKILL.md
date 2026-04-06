@@ -1,7 +1,7 @@
 ---
 name: xiaorou
-description: 小柔 AI - 你的虚拟伴侣，支持情感聊天、自拍生成、视频生成、角色定制、语音消息
-allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write Bash(python3:*) Bash(ffmpeg:*)
+description: 小柔 AI - 你的虚拟伴侣，支持情感聊天、自拍生成、视频生成、语音消息
+allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write Bash(python3:*)
 ---
 
 # 小柔 AI - 你的虚拟伴侣
@@ -16,12 +16,21 @@ allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write Bash(python3:*) Bash(ffm
 - 🎙️ **语音消息** - CosyVoice-v3-flash（飞书语音气泡）
 - 🌐 **多平台** - 飞书/Telegram/Discord/WhatsApp
 
+## 依赖
+
+**必须**：
+- Python 3.9+
+- `dashscope`（阿里云大模型 SDK）：`pip3 install dashscope`
+- `requests`（HTTP 库，通常已预装）
+
+**无其他第三方依赖**：不需要 ffmpeg、insightface、opencv 等。
+
 ## 安装
 
 ```bash
 cd ~/.openclaw/workspace/skills
 git clone https://github.com/OMclaw/xiaorou.git
-cd xiaorou && bash install.sh
+cd xiaorou && pip3 install dashscope
 ```
 
 ## 使用
@@ -89,19 +98,7 @@ python3 scripts/selfie.py --reference /path/to/reference.jpg feishu
 
 ---
 
-
-```bash
-# 单步生成（使用 generate_video.py）
-python3 scripts/generate_video.py --image photo.jpg --prompt "一个女孩在海边散步" --target "user:ou_xxx"
-```
-
 ## 配置
-
-**依赖：**
-```bash
-brew install python@3.9 ffmpeg
-/home/linuxbrew/.linuxbrew/bin/python3.9 -m pip install dashscope
-```
 
 **API Key：** 自动从 `~/.openclaw/openclaw.json` 读取。
 

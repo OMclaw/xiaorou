@@ -107,66 +107,31 @@ def load_api_key() -> str:
 
 
 def get_audio_duration(audio_path: str) -> Optional[int]:
-    """获取音频时长（毫秒），用于飞书语音消息"""
+    """获取音频时长（毫秒）- 纯 Python 实现，不依赖 ffprobe"""
     try:
-        import subprocess
-        result = subprocess.run([
-            'ffprobe', '-v', 'error',
-            '-show_entries', 'format=duration',
-            '-of', 'default=noprint_wrappers=1:nokey=1',
-            audio_path
-        ], capture_output=True, text=True, timeout=10)
-        
-        if result.returncode == 0 and result.stdout.strip():
-            duration_sec = float(result.stdout.strip())
-            return int(duration_sec * 1000)
+        # OPUS 文件时长估算（基于文件大小和比特率）
+        # 飞书语音 32kbps OPUS，约 4KB/s
+        file_size = os.path.getsize(audio_path)
+        # 估算：32kbps = 4KB/s，实际会有 OGG 容器开销
+        estimated_duration_ms = int((file_size / 4000) * 1000)
+        return estimated_duration_ms
     except Exception as e:
         logger.debug(f"获取音频时长失败：{e}")
-    
-    return None
+        return None
 
 
 def validate_opus_file(file_path: str) -> bool:
-    """验证 OPUS 文件是否符合飞书要求（OPUS 编码，24/48kHz，单声道）"""
+    """验证 OPUS 文件 - 纯 Python 实现，不依赖 ffprobe"""
     try:
-        import subprocess
-        import json
-        
-        result = subprocess.run([
-            'ffprobe', '-v', 'error',
-            '-show_entries', 'stream=codec_name,sample_rate,channels',
-            '-of', 'json',
-            file_path
-        ], capture_output=True, text=True, timeout=10)
-        
-        if result.returncode != 0:
-            return False
-        
-        info = json.loads(result.stdout)
-        streams = info.get('streams', [])
-        if not streams:
-            return False
-        
-        stream = streams[0]
-        codec = stream.get('codec_name', '')
-        sample_rate = int(stream.get('sample_rate', 0))
-        channels = int(stream.get('channels', 0))
-        
-        # 飞书要求：OPUS 编码，24kHz 或 48kHz，单声道
-        if codec != 'opus':
-            logger.warning(f"OPUS 验证：编码格式不符：{codec}")
-            return False
-        if sample_rate not in [24000, 48000]:
-            logger.warning(f"OPUS 验证：采样率不符：{sample_rate}")
-            return False
-        if channels != 1:
-            logger.warning(f"OPUS 验证：声道数不符：{channels}")
-            return False
-        
-        logger.info("✓ OPUS 格式验证通过")
-        return True
+        # OGG 容器以 OggS 开头
+        with open(file_path, 'rb') as f:
+            header = f.read(4)
+            if header == b'OggS':
+                logger.debug("✓ OPUS 文件格式验证通过（OGG 容器）")
+                return True
+        logger.warning(f"⚠️ 文件可能不是有效的 OGG/OPUS 格式")
+        return False
     except Exception as e:
-        # 验证失败不阻断流程，确保消息可发送（兼容性考虑）
         logger.warning(f"OPUS 验证失败，但仍允许发送：{e}")
         return True
 
