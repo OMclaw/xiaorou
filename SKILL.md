@@ -131,7 +131,7 @@ export AEVIA_CHARACTER_NAME="小柔"
 ## API
 
 - 聊天：Qwen3.5-plus
-- 自拍：wan2.7-image / qwen-image-2.0-pro（参考生图双模型并发）
+- 自拍：wan2.7-image / qwen-image-2.0-pro
 - 视频：wan2.6-i2v
 - 头像：Z-image-turbo
 - 语音：CosyVoice-v3-flash（默认：longyingxiao_v3）
