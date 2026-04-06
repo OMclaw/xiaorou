@@ -9,7 +9,7 @@ allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write Bash(python3:*)
 ## 功能
 
 - 💬 **情感聊天** - Qwen3.5-plus
-- 📸 **自拍生成** - wan2.7-image / qwen-image-2.0-pro
+- 📸 **自拍生成** - wan2.7-image
 - 🔄 **参考生图** - 1 个模型（wan2.7-image），1 张图
 - 🎬 **视频生成** - wan2.6-i2v（图片 + 文字 → 视频）
 - 🎨 **角色定制** - Z-image
@@ -131,7 +131,7 @@ export AEVIA_CHARACTER_NAME="小柔"
 ## API
 
 - 聊天：Qwen3.5-plus
-- 自拍：wan2.7-image / qwen-image-2.0-pro
+- 自拍：wan2.7-image
 - 视频：wan2.6-i2v
 - 头像：Z-image-turbo
 - 语音：CosyVoice-v3-flash（默认：longyingxiao_v3）
