@@ -32,9 +32,12 @@ from config import config, ConfigurationError
 
 # ============ 配置初始化 ============
 
-# 使用配置模块
-TEMP_DIR = config.get_temp_dir() / 'videos'
-TEMP_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+# 使用配置模块（延迟创建，避免 import 时副作用 - L-7 修复）
+def _get_temp_dir() -> Path:
+    """获取视频临时目录（懒加载）"""
+    temp_dir = config.get_temp_dir() / 'videos'
+    temp_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    return temp_dir
 POLL_INTERVAL = int(os.environ.get('XIAOROU_POLL_INTERVAL', '10'))
 MAX_WAIT = int(os.environ.get('XIAOROU_MAX_WAIT', '600'))
 # 从环境变量读取目标平台，支持多平台
@@ -43,6 +46,14 @@ DEFAULT_CHANNEL = os.environ.get('AEVIA_CHANNEL', 'feishu')
 
 # 创建 requests session（连接池）
 session = requests.Session()
+
+# 进程退出时清理连接池（H-2 修复 - 防止 fd 泄漏）
+import atexit
+atexit.register(lambda: session.close())
+
+# 进程退出时清理连接池（H-2 修复）
+import atexit
+atexit.register(lambda: session.close())
 
 # ============ 安全工具函数 ============
 
@@ -568,7 +579,7 @@ def image_to_video(
         return None
     
     # 步骤 5: 下载视频
-    video_path = TEMP_DIR / f"video_{timestamp}.mp4"
+    video_path = _get_temp_dir() / f"video_{timestamp}.mp4"
     if not download_video(video_result, str(video_path)):
         logger.error("❌ 流程终止：视频下载失败")
         return None

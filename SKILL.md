@@ -9,9 +9,9 @@ allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write Bash(python3:*) Bash(ffm
 ## 功能
 
 - 💬 **情感聊天** - Qwen3.5-plus
-- 📸 **自拍生成** - Wan2.6-image / qwen-image-2.0-pro
-- 🔄 **换脸生成** - 4 模型并发（wan2.7-image / wan2.7-image-pro / qwen-image-2.0 / qwen-image-2.0-pro）
-- 🎬 **视频生成** - wan2.6-i2v（图片 + 文字 → 视频）
+- 📸 **自拍生成** - wan2.7-image / qwen-image-2.0-pro
+- 🔄 **参考生图** - 2 模型并发（wan2.7-image + qwen-image-2.0-pro）
+- 🎬 **视频生成** - wan2.7-i2v（图片 + 文字 → 视频）
 - 🎨 **角色定制** - Z-image
 - 🎙️ **语音消息** - CosyVoice-v3-flash（飞书语音气泡）
 - 🌐 **多平台** - 飞书/Telegram/Discord/WhatsApp
@@ -35,8 +35,8 @@ bash scripts/aevia.sh "早安"
 # 语音
 bash scripts/aevia.sh "发语音：早上好呀" feishu
 
-# 角色
-bash scripts/character.sh "一个温柔可爱的女孩"
+# 角色定制（通过聊天指令）
+# 示例："帮我生成一个温柔可爱的角色"
 ```
 
 ### 📸 两种生图模式
@@ -91,17 +91,8 @@ python3 scripts/selfie.py --reference /path/to/reference.jpg feishu
 
 
 ```bash
-# 单步生成
-python3 scripts/video_generator.py --img photo.jpg --prompt "一个女孩在海边散步" --output video.mp4
-
-# 完整流程：图片 + 语音→视频
-python3 scripts/video_pipeline.py \
-  --reference photo.jpg \
-  --scene-prompt "一个美丽的女孩在海边微笑" \
-  --tts-text "你好呀，今天天气真好～" \
-  --video-prompt "一个女孩在海边微笑，微风吹拂头发，阳光明媚" \
-  --duration 5 \
-  --target "user:ou_xxx"
+# 单步生成（使用 generate_video.py）
+python3 scripts/generate_video.py --image photo.jpg --prompt "一个女孩在海边散步" --target "user:ou_xxx"
 ```
 
 ## 配置
@@ -132,14 +123,15 @@ export AEVIA_CHARACTER_NAME="小柔"
 
 ### 生成配置
 
-- **双模型并发**: wan2.7-image + qwen-image-2.0-pro
-- **分辨率**: 1K (1024*1024)
-- **风格**: 网红风格，清淡妆容，自然真实
-- **质量标签**: 8K 超高清，电影级布光，真实光影，无 AI 感
+- **场景生图**：1 模型（wan2.7-image），1 张图
+- **参考生图**：2 模型并发（wan2.7-image + qwen-image-2.0-pro），2 张图
+- **分辨率**：1K (1024*1024)
+- **风格**：网红风格，清淡妆容，自然真实
+- **质量标签**：8K 超高清，电影级布光，真实光影，无 AI 感
 
 ---
 
-## 换脸模式详解
+## 换脸/脸部增强详解
 
 ### 使用方式
 
@@ -147,12 +139,11 @@ export AEVIA_CHARACTER_NAME="小柔"
 
 ### 生成流程
 
-1. **用户提供图片** → 作为图 1（目标场景）
-2. **小柔默认头像** → 作为图 2（脸部来源，`assets/default-character.png`）
-3. **场景分析** → 提取目标图的场景、穿搭、姿态描述（忽略脸部）
-4. **精准换脸 Prompt** → 锁定小柔脸部特征，还原目标场景
-5. **双模型并发** → wan2.7-image + qwen-image-2.0-pro
-6. **输出** → 2 张生成的图片
+1. **用户提供图片** → 作为目标场景
+2. **场景分析** → 提取目标图的场景、穿搭、姿态描述（忽略脸部）
+3. **自拍生成** → 使用小柔头像 + 分析结果生成图片（双模型并发）
+4. **脸部增强（可选）** → 使用 face_enhancer.py 后处理，提升脸部一致性
+5. **输出** → 生成的图片
 
 ### 换脸 Prompt 策略
 
@@ -164,29 +155,21 @@ export AEVIA_CHARACTER_NAME="小柔"
 **允许改变**：
 - 替换为目标场景的全身穿搭、姿态、背景与风格
 
-### 命令行用法
+### 命令行用法（使用 face_enhancer.py 后处理换脸）
 
 ```bash
-# 使用默认小柔头像换脸
-python3 scripts/face_swap.py /path/to/image.jpg
+# 使用脸部增强后处理
+python3 scripts/face_enhancer.py <生成的图片路径> <小柔头像路径> [输出路径]
 
-# 指定目标头像
-python3 scripts/face_swap.py /path/to/image.jpg --image2 /path/to/target.jpg
-
-# 指定使用的模型
-python3 scripts/face_swap.py /path/to/image.jpg --models wan2.7-image qwen-image-2.0
-
-# 详细输出
-python3 scripts/face_swap.py /path/to/image.jpg --verbose
+# 示例
+python3 scripts/face_enhancer.py /tmp/generated.jpg assets/default-character.png /tmp/enhanced.jpg
 ```
-
-**输出位置**: `/tmp/openclaw/face_swaps/face_swap_<timestamp>/`
 
 ## API
 
 - 聊天：Qwen3.5-plus
-- 自拍：Wan2.6-image / qwen-image-2.0-pro
-- 视频：wan2.6-i2v
+- 自拍：wan2.7-image / qwen-image-2.0-pro（参考生图双模型并发）
+- 视频：wan2.7-i2v
 - 头像：Z-image-turbo
 - 语音：CosyVoice-v3-flash（默认：longyingxiao_v3）
 
@@ -197,7 +180,7 @@ python3 scripts/face_swap.py /path/to/image.jpg --verbose
 
 ## 视频生成 API
 
-**模型**：wan2.6-i2v
+**模型**：wan2.7-i2v（推荐）/ wan2.6-i2v
 
 **支持模式**：
 - 图片 + 文字 → 视频
@@ -208,9 +191,8 @@ python3 scripts/face_swap.py /path/to/image.jpg --verbose
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
 | resolution | 分辨率 | 720P |
-| duration | 视频时长 | 10 秒 |
+| duration | 视频时长 | 5 秒 |
 | audio | 是否启用音频 | false |
-| shot_type | 镜头类型 | multi |
 | prompt_extend | 是否扩展提示词 | true |
 
 **生成时间**：约 3-10 分钟（异步任务）

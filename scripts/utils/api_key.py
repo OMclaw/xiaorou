@@ -22,10 +22,12 @@ def load_api_key_from_env() -> Optional[str]:
     return None
 
 
-def load_api_key_from_config(config_path: str = None) -> Optional[str]:
+def load_api_key_from_config(config_path: Optional[str] = None) -> Optional[str]:
     """从配置文件加载 API Key"""
     if config_path is None:
-        config_path = Path.home() / '.openclaw/openclaw.json'
+        config_path = str(Path.home() / '.openclaw/openclaw.json')
+    
+    config_path = Path(config_path)
     
     if not config_path.exists():
         logger.debug(f"配置文件不存在：{config_path}")

@@ -54,9 +54,6 @@ def _call_multimodal_api(image_base64: str, analysis_prompt: str, api_key: str, 
     Returns:
         API 返回的分析结果
     """
-    import dashscope
-    from dashscope import MultiModalConversation
-    
     messages = [{
         'role': 'user',
         'content': [
