@@ -344,6 +344,9 @@ def main():
     parser.add_argument('--models', '-m', nargs='+', choices=FACE_SWAP_MODELS, help='指定使用的模型')
     parser.add_argument('--output', '-o', help='输出目录')
     parser.add_argument('--verbose', '-v', action='store_true', help='详细输出')
+    parser.add_argument('--channel', '-c', choices=['feishu', 'telegram', 'discord', 'whatsapp'], help='发送频道')
+    parser.add_argument('--target', '-t', help='发送目标（open_id 或 chat_id）')
+    parser.add_argument('--caption', help='发送消息的配文')
     
     args = parser.parse_args()
     
@@ -370,6 +373,32 @@ def main():
         
         print(f"\n📁 输出目录：{results['output_dir']}")
         print("="*50)
+        
+        # 如果指定了频道和目标，发送图片
+        if args.channel and args.target and results['success']:
+            print(f"\n📤 正在发送到 {args.channel}...")
+            import subprocess
+            caption = args.caption or "换脸完成～看看效果怎么样？"
+            
+            for model_name in results['success']:
+                image_path = results['images'][model_name]
+                print(f"  发送：{image_path}")
+                
+                # 使用 openclaw message send 发送
+                cmd = [
+                    'openclaw', 'message', 'send',
+                    '--channel', args.channel,
+                    '--target', args.target,
+                    '--media', str(image_path)
+                ]
+                
+                # 第一个图片附带文字
+                if model_name == results['success'][0]:
+                    cmd.extend(['--message', caption])
+                
+                subprocess.run(cmd, check=True)
+            
+            print("✅ 发送完成！")
         
         # 返回成功状态
         sys.exit(0 if results['success'] else 1)
