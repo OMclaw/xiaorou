@@ -27,7 +27,7 @@ TEMP_DIR = config.get_temp_dir() / 'selfies'
 TEMP_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
 MAX_INPUT_LENGTH = 500
 DEFAULT_IMAGE_SIZE = "1K"
-PROMPT_EXTEND = False  # 关闭 AI 自动优化提示词
+PROMPT_EXTEND = True  # 开启 AI 自动优化提示词
 # 超时配置（P1 修复 - 可从环境变量定制）
 API_TIMEOUT = int(os.environ.get('XIAOROU_API_TIMEOUT', '120'))
 IMAGE_DOWNLOAD_TIMEOUT = int(os.environ.get('XIAOROU_IMAGE_DOWNLOAD_TIMEOUT', '30'))
