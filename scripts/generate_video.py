@@ -165,10 +165,7 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-
         logger.info(f"📤 正在获取上传凭证...")
         policy_url = "https://dashscope.aliyuncs.com/api/v1/uploads"
         params = {"action": "getPolicy", "model": model_name}
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "X-DashScope-DataInspection": '{"input":"disable","output":"disable"}'
-        }
+        headers = {"Authorization": f"Bearer {api_key}"}
         
         response = session.get(policy_url, headers=headers, params=params, timeout=30, verify=True)
         if response.status_code != 200:
