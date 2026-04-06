@@ -525,7 +525,7 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
     1. 分析参考图 → 提取场景、姿势、服装、光线等描述（**完全忽略人脸**）
     2. 使用小柔头像作为图生图的输入
     3. Prompt：保留小柔脸，套用参考图的场景/穿搭/姿态
-    4. 双模型并发生成（wan2.7-image + qwen-image-2.0-pro）
+    4. 单模型生成（wan2.7-image）
     
     Args:
         reference_image_path: 参考图路径
@@ -554,7 +554,7 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         channel = validate_channel(channel)
         
         # 忽略 multi_mode 参数，始终使用分析 + 图生图模式
-        logger.info("🔍 分析参考图模式：提取 prompt 后双模型并发生成")
+        logger.info("🔍 分析参考图模式：提取 prompt 后单模型生成")
         
         # 3. 分析参考图，提取 prompt
         script_dir = Path(__file__).resolve().parent
@@ -616,7 +616,7 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         
         if failed_models:
             logger.error(f"⚠️ 发送失败的模型：{', '.join(failed_models)}")
-        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片（2 模型并发）")
+        logger.info(f"✅ 成功发送 {success_count}/{len(results)} 张图片（1 模型）")
         return success_count > 0
         
     except (ConfigurationError, FileNotFoundError) as e:

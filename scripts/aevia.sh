@@ -10,6 +10,7 @@ CONFIG_FILE="$HOME/.openclaw/openclaw.json"
 AEVIA_CHANNEL="${AEVIA_CHANNEL:-feishu}"
 AEVIA_TARGET="${AEVIA_TARGET:-}"
 CHARACTER_NAME="${AEVIA_CHARACTER_NAME:-小柔}"
+AEVIA_MAX_INPUT_LENGTH="${AEVIA_MAX_INPUT_LENGTH:-500}"
 
 # ============ 工具函数 ============
 
@@ -29,8 +30,8 @@ load_api_key() {
 
 sanitize_input() {
   local input="$1"
-  # 严格长度限制
-  [ ${#input} -gt 500 ] && input="${input:0:500}"
+  # 严格长度限制（可配置）
+  [ ${#input} -gt "$AEVIA_MAX_INPUT_LENGTH" ] && input="${input:0:$AEVIA_MAX_INPUT_LENGTH}"
   # 只保留安全的字母数字、中文、标点和空格
   # 移除所有控制字符、反引号、美元符号、反斜杠、管道符、分号等 shell 元字符
   echo "$input"|tr -cd '[:alnum:][:space:][:punct:]'|tr -d '`$\\|;&<>(){}[]!~#*?'

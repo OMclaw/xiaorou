@@ -53,11 +53,11 @@ def get_format_for_channel(channel: str, output_path: Optional[str] = None) -> T
         output_path: 输出文件路径（可选）
     
     Returns:
-        (audio_format, file_extension) 元组
+        (audio_format, file_extension) 元组，未知平台返回 MP3 默认格式
     """
     if channel not in CHANNEL_FORMATS:
-        logger.warning(f"未知平台 '{channel}'，将根据文件后缀判断格式")
-        return None, None
+        logger.warning(f"未知平台 '{channel}'，使用默认 MP3 格式")
+        return (AudioFormat.MP3_24000HZ_MONO_256KBPS, '.mp3')
     
     return CHANNEL_FORMATS[channel]
 

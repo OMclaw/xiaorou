@@ -25,30 +25,6 @@ class ConfigurationError(Exception): pass
 class ImageAnalysisError(Exception): pass
 
 
-def validate_config() -> str:
-    """验证并加载 API Key"""
-    api_key = os.environ.get('DASHSCOPE_API_KEY', '')
-    if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
-        logger.info("✓ 从环境变量加载 API Key")
-        return api_key
-    
-    config_file = os.path.expanduser('~/.openclaw/openclaw.json')
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            api_key = config.get('models', {}).get('providers', {}).get('dashscope', {}).get('apiKey', '')
-            if not api_key:
-                api_key = config.get('skills', {}).get('entries', {}).get('xiaorou', {}).get('env', {}).get('DASHSCOPE_API_KEY', '')
-            if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
-                logger.info("✓ 从 OpenClaw 配置文件加载 API Key")
-                return api_key
-        except Exception as e:
-            logger.debug(f"读取配置文件失败：{e}")
-    
-    raise ConfigurationError("API Key 未设置")
-
-
 def get_image_base64(image_path: str) -> str:
     """读取图片并转换为 base64"""
     with open(image_path, 'rb') as f:

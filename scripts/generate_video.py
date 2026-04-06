@@ -559,7 +559,7 @@ def image_to_video(
     # 步骤 6: 发送到飞书
     if send_message:
         caption = f"🎬 小柔生成的视频～\n{prompt[:50]}..."
-        if not send_to_feishu(str(video_path), caption, target):
+        if not send_to_channel(str(video_path), caption, 'feishu', target):
             logger.error("❌ 流程终止：发送失败")
             return None
     
