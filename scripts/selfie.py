@@ -239,7 +239,11 @@ def generate_images_quad_model(image_path: Path, prompt: str, api_key: str) -> L
             model_name, image_url = future.result()
             if image_url:
                 results.append((model_name, image_url))
+                logger.info(f"✅ {model_name} 生成成功")
+            else:
+                logger.warning(f"⚠️ {model_name} 生成失败")
     
+    logger.info(f"📊 生成结果：{len(results)}/{len(models)} 成功")
     return results
 
 
