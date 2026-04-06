@@ -170,39 +170,61 @@ def generate_face_swap(
             }
         ]
         
-        # 调用模型
-        response = ImageSynthesis.call(
-            model=model_name,
-            messages=messages,
-            size=DEFAULT_IMAGE_SIZE,
-            n=1
+        # 调用模型（使用多模态 API）
+        import requests
+        
+        # 不同模型对 size 参数格式要求不同
+        if 'qwen-image' in model_name:
+            size_param = '1024*1024'  # qwen-image 系列使用分辨率格式
+        else:
+            size_param = DEFAULT_IMAGE_SIZE  # wan2.7 系列使用 1K/2K 格式
+        
+        payload = {
+            'model': model_name,
+            'input': {'messages': messages},
+            'parameters': {'size': size_param, 'n': 1}
+        }
+        
+        response = requests.post(
+            'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json',
+                'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'
+            },
+            json=payload,
+            timeout=120
         )
         
-        if response.status_code == 200 and response.output and response.output.choices:
-            choice = response.output.choices[0]
-            if choice.message and choice.message.content:
-                # 提取生成的图片 URL
-                for item in choice.message.content:
-                    if isinstance(item, dict) and item.get('image'):
-                        image_url = item['image']
-                        
-                        # 下载生成的图片
-                        output_filename = f"face_swap_{model_name.replace('.', '_')}_{timestamp}.jpg"
-                        output_path = output_dir / output_filename
-                        
-                        img_response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT)
-                        img_response.raise_for_status()
-                        
-                        with open(output_path, 'wb') as f:
-                            f.write(img_response.content)
-                        
-                        logger.info(f"✅ {model_name} 生成成功：{output_path}")
-                        return (True, f"{model_name} 生成成功", output_path)
+        result_json = response.json()
+        
+        if response.status_code == 200 and result_json.get('output'):
+            output = result_json['output']
+            if 'choices' in output and len(output['choices']) > 0:
+                choice = output['choices'][0]
+                if choice.get('message') and choice['message'].get('content'):
+                    # 提取生成的图片 URL
+                    for item in choice['message']['content']:
+                        if isinstance(item, dict) and item.get('image'):
+                            image_url = item['image']
+                            
+                            # 下载生成的图片
+                            output_filename = f"face_swap_{model_name.replace('.', '_')}_{timestamp}.jpg"
+                            output_path = output_dir / output_filename
+                            
+                            img_response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT)
+                            img_response.raise_for_status()
+                            
+                            with open(output_path, 'wb') as f:
+                                f.write(img_response.content)
+                            
+                            logger.info(f"✅ {model_name} 生成成功：{output_path}")
+                            return (True, f"{model_name} 生成成功", output_path)
             
-            logger.error(f"{model_name}: 响应格式异常")
+            logger.error(f"{model_name}: 响应格式异常 - {result_json}")
             return (False, f"{model_name}: 响应格式异常", None)
         else:
-            error_msg = f"{model_name}: API 调用失败 - {response.code} {response.message}"
+            error_msg = f"{model_name}: API 调用失败 - {response.status_code} {result_json}"
             logger.error(error_msg)
             return (False, error_msg, None)
             
