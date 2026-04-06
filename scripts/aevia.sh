@@ -76,8 +76,6 @@ detect_mode() {
     return
   fi
   
-    fi
-  fi
   
   # ========== 参考生图模式 ==========
   # 关键词：参考、模仿、照著、学这张、生成一张类似的、同样的场景
@@ -336,6 +334,7 @@ main() {
 
 # 支持直接调用特定模式
 case "${1:-}" in
+  --selfie-scene|--selfie-reference|--voice|--video|--chat)
     mode="${1#--}"
     shift
     main "$*" "force_$mode"
