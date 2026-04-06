@@ -112,7 +112,7 @@ run_voice() {
   
   info "🎙️ 语音模式"
   local speech_text
-  speech_text=$(printf '%s' "$input"|sed -E 's|^(发语音 [:：]?|语音消息 [:：]?)||i' | xargs)
+  speech_text=$(printf '%s' "$input" | sed -E 's#^(发语音 [:：]?|语音消息 [:：]?)##i' | xargs)
   [ -z "$speech_text" ] && speech_text="你好呀，我是小柔～"
   
   # 根据平台选择音频格式
@@ -172,7 +172,7 @@ run_video() {
   
   # 提取 prompt
   local prompt
-  prompt=$(printf '%s' "$input"|sed -E 's|^(生成视频|做视频|图生视频)[:：]?||i'|xargs)
+  prompt=$(printf '%s' "$input" | sed -E 's#^(生成视频|做视频|图生视频)[:：]?##i' | xargs)
   [ -z "$prompt" ] && prompt="一个美丽的女孩自然微笑，动作自然舒展"
   
   if [ -n "$image_path" ]; then
@@ -224,7 +224,7 @@ run_selfie_scene() {
   
   # 提取场景描述
   local context
-  context=$(printf '%s' "$input"|sed -E 's|^(自拍|照片|图片|发张|生成|来一张|想要)[:：]?||i'|xargs)
+  context=$(printf '%s' "$input" | sed -E 's#^(自拍|照片|图片|发张|生成|来一张|想要)[:：]?##i' | xargs)
   [ -z "$context" ] && context="时尚穿搭，自然微笑"
   
   local caption="给你看看我现在的样子~"

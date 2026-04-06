@@ -6,7 +6,6 @@
 2. 参考生图：分析参考图后生成 - 1 个模型，1 张图（wan2.7-image）
 """
 
-import dashscope
 import os
 import sys
 import json

@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.15.0] - 2026-04-06
+
+### 🔥 第 14 轮 Code Review 修复
+
+**小柔 AI v5.15.0 - 最终打磨**
+
+### 🛡️ 修复统计
+| 优先级 | 问题数 | 状态 |
+|--------|--------|------|
+| 🟡 Medium | 2 | ✅ |
+| 🟢 Low | 1 | ✅ |
+
+### 修复内容
+| # | 文件 | 问题 | 修复 |
+|---|------|------|------|
+| 1 | selfie.py | 未使用的 dashscope 导入 | 删除 |
+| 2 | aevia.sh | sed 分隔符与模式冲突 | 改为 # 分隔符 |
+| 3 | image_analyzer.py | mimetypes 在函数内导入 | 保持（仅函数需要） |
+
+### 全面验证结果
+| 检查项 | 状态 |
+|--------|------|
+| 死代码 | ✅ 无 |
+| 重复导入 | ✅ 无 |
+| DataInspection | ✅ 全部清除 |
+| 文档一致性 | ✅ 无矛盾 |
+| 语法检查 | ✅ 全部通过 |
+| 参考生图模型 | ✅ 单模型（wan2.7-image） |
+| 视频模型 | ✅ wan2.6-i2v |
+| prompt_extend | ✅ 全部关闭 |
+| 超时控制 | ✅ 10 分钟（600 秒） |
+
+---
+
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
 ## [5.14.0] - 2026-04-06
 
 ### 🔥 第 13 轮 Code Review 修复
