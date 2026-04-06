@@ -97,6 +97,15 @@ class SafeLogger:
     
     def log(self, level, msg, *args, **kwargs):
         self._logger.log(level, safe_log(msg), *args, **kwargs)
+    
+    def critical(self, msg, *args, **kwargs):
+        self._logger.critical(safe_log(msg), *args, **kwargs)
+    
+    def exception(self, msg, *args, **kwargs):
+        self._logger.exception(safe_log(msg), *args, **kwargs)
+    
+    def log(self, level, msg, *args, **kwargs):
+        self._logger.log(level, safe_log(msg), *args, **kwargs)
 
 
 # 使用安全日志包装器
@@ -116,6 +125,7 @@ def retry_on_failure(max_attempts: int = 3, delay: float = 1.0):
     def decorator(func):
         def wrapper(*args, **kwargs):
             last_exception = None
+            current_delay = delay  # 每次调用重置 delay
             for attempt in range(1, max_attempts + 1):
                 try:
                     return func(*args, **kwargs)
@@ -124,8 +134,8 @@ def retry_on_failure(max_attempts: int = 3, delay: float = 1.0):
                     last_exception = e
                     if attempt < max_attempts:
                         logger.warning(f"⚠️ 尝试 {attempt}/{max_attempts} 失败（网络异常）：{e}，{delay}秒后重试...")
-                        time.sleep(delay)
-                        delay *= 2  # 指数退避
+                        time.sleep(current_delay)
+                        current_delay *= 2  # 指数退避
                     else:
                         logger.error(f"❌ 尝试 {max_attempts}/{max_attempts} 失败")
                 except Exception as e:

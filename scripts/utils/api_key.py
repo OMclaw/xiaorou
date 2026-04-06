@@ -9,6 +9,10 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+class ConfigurationError(Exception):
+    """配置错误"""
+    pass
+
 # API Key 验证正则（统一格式）
 API_KEY_PATTERN = r'^sk-[a-zA-Z0-9]{20,}$'
 
@@ -81,12 +85,6 @@ def get_api_key() -> str:
     )
 
 
-class ConfigurationError(Exception):
-    """配置错误"""
-    pass
-
-
-# 便捷函数
 def validate_api_key(api_key: str) -> bool:
     """验证 API Key 格式"""
     return bool(re.match(API_KEY_PATTERN, api_key))

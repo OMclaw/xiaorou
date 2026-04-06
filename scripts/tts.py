@@ -149,18 +149,18 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
         logger.error(str(e))
         return False, str(e)
     
-    # 安全修复：使用环境变量传递 API Key，避免 dashscope.api_key 全局污染
-    # SpeechSynthesizer SDK 不支持 per-request key，os.environ 是当前最优解
+    # C-3 修复：使用环境变量传递 API Key，函数返回时清理
+    _original_key = os.environ.get('DASHSCOPE_API_KEY')
     os.environ['DASHSCOPE_API_KEY'] = api_key
     
-    if voice not in AVAILABLE_VOICES:
-        logger.warning(f"音色 '{voice}' 不在推荐列表中")
-    
-    output_dir = os.path.dirname(output_path)
-    if output_dir and not os.path.exists(output_dir):
-        os.makedirs(output_dir, exist_ok=True)
-    
     try:
+        if voice not in AVAILABLE_VOICES:
+            logger.warning(f"音色 '{voice}' 不在推荐列表中")
+        
+        output_dir = os.path.dirname(output_path)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+        
         for attempt in range(1, retries + 1):
             try:
                 logger.info(f"正在生成语音 (尝试 {attempt}/{retries})...")
