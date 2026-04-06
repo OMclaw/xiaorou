@@ -469,7 +469,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
 
 
 def generate_selfie(context: str, caption: str = "给你看看我现在的样子~", channel: Optional[str] = None, target: Optional[str] = None) -> bool:
-    """普通模式：根据文字描述生成图片，双模型并发"""
+    """普通模式：根据文字描述生成图片，单模型生成"""
     try:
         api_key = validate_config()
         logger.info(f"✅ API Key 已加载")
@@ -486,12 +486,12 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
         mode, prompt = build_prompt(context)
         logger.info(f"📸 模式：{mode}")
         
-        # 双模型并发生成
-        logger.info("🚀 双模型并发生成中...")
-        results = generate_images_dual_model(image_path, prompt, api_key)
+        # 单模型生成（wan2.7-image）
+        logger.info("🚀 万相 2.7 生成中...")
+        results = generate_images_single_model(image_path, prompt, api_key)
         
         if not results:
-            logger.error("❌ 两个模型都生成失败")
+            logger.error("❌ 模型生成失败")
             return False
         
         # 发送所有成功生成的图片
