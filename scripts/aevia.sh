@@ -17,8 +17,8 @@ load_api_key() {
   [ -n "${DASHSCOPE_API_KEY:-}" ] && return 0
   if [ -f "$CONFIG_FILE" ]; then
     local key
-    key=$(jq -r '.skills.entries[]?.env?.DASHSCOPE_API_KEY // empty' "$CONFIG_FILE" 2>/dev/null | head -1)
-    [ -z "$key" ] && key=$(jq -r '.models.providers.dashscope.apiKey // empty' "$CONFIG_FILE" 2>/dev/null | head -1)
+    key=$(jq -r '.skills.entries[]?.env?.DASHSCOPE_API_KEY // empty' "$CONFIG_FILE" 2>/dev/null|head -1)
+    [ -z "$key" ] && key=$(jq -r '.models.providers.dashscope.apiKey // empty' "$CONFIG_FILE" 2>/dev/null|head -1)
     if [ -n "$key" ] && [[ "$key" =~ ^sk-[a-zA-Z0-9]{20,} ]]; then
       export DASHSCOPE_API_KEY="$key"
       return 0
@@ -33,54 +33,81 @@ sanitize_input() {
   [ ${#input} -gt 500 ] && input="${input:0:500}"
   # 只保留安全的字母数字、中文、标点和空格
   # 移除所有控制字符、反引号、美元符号、反斜杠、管道符、分号等 shell 元字符
-  echo "$input" | tr -cd '[:alnum:][:space:][:punct:]' | tr -d '`$\\|;&<>(){}[]!~#*?'
+  echo "$input"|tr -cd '[:alnum:][:space:][:punct:]'|tr -d '`$\\|;&<>(){}[]!~#*?'
 }
 
 error() { 
   # 错误信息也要净化，防止日志注入
   local msg
-  msg=$(echo "$*" | tr -cd '[:alnum:][:space:][:punct:]-_')
+  msg=$(echo "$*"|tr -cd '[:alnum:][:space:][:punct:]-_')
   echo "❌ 错误：$msg" >&2
   exit 1
 }
 warn() { 
   local msg
-  msg=$(echo "$*" | tr -cd '[:alnum:][:space:][:punct:]-_')
+  msg=$(echo "$*"|tr -cd '[:alnum:][:space:][:punct:]-_')
   echo "⚠️ 警告：$msg" >&2
 }
 info() { 
   local msg
-  msg=$(echo "$*" | tr -cd '[:alnum:][:space:][:punct:]-_')
+  msg=$(echo "$*"|tr -cd '[:alnum:][:space:][:punct:]-_')
   echo "ℹ️  $msg"
 }
 
 # ============ 模式检测 ============
+# 三种生图模式：
+# 1. 场景生图 - 根据场景描述用小柔头像生成
+# 2. 参考生图 - 基于参考图识别后用小柔头像生成
+# 3. 换脸生图 - 用用户提供的图片作为图 1，小柔默认头像作为图 2
 
 detect_mode() {
   local input="$1"
   local has_image="${AEVIA_IMAGE_PATH:-}"
   
   # 语音模式
-  if echo "$input" | grep -qiE "发语音 | 语音消息 | 说句话 | tts"; then
+  if echo "$input" | grep -qiE "发语音|语音消息|说句话|tts"; then
     echo "voice"
     return
   fi
   
   # 视频模式
-  if echo "$input" | grep -qiE "生成视频 | 做视频 | 图生视频"; then
+  if echo "$input" | grep -qiE "生成视频|做视频|图生视频"; then
     echo "video"
     return
   fi
   
-  # 自拍模式（有参考图）
-  if [ -n "$has_image" ] && echo "$input" | grep -qiE "参考 | 模仿 | 照著 | 学这张"; then
-    echo "selfie-reference"
-    return
+  # ========== 换脸模式（优先级最高）==========
+  # 关键词：换脸、换我的脸、把脸换成、用我的脸、face swap
+  if echo "$input" | grep -qiE "换脸|换我的脸|把脸换成|用我的脸|face.?swap"; then
+    if [ -n "$has_image" ]; then
+      echo "face-swap"
+      return
+    else
+      warn "⚠️ 换脸模式需要提供图片"
+    fi
   fi
   
-  # 自拍模式（无参考图）
-  if echo "$input" | grep -qiE "照片 | 图片 | 自拍 | 发张 | 看看你 | 穿 | 穿搭"; then
-    echo "selfie"
+  # ========== 参考生图模式 ==========
+  # 关键词：参考、模仿、照著、学这张、生成一张类似的、同样的场景
+  # 条件：必须有图片 + 参考类关键词
+  if [ -n "$has_image" ]; then
+    if echo "$input" | grep -qiE "参考|模仿|照著|学这张|类似的|同样的|照这个|按这个|生成一张|来一张"; then
+      echo "selfie-reference"
+      return
+    fi
+  fi
+  
+  # ========== 场景生图模式 ==========
+  # 关键词：照片、图片、自拍、发张、看看你、穿、穿搭、生成、来一张、想要、场景、在...里/前/下
+  # 条件：有场景描述（可以是纯文字，也可以有图片但没参考关键词）
+  if echo "$input" | grep -qiE "照片|图片|自拍|发张|看看你|穿|穿搭|生成|来一张|想要|场景|在.*里|在.*前|在.*下"; then
+    if [ -n "$has_image" ]; then
+      # 有图片但没参考关键词 → 使用图片作为场景参考（参考生图的简化版）
+      echo "selfie-reference"
+    else
+      # 纯文字场景描述 → 场景生图
+      echo "selfie-scene"
+    fi
     return
   fi
   
@@ -96,7 +123,7 @@ run_voice() {
   
   info "🎙️ 语音模式"
   local speech_text
-  speech_text=$(echo "$input" | sed -E 's/^(发语音 [:：]?|语音消息 [:：]?)//i' | xargs)
+  speech_text=$(echo "$input"|sed -E 's/^(发语音 [:：]?|语音消息 [:：]?)//i'|xargs)
   [ -z "$speech_text" ] && speech_text="你好呀，我是小柔～"
   
   # 根据平台选择音频格式
@@ -153,7 +180,7 @@ run_video() {
   
   # 提取 prompt
   local prompt
-  prompt=$(echo "$input" | sed -E 's/^(生成视频 | 做视频 | 图生视频)[:：]?//i' | xargs)
+  prompt=$(echo "$input"|sed -E 's/^(生成视频|做视频|图生视频)[:：]?//i'|xargs)
   [ -z "$prompt" ] && prompt="一个美丽的女孩自然微笑，动作自然舒展"
   
   if [ -n "$image_path" ]; then
@@ -195,26 +222,63 @@ run_video() {
   fi
 }
 
-run_selfie() {
+run_selfie_scene() {
+  local input="$1"
+  local target="$2"
+  
+  info "🏞️ 场景生图模式"
+  
+  # 提取场景描述
+  local context
+  context=$(echo "$input"|sed -E 's/^(自拍|照片|图片|发张|生成|来一张|想要)[:：]?//i'|xargs)
+  [ -z "$context" ] && context="时尚穿搭，自然微笑"
+  
+  local caption="给你看看我现在的样子~"
+  
+  info "  场景：$context"
+  python3 "$SCRIPT_DIR/selfie.py" "$context" "$AEVIA_CHANNEL" "$caption" "$target"
+}
+
+run_selfie_reference() {
   local input="$1"
   local target="$2"
   local image_path="${AEVIA_IMAGE_PATH:-}"
   
-  info "📸 自拍模式"
+  info "🖼️ 参考生图模式"
   
   local caption="给你看看我现在的样子~"
   
   if [ -n "$image_path" ]; then
-    info "参考图模式"
+    info "  参考图：$image_path"
     python3 "$SCRIPT_DIR/selfie.py" --reference "$image_path" "$AEVIA_CHANNEL" "$caption" "$target"
   else
-    # 提取场景描述
-    local context
-    context=$(echo "$input" | sed -E 's/^(自拍 | 照片 | 图片 | 发张)[:：]?//i' | xargs)
-    [ -z "$context" ] && context="时尚穿搭，自然微笑"
-    
-    python3 "$SCRIPT_DIR/selfie.py" "$context" "$AEVIA_CHANNEL" "$caption" "$target"
+    warn "⚠️ 参考生图需要提供图片"
+    return 1
   fi
+}
+
+run_face_swap() {
+  local input="$1"
+  local target="$2"
+  local image_path="${AEVIA_IMAGE_PATH:-}"
+  
+  info "🎭 换脸生图模式"
+  
+  local caption="换脸完成～看看效果怎么样？"
+  
+  if [ -n "$image_path" ]; then
+    info "  用户图片：$image_path"
+    info "  小柔头像：使用默认头像"
+    python3 "$SCRIPT_DIR/selfie.py" --face-swap "$image_path" "$AEVIA_CHANNEL" "$caption" "$target"
+  else
+    warn "⚠️ 换脸模式需要提供图片"
+    return 1
+  fi
+}
+
+run_selfie() {
+  # 兼容旧版本调用
+  run_selfie_scene "$@"
 }
 
 run_chat() {
@@ -239,7 +303,7 @@ run_chat() {
   else
     # fallback: 手动转义（如果无 jq）
     local escaped_input
-    escaped_input=$(echo "$input" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g' | tr '\n' ' ')
+    escaped_input=$(echo "$input"|sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g'|tr '\n' ' ')
     cat > "$temp_json" <<EOF
 {
   "model": "qwen3.5-plus",
@@ -258,7 +322,7 @@ EOF
     -d @"$temp_json" 2>/dev/null) || error "API 请求失败"
   
   local reply
-  reply=$(echo "$response" | jq -r '.choices[0].message.content // empty')
+  reply=$(echo "$response"|jq -r '.choices[0].message.content // empty')
   [ -z "$reply" ] && error "回复生成失败"
   
   echo "$reply"
@@ -290,8 +354,17 @@ main() {
     video)
       run_video "$user_input" "$target"
       ;;
-    selfie-reference|selfie)
-      run_selfie "$user_input" "$target"
+    face-swap)
+      run_face_swap "$user_input" "$target"
+      ;;
+    selfie-reference)
+      run_selfie_reference "$user_input" "$target"
+      ;;
+    selfie-scene)
+      run_selfie_scene "$user_input" "$target"
+      ;;
+    selfie)
+      run_selfie_scene "$user_input" "$target"
       ;;
     chat)
       run_chat "$user_input" "$target"
@@ -301,7 +374,7 @@ main() {
 
 # 支持直接调用特定模式
 case "${1:-}" in
-  --voice|--video|--selfie|--chat)
+  --voice|--video|--selfie|--selfie-scene|--selfie-reference|--face-swap|--chat)
     mode="${1#--}"
     shift
     main "$*" "force_$mode"
