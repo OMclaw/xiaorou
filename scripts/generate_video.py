@@ -303,7 +303,6 @@ def generate_video(
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json',
             'X-DashScope-Async': 'enable',
-            'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'
         }
         
         # 如果是 oss:// URL，需要添加 OSS 资源解析 header

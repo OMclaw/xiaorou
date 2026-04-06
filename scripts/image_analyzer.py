@@ -73,7 +73,6 @@ def _call_multimodal_api(image_base64: str, analysis_prompt: str, api_key: str, 
         model=model,
         messages=messages,
         api_key=api_key,
-        headers={'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'},
         timeout=API_TIMEOUT
     )
     

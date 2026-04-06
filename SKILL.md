@@ -10,7 +10,7 @@ allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write Bash(python3:*)
 
 - 💬 **情感聊天** - Qwen3.5-plus
 - 📸 **自拍生成** - wan2.7-image / qwen-image-2.0-pro
-- 🔄 **参考生图** - 2 模型并发（wan2.7-image + qwen-image-2.0-pro）
+- 🔄 **参考生图** - 1 个模型（wan2.7-image），1 张图
 - 🎬 **视频生成** - wan2.6-i2v（图片 + 文字 → 视频）
 - 🎨 **角色定制** - Z-image
 - 🎙️ **语音消息** - CosyVoice-v3-flash（飞书语音气泡）
@@ -93,8 +93,8 @@ python3 scripts/selfie.py --reference /path/to/reference.jpg feishu
 **流程**:
 1. 分析参考图 → 提取场景、姿势、服装、光线等描述（忽略人脸）
 2. 使用小柔头像作为图生图的输入
-3. 双模型并发生成（wan2.7-image + qwen-image-2.0-pro）
-4. 发送 2 张图片
+3. 单模型生成（wan2.7-image）
+4. 发送 1 张图片
 
 ---
 
@@ -121,7 +121,7 @@ export AEVIA_CHARACTER_NAME="小柔"
 ### 生成配置
 
 - **场景生图**：1 模型（wan2.7-image），1 张图
-- **参考生图**：2 模型并发（wan2.7-image + qwen-image-2.0-pro），2 张图
+- **参考生图**：1 模型（wan2.7-image），1 张图
 - **分辨率**：1K (1024*1024)
 - **风格**：网红风格，清淡妆容，自然真实
 - **质量标签**：8K 超高清，电影级布光，真实光影，无 AI 感

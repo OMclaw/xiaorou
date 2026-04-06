@@ -19,8 +19,6 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 # 全局禁用数据检查（所有 DashScope API 调用）
-os.environ['DASHSCOPE_DATA_INSPECTION'] = '{"input":"disable","output":"disable"}'
-
 try:
     import dashscope
     from dashscope.audio.tts_v2 import SpeechSynthesizer, AudioFormat

@@ -212,7 +212,6 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                 headers={
                     'Authorization': f'Bearer {api_key}',
                     'Content-Type': 'application/json',
-                    'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'
                 },
                 json=payload, timeout=API_TIMEOUT
             )
