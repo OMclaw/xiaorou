@@ -53,8 +53,8 @@ FACE_SWAP_MODELS = [
     'qwen-image-2.0-pro'
 ]
 
-# 统一换脸 Prompt
-FACE_SWAP_PROMPT = "我想让图 1 的脸换成图 2 的脸部特征，其他图 1 的部分全部不变，最后要自然、无 AI 感、去掉水印。"
+# 统一换脸 Prompt（简洁核心版 + AI 自动扩写）
+FACE_SWAP_PROMPT = "图 1 的脸替换为图 2 的脸部特征，图 1 的场景、服装、姿势、背景全部保持不变。要求：脸部融合自然、光影统一、肤色一致、无 AI 痕迹、无水印、高清质感。"
 
 # 小柔默认头像路径
 XIAOROU_DEFAULT_AVATAR = Path(__file__).parent.parent / 'assets' / 'default-character.png'
