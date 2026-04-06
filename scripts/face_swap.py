@@ -53,8 +53,8 @@ FACE_SWAP_MODELS = [
     'qwen-image-2.0-pro'
 ]
 
-# 统一换脸 Prompt（简洁核心版 + AI 自动扩写）
-FACE_SWAP_PROMPT = "图 1 的脸替换为图 2 的脸部特征，图 1 的场景、服装、姿势、背景全部保持不变。要求：脸部融合自然、光影统一、肤色一致、无 AI 痕迹、无水印、高清质感。"
+# 统一换脸 Prompt（真人实拍级融合）
+FACE_SWAP_PROMPT = "将图 2 的脸部特征完美融合到图 1 中，图 1 的场景、服装、姿势、背景、发型、身体全部保持不变。要求：真人实拍质感，脸部融合天衣无缝，光影完全统一，肤色自然过渡，五官立体真实，皮肤纹理清晰，毛孔细节可见，发丝分明，边缘柔和自然，无 AI 合成痕迹，无水印，无塑料感，高清摄影级质感，专业人像摄影，电影级布光。"
 
 # 小柔默认头像路径
 XIAOROU_DEFAULT_AVATAR = Path(__file__).parent.parent / 'assets' / 'default-character.png'
