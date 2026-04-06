@@ -120,8 +120,13 @@ class Config:
         return os.environ.get('XIAOROU_LOG_LEVEL', 'INFO').upper()
     
     def get_feishu_target(self) -> str:
-        """获取飞书目标用户"""
-        return os.environ.get('AEVIA_TARGET', '')
+        """获取飞书目标用户（环境变量 > 配置文件）"""
+        env_target = os.environ.get('AEVIA_TARGET', '')
+        if env_target:
+            return env_target
+        # 从配置文件读取
+        config = self._load_config_file()
+        return config.get('skills', {}).get('entries', {}).get('xiaorou', {}).get('config', {}).get('feishu_target', '')
 
 
 # 全局实例

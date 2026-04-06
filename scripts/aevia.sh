@@ -252,11 +252,6 @@ run_selfie_reference() {
 }
 
 
-run_selfie() {
-  # 兼容旧版本调用
-  run_selfie_scene "$@"
-}
-
 run_chat() {
   local input="$1"
   local target="$2"
@@ -275,8 +270,8 @@ run_chat() {
   
   # 使用 jq 安全构造 JSON
   local temp_json
-  temp_json=$(mktemp)
   trap 'rm -f "$temp_json"' EXIT
+  temp_json=$(mktemp)
   
   jq -n \
     --arg input "$input" \

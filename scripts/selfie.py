@@ -17,7 +17,7 @@ import time
 import requests
 from pathlib import Path
 from typing import Optional, Tuple, List
-from concurrent.futures import ThreadPoolExecutor, as_completed
+# concurrent.futures 已移除（双模型函数已删除）
 
 # 导入统一配置
 from config import config, ConfigurationError
@@ -127,8 +127,13 @@ def get_image_base64(image_path: Path) -> str:
     if file_size > 10 * 1024 * 1024:
         raise ValueError(f"图片文件过大：{file_size / 1024 / 1024:.2f}MB（限制 10MB）")
     
+    import mimetypes
+    mime_type, _ = mimetypes.guess_type(image_path)
+    if not mime_type or not mime_type.startswith('image/'):
+        mime_type = 'image/png'
+    
     with open(image_path, 'rb') as f:
-        return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
+        return f"data:{mime_type};base64,{base64.b64encode(f.read()).decode('utf-8')}"
 
 
 def build_prompt(context: str) -> Tuple[str, str]:
@@ -256,37 +261,6 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                 continue
             return (model_name, None)
 
-
-def generate_images_dual_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:  # 当前未使用
-    """
-    使用 2 个模型并发生成图片（参考生图模式）- wan2.7-image + qwen-image-2.0-pro
-    
-    Returns:
-        [(model_name, image_url), ...] 成功生成的图片列表
-    """
-    models = ['wan2.7-image', 'qwen-image-2.0-pro']
-    results = []
-    
-    # 并发执行两个模型
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = {
-            executor.submit(generate_single_image, model_name, image_path, prompt, api_key): model_name
-            for model_name in models
-        }
-        for future in as_completed(futures):
-            model_name = futures[future]
-            try:
-                result = future.result()
-                if result[1]:
-                    results.append(result)
-                    logger.info(f"✅ {model_name} 生成成功")
-                else:
-                    logger.warning(f"⚠️ {model_name} 生成失败")
-            except Exception as e:
-                logger.error(f"❌ {model_name} 异常：{e}")
-    
-    logger.info(f"📊 生成结果：{len(results)}/{len(models)} 成功")
-    return results
 
 
 def generate_images_single_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:

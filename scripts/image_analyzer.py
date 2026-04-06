@@ -4,7 +4,6 @@
 分析参考图，提取场景、姿势、服装、光线等描述，用于后续图生图。
 """
 
-import dashscope
 from dashscope import MultiModalConversation
 import os
 import sys

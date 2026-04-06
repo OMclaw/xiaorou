@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.14.0] - 2026-04-06
+
+### 🔥 第 13 轮 Code Review 修复
+
+**小柔 AI v5.14.0 - 全面清理 + 安全加固**
+
+### 🛡️ 修复统计（15 个问题）
+| 优先级 | 问题数 | 状态 |
+|--------|--------|------|
+| 🟡 Medium | 8 | ✅ |
+| 🟢 Low | 7 | ✅ |
+
+### 关键修复
+| # | 文件 | 问题 | 修复 |
+|---|------|------|------|
+| 1 | aevia.sh | API key regex 缺少 $ 锚点 | 添加 |
+| 2 | aevia.sh | trap 在 mktemp 之后 | 移到之前 |
+| 3 | aevia.sh | 死代码 run_selfie | 删除 |
+| 4 | config.py | get_feishu_target 仅读环境变量 | 也从配置文件读取 |
+| 5 | selfie.py | 死代码 generate_images_dual_model | 删除 |
+| 6 | selfie.py | 死导入 ThreadPoolExecutor | 删除 |
+| 7 | selfie.py | 缺少 MIME 类型验证 | 添加 mimetypes 检测 |
+| 8 | selfie.py | 函数内重复导入 json | 删除 |
+| 9 | selfie.py | 双重路径验证 | 删除冗余检查 |
+| 10 | image_analyzer.py | 未使用的 dashscope 导入 | 删除 |
+| 11 | generate_video.py | 重复 argparse 导入 | 删除 |
+| 12 | generate_video.py | SafeLogger 多余空行 | 清理 |
+| 13 | generate_video.py | download_video 无大小限制 | 添加 200MB 限制 |
+| 14 | test_mode_detection.sh | 缺少安全标志 | 添加 set -euo pipefail |
+| 15 | SKILL.md | 不支持的"纯文字→视频" | 删除 |
+
+---
+
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
 ## [5.13.0] - 2026-04-06
 
 ### 🔥 第 12 轮 Code Review 修复

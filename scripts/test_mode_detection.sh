@@ -1,5 +1,6 @@
 #!/bin/bash
-# test_mode_detection.sh - 测试三种生图模式的指令识别
+# test_mode_detection.sh
+set -euo pipefail - 测试三种生图模式的指令识别
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

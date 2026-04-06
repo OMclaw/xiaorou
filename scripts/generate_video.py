@@ -435,6 +435,12 @@ def download_video(video_url: str, output_path: str) -> bool:
         response = session.get(video_url, timeout=300, stream=True, verify=True)
         response.raise_for_status()
         
+        # 检查 Content-Length
+        content_length = response.headers.get('Content-Length')
+        if content_length and int(content_length) > 200 * 1024 * 1024:
+            logger.error(f"❌ 视频过大（{int(content_length) / 1024 / 1024:.1f}MB > 200MB）")
+            return False
+        
         with open(temp_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
@@ -603,7 +609,6 @@ def image_to_video(
 # ============ 命令行入口 ============
 
 if __name__ == "__main__":
-    import argparse
     
     # 配置日志级别
     log_level = config.get_log_level()
