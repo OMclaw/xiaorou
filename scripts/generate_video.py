@@ -6,7 +6,7 @@
 2. 图片 + 音频 → 视频
 
 支持模型：
-- wan2.7-i2v
+- wan2.6-i2v
 
 优化内容：
 - 使用统一配置模块
@@ -38,7 +38,7 @@ def _get_temp_dir() -> Path:
     temp_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     return temp_dir
 POLL_INTERVAL = int(os.environ.get('XIAOROU_POLL_INTERVAL', '10'))
-MAX_WAIT = int(os.environ.get('XIAOROU_MAX_WAIT', '900'))  # 15 分钟（M-7 修复：视频生成可能需要 3-10 分钟）
+MAX_WAIT = int(os.environ.get('XIAOROU_MAX_WAIT', '600'))  # 10 分钟超时控制
 # 从环境变量读取目标平台，支持多平台
 DEFAULT_TARGET = os.environ.get('AEVIA_TARGET', '')
 DEFAULT_CHANNEL = os.environ.get('AEVIA_CHANNEL', 'feishu')
@@ -145,7 +145,7 @@ def retry_on_failure(max_attempts: int = 3, delay: float = 1.0):
 # ============ 工具函数 ============
 
 @retry_on_failure(max_attempts=3, delay=1.0)
-def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.7-i2v") -> Optional[str]:
+def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-i2v") -> Optional[str]:
     """
     使用 DashScope 官方上传 API 获取临时文件 URL
     
@@ -232,11 +232,11 @@ def generate_video(
     audio_url: Optional[str] = None,
     resolution: str = "720P",
     duration: int = 5,
-    model: str = "wan2.7-i2v",
+    model: str = "wan2.6-i2v",
     api_key: Optional[str] = None
 ) -> Tuple[bool, str]:
     """
-    使用 wan2.7-i2v 生成视频
+    使用 wan2.6-i2v 生成视频
     
     Args:
         prompt: 视频描述提示词
@@ -244,7 +244,7 @@ def generate_video(
         audio_url: 音频 URL（可选，oss:// 或 https://）
         resolution: 分辨率 (720P/1080P)
         duration: 视频时长 (秒)
-        model: 模型名称 (wan2.7-i2v)
+        model: 模型名称 (wan2.6-i2v)
         api_key: DashScope API Key
     
     Returns:
@@ -271,7 +271,7 @@ def generate_video(
     logger.info(f"  分辨率：{resolution}")
     logger.info(f"  时长：{duration}秒")
     
-    # 构建请求体（wan2.7-i2v 格式）
+    # 构建请求体（wan2.6-i2v 格式）
     input_data = {"prompt": prompt, "media": []}
     
     if img_url:
@@ -402,7 +402,7 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
             logger.error(f"❌ 轮询失败：{type(e).__name__}: {e}")
             continue
     
-    logger.error(f"❌ 等待超时（{MAX_WAIT}秒）")
+    logger.error(f"❌ 等待超时（{MAX_WAIT}秒，超过 10 分钟限制）")
     return (False, f"等待超时（{MAX_WAIT}秒）")
 
 
@@ -496,7 +496,7 @@ def image_to_video(
     audio_path: Optional[str] = None,
     resolution: str = "720P",
     duration: int = 5,
-    model: str = "wan2.7-i2v",
+    model: str = "wan2.6-i2v",
     channel: str = None,
     target: str = None,
     send_message: bool = True
@@ -609,8 +609,8 @@ if __name__ == "__main__":
         epilog="""
 示例用法:
 
-1. 图生视频（推荐 wan2.7-i2v）:
-   python3 generate_video.py --image photo.jpg --prompt "描述文字" --model wan2.7-i2v
+1. 图生视频（推荐 wan2.6-i2v）:
+   python3 generate_video.py --image photo.jpg --prompt "描述文字" --model wan2.6-i2v
 
 2. 图片 + 音频 → 视频:
    python3 generate_video.py --image photo.jpg --audio audio.mp3 --prompt "描述文字"
@@ -626,7 +626,7 @@ if __name__ == "__main__":
     parser.add_argument('--image', type=str, required=True, help='输入图片路径')
     parser.add_argument('--prompt', type=str, required=True, help='视频描述提示词')
     parser.add_argument('--audio', type=str, help='输入音频路径（可选）')
-    parser.add_argument('--model', type=str, default='wan2.7-i2v', help='模型名称 (wan2.7-i2v)')
+    parser.add_argument('--model', type=str, default='wan2.6-i2v', help='模型名称 (wan2.6-i2v)')
     parser.add_argument('--resolution', type=str, default='720P', help='分辨率 (720P/1080P)')
     parser.add_argument('--duration', type=int, default=5, help='视频时长（秒）')
     parser.add_argument('--channel', type=str, default=None, help='目标平台（默认从环境变量读取）')

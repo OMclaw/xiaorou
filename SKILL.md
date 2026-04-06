@@ -11,7 +11,7 @@ allowed-tools: Bash(curl:*) Bash(openclaw:*) Read Write Bash(python3:*)
 - 💬 **情感聊天** - Qwen3.5-plus
 - 📸 **自拍生成** - wan2.7-image / qwen-image-2.0-pro
 - 🔄 **参考生图** - 2 模型并发（wan2.7-image + qwen-image-2.0-pro）
-- 🎬 **视频生成** - wan2.7-i2v（图片 + 文字 → 视频）
+- 🎬 **视频生成** - wan2.6-i2v（图片 + 文字 → 视频）
 - 🎨 **角色定制** - Z-image
 - 🎙️ **语音消息** - CosyVoice-v3-flash（飞书语音气泡）
 - 🌐 **多平台** - 飞书/Telegram/Discord/WhatsApp
@@ -132,7 +132,7 @@ export AEVIA_CHARACTER_NAME="小柔"
 
 - 聊天：Qwen3.5-plus
 - 自拍：wan2.7-image / qwen-image-2.0-pro（参考生图双模型并发）
-- 视频：wan2.7-i2v
+- 视频：wan2.6-i2v
 - 头像：Z-image-turbo
 - 语音：CosyVoice-v3-flash（默认：longyingxiao_v3）
 
@@ -143,7 +143,7 @@ export AEVIA_CHARACTER_NAME="小柔"
 
 ## 视频生成 API
 
-**模型**：wan2.7-i2v
+**模型**：wan2.6-i2v
 
 **支持模式**：
 - 图片 + 文字 → 视频
