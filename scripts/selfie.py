@@ -30,7 +30,7 @@ DEFAULT_IMAGE_SIZE = "1K"
 PROMPT_EXTEND = True  # 开启 AI 自动优化提示词
 # 超时配置（P1 修复 - 可从环境变量定制）
 API_TIMEOUT = int(os.environ.get('XIAOROU_API_TIMEOUT', '120'))
-IMAGE_DOWNLOAD_TIMEOUT = int(os.environ.get('XIAOROU_IMAGE_DOWNLOAD_TIMEOUT', '30'))
+IMAGE_DOWNLOAD_TIMEOUT = int(os.environ.get('XIAOROU_IMAGE_DOWNLOAD_TIMEOUT', '60'))  # 增加到 60 秒
 
 # 配置日志级别
 log_level = config.get_log_level()
@@ -74,18 +74,20 @@ def is_safe_path(base_dir: Path, file_path: str) -> bool:
 
 def sanitize_input(text: str, max_length: int = MAX_INPUT_LENGTH) -> str:
     """
-    净化用户输入，移除危险字符
+    净化用户输入，移除危险字符并验证长度
     
     Args:
         text: 原始输入文本
-        max_length: 最大长度
+        max_length: 最大长度（默认 500）
     
     Returns:
         净化后的文本
     """
-    if not text: return ""
+    if not text:
+        logger.warning("输入为空")
+        return ""
     if len(text) > max_length:
-        logger.warning(f"输入过长，已截断至 {max_length}")
+        logger.warning(f"输入过长 ({len(text)} > {max_length})，已截断")
         text = text[:max_length]
     
     # 移除控制字符（包括换行、回车）
@@ -112,6 +114,7 @@ def validate_config() -> str:
 
 
 def validate_character_image() -> Path:
+    """验证小柔头像文件是否存在"""
     script_dir = Path(__file__).resolve().parent
     character_path = script_dir.parent / 'assets/default-character.png'
     if not character_path.exists():
@@ -120,6 +123,7 @@ def validate_character_image() -> Path:
 
 
 def get_image_base64(image_path: Path) -> str:
+    """读取图片并转换为 base64 格式"""
     with open(image_path, 'rb') as f:
         return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
 
@@ -148,39 +152,47 @@ def build_prompt(context: str) -> Tuple[str, str]:
     return "direct", f"{influencer_style}，{context}，眼神直视镜头，自然微笑，真实五官，时尚造型，网红打卡背景，{realistic_tags}，{leg_quality_tags}，{quality_tags}"
 
 
-def generate_single_image(model_name: str, image_path: Path, prompt: str, api_key: str) -> Tuple[str, Optional[str]]:
+def generate_single_image(model_name: str, image_path: Path, prompt: str, api_key: str, max_retries: int = 2) -> Tuple[str, Optional[str]]:
     """
-    使用指定模型生成单张图片
+    使用指定模型生成单张图片（带重试机制）
+    
+    Args:
+        model_name: 模型名称
+        image_path: 输入图片路径
+        prompt: 提示词
+        api_key: API Key
+        max_retries: 最大重试次数（默认 2 次）
     
     Returns:
         (model_name, image_url) 或 (model_name, None) 如果失败
     """
-    try:
-        dashscope.api_key = api_key
-        input_image_base64 = get_image_base64(image_path)
-        logger.info(f"🖼️ 使用本地头像，模型：{model_name}")
-        
-        # 不同模型的尺寸参数格式不同 - 全部改成 1K
-        if model_name == 'qwen-image-2.0-pro':
-            size_param = '1024*1024'  # qwen-image-2.0-pro 使用 1K 分辨率
-        else:
-            size_param = DEFAULT_IMAGE_SIZE  # wan2.7-image 使用 1K
-        
-        payload = {
-            'model': model_name,
-            'input': {'messages': [{'role': 'user', 'content': [{'image': input_image_base64}, {'text': prompt}]}]},
-            'parameters': {'prompt_extend': PROMPT_EXTEND, 'watermark': False, 'n': 1, 'enable_interleave': False, 'size': size_param}
-        }
-        
-        response = requests.post(
-            'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
-            headers={
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json',
-                'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'
-            },
-            json=payload, timeout=API_TIMEOUT
-        )
+    for attempt in range(max_retries + 1):
+        try:
+            dashscope.api_key = api_key
+            input_image_base64 = get_image_base64(image_path)
+            logger.info(f"🖼️ 使用本地头像，模型：{model_name} (尝试 {attempt + 1}/{max_retries + 1})")
+            
+            # 不同模型的尺寸参数格式不同 - 全部改成 1K
+            if model_name == 'qwen-image-2.0-pro':
+                size_param = '1024*1024'  # qwen-image-2.0-pro 使用 1K 分辨率
+            else:
+                size_param = DEFAULT_IMAGE_SIZE  # wan2.7-image 使用 1K
+            
+            payload = {
+                'model': model_name,
+                'input': {'messages': [{'role': 'user', 'content': [{'image': input_image_base64}, {'text': prompt}]}]},
+                'parameters': {'prompt_extend': PROMPT_EXTEND, 'watermark': False, 'n': 1, 'enable_interleave': False, 'size': size_param}
+            }
+            
+            response = requests.post(
+                'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+                headers={
+                    'Authorization': f'Bearer {api_key}',
+                    'Content-Type': 'application/json',
+                    'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'
+                },
+                json=payload, timeout=API_TIMEOUT
+            )
         
         result_json = response.json()
         if response.status_code == 200 and result_json.get('output'):
@@ -191,10 +203,18 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                 return (model_name, image_url)
         
         logger.error(f"❌ {model_name} API 错误：{result_json}")
+        if attempt < max_retries:
+            logger.warning(f"⚠️ {model_name} 重试中...")
+            time.sleep(1 * (attempt + 1))  # 指数退避
+            continue
         return (model_name, None)
         
     except Exception as e:
         logger.error(f"❌ {model_name} 错误：{e}")
+        if attempt < max_retries:
+            logger.warning(f"⚠️ {model_name} 重试中...")
+            time.sleep(1 * (attempt + 1))  # 指数退避
+            continue
         return (model_name, None)
 
 
@@ -364,7 +384,9 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         full_caption = f"{model_display} {caption}"
         
         timestamp = int(time.time())
-        temp_file = f'/tmp/openclaw/selfie_{model_name}_{timestamp}.jpg'
+        # 安全处理 model_name，避免特殊字符
+        safe_model_name = model_name.replace('.', '_').replace('-', '_')
+        temp_file = f'/tmp/openclaw/selfie_{safe_model_name}_{timestamp}.jpg'
         os.makedirs('/tmp/openclaw', mode=0o700, exist_ok=True)
         
         response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT)

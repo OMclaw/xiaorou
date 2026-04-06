@@ -20,9 +20,12 @@ class ConfigurationError(Exception):
 
 
 class Config:
-    """线程安全的单例配置类"""
+    """线程安全的单例配置类（带缓存）"""
     _instance: Optional['Config'] = None
     _api_key: Optional[str] = None
+    _config_cache: Optional[dict] = None  # 配置文件缓存
+    _cache_timestamp: float = 0  # 缓存时间戳
+    _cache_ttl: int = 300  # 缓存有效期 5 分钟
     _lock = threading.Lock()  # 线程锁
     
     def __new__(cls) -> 'Config':
@@ -33,8 +36,30 @@ class Config:
                     cls._instance = super().__new__(cls)
         return cls._instance
     
+    def _load_config_file(self) -> dict:
+        """加载配置文件（带缓存）"""
+        import time
+        current_time = time.time()
+        
+        # 检查缓存是否有效
+        if self._config_cache and (current_time - self._cache_timestamp) < self._cache_ttl:
+            return self._config_cache
+        
+        # 重新加载配置
+        config_file = Path.home() / '.openclaw/openclaw.json'
+        if config_file.exists():
+            try:
+                self._config_cache = json.loads(config_file.read_text(encoding='utf-8'))
+                self._cache_timestamp = current_time
+                return self._config_cache
+            except Exception as e:
+                logger.debug(f"读取配置文件失败：{e}")
+        
+        self._config_cache = {}
+        return {}
+    
     def get_api_key(self) -> str:
-        """获取 API Key（环境变量 > 配置文件）"""
+        """获取 API Key（环境变量 > 配置文件，带缓存）"""
         if self._api_key:
             return self._api_key
         
@@ -44,20 +69,16 @@ class Config:
             self._api_key = api_key
             return api_key
         
-        # 配置文件
-        config_file = Path.home() / '.openclaw/openclaw.json'
-        if config_file.exists():
-            try:
-                config = json.loads(config_file.read_text(encoding='utf-8'))
-                api_key = (
-                    config.get('models', {}).get('providers', {}).get('dashscope', {}).get('apiKey', '') or
-                    config.get('skills', {}).get('entries', {}).get('xiaorou', {}).get('env', {}).get('DASHSCOPE_API_KEY', '')
-                )
-                if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
-                    self._api_key = api_key
-                    return api_key
-            except Exception as e:
-                logger.debug(f"读取配置文件失败：{e}")  # P2 修复：使用 debug 避免泄露路径
+        # 配置文件（使用缓存）
+        config = self._load_config_file()
+        if config:
+            api_key = (
+                config.get('models', {}).get('providers', {}).get('dashscope', {}).get('apiKey', '') or
+                config.get('skills', {}).get('entries', {}).get('xiaorou', {}).get('env', {}).get('DASHSCOPE_API_KEY', '')
+            )
+            if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
+                self._api_key = api_key
+                return api_key
         
         raise ConfigurationError("API Key 未配置")
     

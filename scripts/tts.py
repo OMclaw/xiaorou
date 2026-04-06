@@ -87,23 +87,18 @@ def validate_text(text: str) -> str:
 
 
 def load_api_key() -> str:
-    api_key = os.environ.get('DASHSCOPE_API_KEY', '')
-    if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
-        return api_key
-    
-    config_file = os.path.expanduser('~/.openclaw/openclaw.json')
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            api_key = config.get('models', {}).get('providers', {}).get('dashscope', {}).get('apiKey', '')
-            if api_key:
-                logger.info("✓ 从 OpenClaw 配置文件加载 API Key")
-                return api_key
-        except Exception as e:
-            logger.debug(f"读取配置文件失败：{e}")
-    
-    raise TTSError("无法加载 API Key，请设置 DASHSCOPE_API_KEY 环境变量")
+    """统一使用 config.py 加载 API Key"""
+    try:
+        # 尝试从 config 模块加载
+        from config import config as cfg
+        return cfg.get_api_key()
+    except (ImportError, Exception) as e:
+        logger.debug(f"从 config 加载失败：{e}，使用备用方案")
+        # 备用方案：直接读取环境变量
+        api_key = os.environ.get('DASHSCOPE_API_KEY', '')
+        if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
+            return api_key
+        raise TTSError("无法加载 API Key，请设置 DASHSCOPE_API_KEY 环境变量")
 
 
 def get_audio_duration(audio_path: str) -> Optional[int]:
