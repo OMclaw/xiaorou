@@ -221,7 +221,7 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
 
 def generate_images_dual_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
     """
-    使用两个模型并发生成图片
+    使用两个模型并发生成图片（顺序执行避免 API 限流）
     
     Returns:
         [(model_name, image_url), ...] 成功生成的图片列表
@@ -229,16 +229,15 @@ def generate_images_dual_model(image_path: Path, prompt: str, api_key: str) -> L
     models = ['wan2.7-image', 'qwen-image-2.0-pro']
     results = []
     
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = {
-            executor.submit(generate_single_image, model, image_path, prompt, api_key): model
-            for model in models
-        }
-        
-        for future in as_completed(futures):
-            model_name, image_url = future.result()
-            if image_url:
-                results.append((model_name, image_url))
+    # 顺序执行确保每个模型独立生成
+    for model_name in models:
+        logger.info(f"  使用模型：{model_name}")
+        model_result = generate_single_image(model_name, image_path, prompt, api_key)
+        if model_result[1]:
+            results.append(model_result)
+            logger.info(f"✅ {model_name} 生成成功")
+        else:
+            logger.error(f"❌ {model_name} 生成失败")
     
     return results
 
