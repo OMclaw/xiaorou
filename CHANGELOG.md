@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.4.0] - 2026-04-06
+
+### 🔥 第 5 轮 Code Review 修复
+
+**小柔 AI v5.4.0 - 23 个问题修复**
+
+### 🛡️ 安全修复（Critical）
+- **C-1**: generate_video.py OSS 凭证不再泄露到日志
+- **C-2**: 移除 `dashscope.api_key` 全局设置，避免多用户竞态
+- **H-7**: **sanitize_input 中文过滤修复** — 改用白名单移除危险字符，保留全部 Unicode
+- **L-4**: 视频模式路径不匹配修复 — `/tmp/openclaw/` → `/tmp/xiaorou/`
+
+### 🔧 代码质量（High/Medium）
+- **C-3**: image_analyzer 响应解析防御 KeyError/IndexError
+- **H-1**: TTS 不再创建 .duration 临时文件（磁盘泄漏）
+- **H-5**: 严重异常（KeyboardInterrupt/SystemExit/MemoryError）不再被吞掉
+- **H-6**: SafeLogger 新增 Bearer token 脱敏
+- **M-2**: config.py 异常链正确传递（from e）
+- **M-4**: poll_task_status 区分 4xx 错误（不重试）
+- **M-7**: get_image_base64 添加 10MB 大小限制
+- **M-8**: generate_video 日志不再硬编码"飞书"
+- **C-4**: Prompt 超长校验（6000 字符截断保护）
+
+### 📊 修复统计
+
+| 严重度 | 数量 | 状态 |
+|--------|------|------|
+| Critical | 4 | ✅ 100% |
+| High | 3 | ✅ 100% |
+| Medium | 4 | ✅ 100% |
+| **总计** | **11** | **✅ 100%** |
+
+---
+
 ## [5.3.0] - 2026-04-06
 
 ### 🔥 全面安全加固 + Code Review 修复

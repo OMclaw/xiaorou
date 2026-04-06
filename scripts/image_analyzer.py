@@ -78,9 +78,17 @@ def _call_multimodal_api(image_base64: str, analysis_prompt: str, api_key: str, 
         if output.choices and len(output.choices) > 0:
             choice = output.choices[0]
             if choice.message and choice.message.content:
-                return choice.message.content[0]['text']
+                content = choice.message.content
+                # 安全解析：防御 API 返回非预期格式
+                if isinstance(content, list) and len(content) > 0:
+                    item = content[0]
+                    if isinstance(item, dict) and 'text' in item:
+                        return item['text']
+                # 如果返回的是其他类型，转为字符串
+                logger.warning(f"⚠️ API 返回非文本格式：{type(content)}")
+                return str(content)
     
-    raise ImageAnalysisError(f"API 响应格式异常：{response}")
+    raise ImageAnalysisError(f"API 响应格式异常（status={response.status_code}）")
 
 
 def analyze_image(image_path: str, api_key: str) -> str:

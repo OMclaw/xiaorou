@@ -56,8 +56,10 @@ def safe_log(message: str) -> str:
     Returns:
         脱敏后的消息
     """
-    # 脱敏 API Key
+    # 脱敏 API Key (sk-xxx)
     message = re.sub(r'sk-[a-zA-Z0-9]{20,}', 'sk-****REDACTED****', message)
+    # 脱敏 Bearer token
+    message = re.sub(r'Bearer\s+sk-[a-zA-Z0-9]+', 'Bearer ****REDACTED****', message)
     # 脱敏 OSS URL（包含签名）
     message = re.sub(r'Signature=[a-zA-Z0-9%]+', 'Signature=****REDACTED****', message)
     return message
@@ -152,7 +154,8 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.7-
         
         policy_data = response.json().get('data', {})
         if not policy_data:
-            logger.error(f"❌ 未获取到上传凭证：{response.json()}")
+            # 安全修复：不记录完整 JSON（可能包含 OSS 凭证）
+            logger.error("❌ 未获取到上传凭证（响应 data 为空）")
             return None
         
         logger.info(f"✅ 上传凭证获取成功")
@@ -383,6 +386,15 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
         except requests.exceptions.Timeout:
             logger.error("❌ 轮询超时")
             continue
+        except requests.exceptions.RequestException as e:
+            # 区分 4xx 错误（不可恢复）和网络错误（可重试）
+            if hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                if 400 <= status_code < 500:
+                    logger.error(f"❌ 轮询失败（客户端错误 {status_code}，不重试）：{e}")
+                    return (False, f"轮询失败：{status_code}")
+            logger.error(f"❌ 轮询失败（网络异常，可重试）：{type(e).__name__}: {e}")
+            continue
         except Exception as e:
             logger.error(f"❌ 轮询失败：{type(e).__name__}: {e}")
             continue
@@ -459,7 +471,7 @@ def send_to_channel(video_path: str, caption: str, channel: str = 'feishu', targ
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         
         if result.returncode == 0:
-            logger.info(f"✅ 视频已发送到飞书")
+            logger.info(f"✅ 视频已发送到 {channel}")
             return True
         
         logger.error(f"❌ 发送失败：{result.stderr}")

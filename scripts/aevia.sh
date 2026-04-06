@@ -32,8 +32,9 @@ sanitize_input() {
   local input="$1"
   # 严格长度限制（可配置）
   [ ${#input} -gt "$AEVIA_MAX_INPUT_LENGTH" ] && input="${input:0:$AEVIA_MAX_INPUT_LENGTH}"
-  # 使用 printf 替代 echo（避免 - 开头的输入被解析为选项）
-  printf '%s' "$input"|tr -cd '[:alnum:][:space:][:punct:]'|tr -d '`$\\|;&<>(){}[]!~#*?/'
+  # 只移除明确的危险字符，保留 Unicode（含中文）
+  # 移除控制字符和 shell 元字符
+  printf '%s' "$input"|tr -d '\x00-\x1f\x7f-\x9f`$\\|;&<>(){}[]!~#*?/'
 }
 
 error() { 
@@ -187,8 +188,10 @@ run_video() {
     
     info "✅ 小柔照片生成完成"
     
-    # 使用最新生成的小柔照片（固定路径）
-    local latest_selfie="/tmp/openclaw/selfie_latest.jpg"
+    # 使用最新生成的小柔照片（固定路径，与 selfie.py 保持一致）
+    # selfie.py 写入: config.get_temp_dir() / f'selfie_latest_{user_id}.jpg'
+    # 默认: /tmp/xiaorou/selfie_latest_default.jpg
+    local latest_selfie="/tmp/xiaorou/selfie_latest_default.jpg"
     
     if [ -f "$latest_selfie" ]; then
       info "🎬 步骤 2: 使用刚生成的小柔照片生成视频..."

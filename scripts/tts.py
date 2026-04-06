@@ -304,14 +304,8 @@ def main():
         duration = get_audio_duration(output)
         if duration:
             print(f"✅ 语音生成成功：{output} (时长：{duration}ms)")
-            # 写入时长文件供 shell 脚本读取
-            duration_file = output + '.duration'
-            try:
-                with open(duration_file, 'w') as f:
-                    f.write(str(duration))
-                logger.debug(f"时长已写入：{duration_file}")
-            except Exception as e:
-                logger.debug(f"写入时长文件失败：{e}")
+            # 不再创建 .duration 文件（避免临时文件泄漏）
+            # 调用方如需时长，可直接读取音频文件或用 ffprobe 获取
         else:
             print(f"✅ 语音生成成功：{output}")
         

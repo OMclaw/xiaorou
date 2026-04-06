@@ -55,8 +55,11 @@ class Config:
                     self._config_cache = json.loads(config_file.read_text(encoding='utf-8'))
                     self._cache_timestamp = current_time
                     return self._config_cache
+                except json.JSONDecodeError as e:
+                    raise ConfigurationError(f"配置文件 JSON 格式错误：{e}") from e
                 except Exception as e:
                     logger.debug(f"读取配置文件失败：{e}")
+                    raise ConfigurationError(f"读取配置文件失败：{e}") from e
             
             self._config_cache = {}
             return {}

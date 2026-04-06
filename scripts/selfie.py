@@ -120,6 +120,11 @@ def validate_character_image() -> Path:
 
 def get_image_base64(image_path: Path) -> str:
     """读取图片并转换为 base64 格式"""
+    # 检查文件大小（限制 10MB，与 image_analyzer.py 保持一致）
+    file_size = image_path.stat().st_size
+    if file_size > 10 * 1024 * 1024:
+        raise ValueError(f"图片文件过大：{file_size / 1024 / 1024:.2f}MB（限制 10MB）")
+    
     with open(image_path, 'rb') as f:
         return f"data:image/png;base64,{base64.b64encode(f.read()).decode('utf-8')}"
 
@@ -164,9 +169,15 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
     """
     for attempt in range(max_retries + 1):
         try:
-            dashscope.api_key = api_key
+            # 安全修复：不设置全局 dashscope.api_key，使用 per-request key（通过 requests 直接调用）
             input_image_base64 = get_image_base64(image_path)
             logger.info(f"🖼️ 使用本地头像，模型：{model_name} (尝试 {attempt + 1}/{max_retries + 1})")
+            
+            # Prompt 长度校验（防止超长 prompt 导致 API 拒绝或静默截断）
+            max_prompt_len = 6000
+            if len(prompt) > max_prompt_len:
+                logger.warning(f"⚠️ Prompt 过长 ({len(prompt)} > {max_prompt_len})，已截断")
+                prompt = prompt[:max_prompt_len]
             
             # 不同模型的尺寸参数格式不同 - 全部改成 1K
             if model_name == 'qwen-image-2.0-pro':
@@ -219,6 +230,9 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                 time.sleep(1 * (attempt + 1))
                 continue
             return (model_name, None)
+        except (KeyboardInterrupt, SystemExit, MemoryError):
+            # 严重异常：不重试，直接向上传播
+            raise
         except Exception as e:
             logger.error(f"❌ {model_name} 错误：{e}")
             if attempt < max_retries:
