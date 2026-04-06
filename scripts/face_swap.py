@@ -183,7 +183,7 @@ def generate_face_swap(
         payload = {
             'model': model_name,
             'input': {'messages': messages},
-            'parameters': {'prompt_extend': True, 'size': size_param, 'n': 1}
+            'parameters': {'prompt_extend': False, 'size': size_param, 'n': 1}
         }
         
         response = requests.post(
