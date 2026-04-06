@@ -3,7 +3,7 @@
 
 支持两种模式：
 1. 场景生图：根据场景描述生成 - 1 个模型，1 张图
-2. 参考生图：分析参考图后生成 - 2 个模型并发，2 张图（wan2.7 系列）
+2. 参考生图：分析参考图后生成 - 1 个模型，1 张图（wan2.7-image）
 """
 
 import dashscope
@@ -217,29 +217,24 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
         return (model_name, None)
 
 
-def generate_images_dual_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
+def generate_images_single_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
     """
-    使用 2 个模型并发生成图片（参考生图模式）- 只用 wan2.7 系列，更稳定
+    使用 1 个模型生成图片（参考生图模式）- 只用 wan2.7-image
     
     Returns:
         [(model_name, image_url), ...] 成功生成的图片列表
     """
-    models = ['wan2.7-image', 'wan2.7-image-pro']
+    models = ['wan2.7-image']
     results = []
     
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        futures = {
-            executor.submit(generate_single_image, model, image_path, prompt, api_key): model
-            for model in models
-        }
-        
-        for future in as_completed(futures):
-            model_name, image_url = future.result()
-            if image_url:
-                results.append((model_name, image_url))
-                logger.info(f"✅ {model_name} 生成成功")
-            else:
-                logger.warning(f"⚠️ {model_name} 生成失败")
+    model_name = 'wan2.7-image'
+    logger.info(f"  使用模型：{model_name}")
+    model_result = generate_single_image(model_name, image_path, prompt, api_key)
+    if model_result[1]:
+        results.append(model_result)
+        logger.info(f"✅ {model_name} 生成成功")
+    else:
+        logger.warning(f"⚠️ {model_name} 生成失败")
     
     logger.info(f"📊 生成结果：{len(results)}/{len(models)} 成功")
     return results
@@ -593,9 +588,9 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         prompt = result.stdout.strip()
         logger.info(f"✅ 参考图分析完成：{prompt[:100]}...")
         
-        # 4. 2 模型并发生成（wan2.7-image, wan2.7-image-pro）
-        logger.info("🚀 2 模型并发生成中...")
-        results = generate_images_dual_model(image_path, prompt, api_key)
+        # 4. 单模型生成（wan2.7-image）
+        logger.info("🚀 万相 2.7 生成中...")
+        results = generate_images_single_model(image_path, prompt, api_key)
         
         if not results:
             logger.error("❌ 4 个模型都生成失败")
