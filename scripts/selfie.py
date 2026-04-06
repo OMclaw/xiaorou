@@ -228,7 +228,7 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
             logger.error(f"❌ {model_name} API 错误：{result_json}")
             if attempt < max_retries:
                 logger.warning(f"⚠️ {model_name} 重试中...")
-                time.sleep(1 * (attempt + 1))  # 线性退避（非指数）（非指数）（非指数）
+                time.sleep(1 * (attempt + 1))  # 线性退避（非指数）（非指数）（非指数）（非指数）（非指数）
                 continue
             return (model_name, None)
         
