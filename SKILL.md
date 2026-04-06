@@ -131,40 +131,6 @@ export AEVIA_CHARACTER_NAME="小柔"
 
 ---
 
-## 换脸/脸部增强详解
-
-### 使用方式
-
-用户发送一张图片 + 说"换脸"相关指令
-
-### 生成流程
-
-1. **用户提供图片** → 作为目标场景
-2. **场景分析** → 提取目标图的场景、穿搭、姿态描述（忽略脸部）
-3. **自拍生成** → 使用小柔头像 + 分析结果生成图片（双模型并发）
-4. **脸部增强（可选）** → 使用 face_enhancer.py 后处理，提升脸部一致性
-5. **输出** → 生成的图片
-
-### 换脸 Prompt 策略
-
-**脸部锁定指令**（极高优先级）：
-- 严格保留小柔的脸部五官、脸型、神态完全不变
-- 不改变发型、发色、发量
-- 人物身份必须是小柔
-
-**允许改变**：
-- 替换为目标场景的全身穿搭、姿态、背景与风格
-
-### 命令行用法（使用 face_enhancer.py 后处理换脸）
-
-```bash
-# 使用脸部增强后处理
-python3 scripts/face_enhancer.py <生成的图片路径> <小柔头像路径> [输出路径]
-
-# 示例
-python3 scripts/face_enhancer.py /tmp/generated.jpg assets/default-character.png /tmp/enhanced.jpg
-```
-
 ## API
 
 - 聊天：Qwen3.5-plus
