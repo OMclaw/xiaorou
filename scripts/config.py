@@ -4,8 +4,13 @@
 import os
 import re
 import json
+import logging
 from pathlib import Path
 from typing import Optional
+
+# 创建 logger
+logger = logging.getLogger('config')
+logger.setLevel(logging.DEBUG)
 
 
 class ConfigurationError(Exception):

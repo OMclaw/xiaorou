@@ -154,8 +154,11 @@ run_voice() {
   # 使用 mktemp 创建不可预测的临时文件（避免竞争条件攻击）
   local temp_audio
   temp_audio=$(mktemp "$temp_dir/xiaorou_voice_XXXXXX.$audio_ext" 2>/dev/null) || {
-    # fallback: 使用时间戳
-    temp_audio="$temp_dir/xiaorou_voice_$(date +%s)_$$.$audio_ext"
+    # fallback: 使用更随机的临时文件名
+    temp_audio=$(mktemp -t "xiaorou_voice_XXXXXXXXXX.$audio_ext" 2>/dev/null) || {
+      # 最后 fallback: 使用时间戳 + 随机数
+      temp_audio="$temp_dir/xiaorou_voice_$(date +%s%N)_$RANDOM.$audio_ext"
+    }
   }
   
   info "正在生成语音：$speech_text (格式：$audio_ext, 平台：$AEVIA_CHANNEL)"

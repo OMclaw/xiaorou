@@ -19,6 +19,7 @@ import logging
 import re
 import time
 import requests
+import mimetypes
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -250,8 +251,6 @@ def face_swap(
     Returns:
         包含生成结果的字典
     """
-    import mimetypes
-    
     # 验证配置
     api_key = validate_config()
     
@@ -344,9 +343,15 @@ def main():
     parser.add_argument('--models', '-m', nargs='+', choices=FACE_SWAP_MODELS, help='指定使用的模型')
     parser.add_argument('--output', '-o', help='输出目录')
     parser.add_argument('--verbose', '-v', action='store_true', help='详细输出')
+    # 从配置文件读取默认 target（如果是飞书平台）
+    default_channel = os.environ.get('AEVIA_CHANNEL', 'feishu')
+    default_target = os.environ.get('AEVIA_TARGET', '')
+    if not default_target and default_channel == 'feishu':
+        default_target = config.get_feishu_target()
+    
     parser.add_argument('--channel', '-c', choices=['feishu', 'telegram', 'discord', 'whatsapp'], 
-                       default=os.environ.get('AEVIA_CHANNEL', 'feishu'), help='发送频道')
-    parser.add_argument('--target', '-t', default=os.environ.get('AEVIA_TARGET', ''), 
+                       default=default_channel, help='发送频道')
+    parser.add_argument('--target', '-t', default=default_target, 
                        help='发送目标（open_id 或 chat_id）')
     parser.add_argument('--caption', default='换脸完成～看看效果怎么样？', help='发送消息的配文')
     parser.add_argument('--auto-send', action='store_true', default=True, 

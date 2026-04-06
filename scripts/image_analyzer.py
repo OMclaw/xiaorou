@@ -268,7 +268,7 @@ def analyze_image_file(image_path: str) -> Optional[str]:
             logger.error(f"文件不存在：{image_path}")
             return None
         
-        # 检查文件是否在允许的目录
+        # 检查文件是否在允许的目录（使用 relative_to 严格检查）
         allowed_dirs = [
             Path('/home/admin/.openclaw/media/inbound'),
             Path('/tmp/openclaw'),
@@ -276,7 +276,15 @@ def analyze_image_file(image_path: str) -> Optional[str]:
         ]
         
         image_path_obj = Path(image_path).resolve()
-        is_allowed = any(str(image_path_obj).startswith(str(d)) for d in allowed_dirs)
+        is_allowed = False
+        for allowed_dir in allowed_dirs:
+            try:
+                image_path_obj.relative_to(allowed_dir.resolve())
+                is_allowed = True
+                break
+            except ValueError:
+                continue
+        
         if not is_allowed:
             logger.error(f"⚠️ 文件路径不在允许范围内：{image_path}")
             return None

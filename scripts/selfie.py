@@ -515,8 +515,7 @@ def generate_selfie(context: str, caption: str = "给你看看我现在的样子
         return False
 
 
-def generate_from_reference(reference_image_path: str, caption: str = "这是模仿参考图生成的～", channel: Optional[str] = None, target: Optional[str] = None, multi_mode: bool = False) -> bool:
-    """注意：multi_mode 参数已废弃，因为 generate_images_multi_model 函数未实现"""
+def generate_from_reference(reference_image_path: str, caption: str = "这是模仿参考图生成的～", channel: Optional[str] = None, target: Optional[str] = None) -> bool:
     """
     参考图模式（优化版 - 新流程）
     
@@ -531,7 +530,6 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         caption: 发送消息的配文
         channel: 发送频道
         target: 发送目标
-        multi_mode: 是否使用多图融合模式
     
     Returns:
         是否成功
@@ -564,12 +562,24 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
             logger.error(f"图片分析模块不存在：{analyzer_path}")
             return False
         
+        # 安全检查：验证参考图路径
+        if not is_safe_path(config.get_temp_dir(), reference_image_path):
+            allowed_dirs = [
+                Path('/home/admin/.openclaw/media/inbound'),
+                Path('/tmp/openclaw'),
+                config.get_temp_dir()
+            ]
+            is_allowed = any(is_safe_path(base_dir, reference_image_path) for base_dir in allowed_dirs)
+            if not is_allowed:
+                logger.error(f"⚠️ 参考图路径不在允许范围内：{reference_image_path}")
+                return False
+        
         import subprocess
         result = subprocess.run(
             ['python3', str(analyzer_path), reference_image_path],
             capture_output=True,
             text=True,
-            timeout=120
+            timeout=int(os.environ.get('XIAOROU_API_TIMEOUT', '120'))
         )
         
         if result.returncode != 0:
@@ -617,19 +627,10 @@ if __name__ == "__main__":
     
     # 检测是否为参考图模式
     elif sys.argv[1] == '--reference' and len(sys.argv) >= 3:
-        # 参考图模式
         reference_image = sys.argv[2]
-        
-        # 检测是否启用多图融合模式
-        multi_mode = False
-        offset = 0
-        if len(sys.argv) > 3 and sys.argv[3] == '--multi':
-            multi_mode = True
-            offset = 1
-        
-        channel = sys.argv[3 + offset] if len(sys.argv) > 3 + offset else None
-        caption = sys.argv[4 + offset] if len(sys.argv) > 4 + offset else "这是模仿参考图生成的～"
-        target = sys.argv[5 + offset] if len(sys.argv) > 5 + offset else None
+        channel = sys.argv[3] if len(sys.argv) > 3 else None
+        caption = sys.argv[4] if len(sys.argv) > 4 else "这是模仿参考图生成的～"
+        target = sys.argv[5] if len(sys.argv) > 5 else None
         
         if not os.path.exists(reference_image):
             logger.error(f"参考图不存在：{reference_image}")
