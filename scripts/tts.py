@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """tts.py - 文字转语音 (阿里云 CosyVoice 官方 SDK)"""
 
+# Python 版本检查（必须在所有 import 之前）
+import sys
+if sys.version_info < (3, 9):
+    print(f"❌ 需要 Python 3.9+，当前版本：{sys.version}", file=sys.stderr)
+    sys.exit(1)
+
 import argparse
 import json
 import logging
 import os
-import sys
 import time
 import re
 import random
@@ -321,7 +326,4 @@ def main():
 
 
 if __name__ == '__main__':
-    if sys.version_info < (3, 9):
-        print(f"❌ 需要 Python 3.9+，当前版本：{sys.version}", file=sys.stderr)
-        sys.exit(1)
     main()

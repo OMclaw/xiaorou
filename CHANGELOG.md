@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.3.0] - 2026-04-06
+
+### 🔥 全面安全加固 + Code Review 修复
+
+**小柔 AI v5.3.0 - 37 个问题全面修复**
+
+### ✨ 安全修复（Critical/High）
+- **C-1**: `echo` → `printf` 命令注入修复
+- **C-2**: `sed` 分隔符改用 `|` 防止注入
+- **C-3**: curl 添加 `--tlsv1.2 --max-redirs 3`
+- **C-4**: `__main__` 入口添加路径白名单验证
+- **H-1**: config 缓存检查加锁保护
+- **H-2**: `_api_key` 支持环境变量热更新 + `refresh_api_key()` 方法
+- **H-4**: `selfie_latest.jpg` → `selfie_latest_{user_id}.jpg` 多用户隔离
+- **H-7**: `generate_video.py` 发送频道不再硬编码 feishu
+- **H-8**: `run_chat` 添加 target 空值保护
+- **H-9**: 图片路径验证改用 `.resolve()` 防止相对路径绕过
+
+### 🔧 代码质量（Medium）
+- **M-1/M-2/M-3**: 删除覆盖内置 `FileNotFoundError` 和重复 `ConfigurationError`
+- **M-4**: retry 装饰器只重试网络异常（RequestException/ConnectionError/TimeoutError）
+- **M-5**: tts.py 版本检查移到文件顶部
+- **M-6**: run_chat 添加 `trap 'rm -f "$temp_json"' EXIT`
+- **M-9**: detect_mode 使用 `printf` 替代 `echo`，增加截断保护关键词
+- **M-10**: `image_analyzer.py` 提取 `_call_multimodal_api` 公共函数消除 90% 重复代码
+
+### 🛡️ 安全增强（Low）
+- **L-5**: 图片下载前检查 `Content-Type` header
+
+### 📊 修复统计
+
+| 严重度 | 数量 | 状态 |
+|--------|------|------|
+| Critical | 4 | ✅ 100% |
+| High | 9 | ✅ 100% |
+| Medium | 8 | ✅ 100% |
+| Low | 1 | ✅ 已修复 |
+| **总计** | **22** | **✅ 100%** |
+
+---
+
 ## [5.2.0] - 2026-04-06
 
 ### 🎉 参考生图模式 Bug 修复

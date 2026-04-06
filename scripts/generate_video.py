@@ -102,14 +102,19 @@ def retry_on_failure(max_attempts: int = 3, delay: float = 1.0):
             for attempt in range(1, max_attempts + 1):
                 try:
                     return func(*args, **kwargs)
-                except Exception as e:
+                except (requests.RequestException, ConnectionError, TimeoutError) as e:
+                    # 网络异常，可重试
                     last_exception = e
                     if attempt < max_attempts:
-                        logger.warning(f"⚠️ 尝试 {attempt}/{max_attempts} 失败：{e}，{delay}秒后重试...")
+                        logger.warning(f"⚠️ 尝试 {attempt}/{max_attempts} 失败（网络异常）：{e}，{delay}秒后重试...")
                         time.sleep(delay)
                         delay *= 2  # 指数退避
                     else:
                         logger.error(f"❌ 尝试 {max_attempts}/{max_attempts} 失败")
+                except Exception as e:
+                    # 非网络异常（如配置错误、验证失败），不重试，直接抛出
+                    logger.error(f"❌ 不可恢复的错误（不重试）：{e}")
+                    raise
             raise last_exception
         return wrapper
     return decorator
@@ -559,7 +564,7 @@ def image_to_video(
     # 步骤 6: 发送到飞书
     if send_message:
         caption = f"🎬 小柔生成的视频～\n{prompt[:50]}..."
-        if not send_to_channel(str(video_path), caption, 'feishu', target):
+        if not send_to_channel(str(video_path), caption, channel, target):
             logger.error("❌ 流程终止：发送失败")
             return None
     

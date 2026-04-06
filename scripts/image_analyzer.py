@@ -24,8 +24,9 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', str
 logger = logging.getLogger(__name__)
 
 
-class ConfigurationError(Exception): pass
-class ImageAnalysisError(Exception): pass
+class ImageAnalysisError(Exception):
+    """图片分析异常"""
+    pass
 
 
 def get_image_base64(image_path: str) -> str:
@@ -40,6 +41,48 @@ def get_image_base64(image_path: str) -> str:
     return f"data:image/jpeg;base64,{image_data}"
 
 
+def _call_multimodal_api(image_base64: str, analysis_prompt: str, api_key: str, model: str = 'qwen3.5-plus') -> str:
+    """
+    调用多模态 API 分析图片（公共函数，避免代码重复）
+    
+    Args:
+        image_base64: base64 编码的图片
+        analysis_prompt: 分析 prompt
+        api_key: DashScope API Key
+        model: 模型名称（默认 qwen3.5-plus）
+    
+    Returns:
+        API 返回的分析结果
+    """
+    import dashscope
+    from dashscope import MultiModalConversation
+    
+    messages = [{
+        'role': 'user',
+        'content': [
+            {'image': image_base64},
+            {'text': analysis_prompt}
+        ]
+    }]
+    
+    response = MultiModalConversation.call(
+        model=model,
+        messages=messages,
+        api_key=api_key,
+        headers={'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'},
+        timeout=API_TIMEOUT
+    )
+    
+    if response.status_code == 200 and response.output:
+        output = response.output
+        if output.choices and len(output.choices) > 0:
+            choice = output.choices[0]
+            if choice.message and choice.message.content:
+                return choice.message.content[0]['text']
+    
+    raise ImageAnalysisError(f"API 响应格式异常：{response}")
+
+
 def analyze_image(image_path: str, api_key: str) -> str:
     """
     使用 qwen3.5-plus 分析参考图，提取场景、姿势、服装、光线等描述
@@ -51,11 +94,6 @@ def analyze_image(image_path: str, api_key: str) -> str:
     Returns:
         详细的图片描述 prompt
     """
-    import dashscope
-    from dashscope import MultiModalConversation
-    
-    dashscope.api_key = api_key
-    
     try:
         image_base64 = get_image_base64(image_path)
     except Exception as e:
@@ -71,35 +109,10 @@ def analyze_image(image_path: str, api_key: str) -> str:
 
 **输出格式**：纯关键词，逗号分隔，不要句子，不要描述人脸。"""
 
-    messages = [{
-        'role': 'user',
-        'content': [
-            {'image': image_base64},
-            {'text': analysis_prompt}
-        ]
-    }]
-    
     try:
-        # 使用 SDK 调用，添加 X-DashScope-DataInspection header 禁用数据检查
-        response = MultiModalConversation.call(
-            model='qwen3.5-plus',
-            messages=messages,
-            api_key=api_key,
-            headers={'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'},
-            timeout=API_TIMEOUT
-        )
-        
-        if response.status_code == 200 and response.output:
-            output = response.output
-            if output.choices and len(output.choices) > 0:
-                choice = output.choices[0]
-                if choice.message and choice.message.content:
-                    result = choice.message.content[0]['text']
-                    logger.info("✅ 图片分析成功")
-                    return result
-        
-        raise ImageAnalysisError(f"API 响应格式异常：{response}")
-    
+        result = _call_multimodal_api(image_base64, analysis_prompt, api_key)
+        logger.info("✅ 图片分析成功")
+        return result
     except Exception as e:
         raise ImageAnalysisError(f"图片分析失败：{e}")
 
@@ -175,11 +188,6 @@ def analyze_image_for_face_swap(image_path: str, api_key: str) -> str:
     Returns:
         场景描述（不含脸部/发型）
     """
-    import dashscope
-    from dashscope import MultiModalConversation
-    
-    dashscope.api_key = api_key
-    
     try:
         image_base64 = get_image_base64(image_path)
     except Exception as e:
@@ -200,36 +208,10 @@ def analyze_image_for_face_swap(image_path: str, api_key: str) -> str:
 
 请用简洁的中文描述，要素之间用逗号分隔，适合作为 AI 绘画的场景 prompt。"""
 
-    messages = [{
-        'role': 'user',
-        'content': [
-            {'image': image_base64},
-            {'text': analysis_prompt}
-        ]
-    }]
-    
     try:
-        # 使用 SDK 调用，添加 X-DashScope-DataInspection header 禁用数据检查
-        response = MultiModalConversation.call(
-            model='qwen3.5-plus',
-            messages=messages,
-            api_key=api_key,
-            headers={'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'},
-            timeout=API_TIMEOUT
-        )
-        
-        if response.status_code == 200 and response.output:
-            output = response.output
-            # P0 修复：添加空值检查
-            if output.choices and len(output.choices) > 0:
-                choice = output.choices[0]
-                if choice.message and choice.message.content:
-                    result = choice.message.content[0]['text']
-                    logger.info("✅ 换脸模式场景分析成功")
-                    return result
-        
-        raise ImageAnalysisError(f"API 响应格式异常：{response}")
-    
+        result = _call_multimodal_api(image_base64, analysis_prompt, api_key)
+        logger.info("✅ 换脸模式场景分析成功")
+        return result
     except Exception as e:
         raise ImageAnalysisError(f"图片分析失败：{e}")
 
@@ -316,7 +298,7 @@ if __name__ == "__main__":
     is_allowed = False
     for allowed_dir in allowed_dirs:
         try:
-            Path(image_path).relative_to(allowed_dir.resolve())
+            Path(image_path).resolve().relative_to(allowed_dir.resolve())
             is_allowed = True
             break
         except ValueError:

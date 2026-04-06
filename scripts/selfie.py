@@ -42,10 +42,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class ConfigurationError(Exception): pass
-class FileNotFoundError(Exception): pass
-
-
 def is_safe_path(base_dir: Path, file_path: str) -> bool:
     """
     检查文件路径是否在允许的目录内（防止路径遍历攻击）
@@ -438,6 +434,12 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT)
         response.raise_for_status()
         
+        # 先检查 Content-Type（L-5 修复：避免下载非图片内容）
+        content_type = response.headers.get('Content-Type', '')
+        if not content_type.startswith('image/'):
+            logger.error(f"远程资源不是图片类型：{content_type}")
+            return False
+        
         with open(temp_file, 'wb') as f:
             f.write(response.content)
         
@@ -477,7 +479,9 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             
             # 保留一份最新的小柔照片到固定路径（供视频生成使用）
             # 使用原子操作避免 TOCTOU 竞争条件
-            latest_path = config.get_temp_dir() / 'selfie_latest.jpg'
+            # 多用户隔离：路径中包含 target 标识，避免并发冲突
+            user_id = target or 'default'
+            latest_path = config.get_temp_dir() / f'selfie_latest_{user_id}.jpg'
             temp_dst = None
             try:
                 import shutil
@@ -679,21 +683,46 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    # --json 模式：输出 JSON 结果，不发送（由 bot 处理发送）
+    json_mode = '--json' in sys.argv
+    
+    if len(sys.argv) < 2 or (len(sys.argv) == 2 and sys.argv[1] == '--json'):
         print("用法：")
         print("  场景生图：python3 selfie.py <场景描述> [频道] [配文] [target]")
         print("  参考生图：python3 selfie.py --reference <参考图路径> [频道] [配文] [target]")
+        print("  JSON 模式：python3 selfie.py --reference <路径> --json")
         sys.exit(1)
     
     # 检测是否为参考图模式
     if sys.argv[1] == '--reference' and len(sys.argv) >= 3:
         reference_image = sys.argv[2]
-        channel = sys.argv[3] if len(sys.argv) > 3 else None
-        caption = sys.argv[4] if len(sys.argv) > 4 else "这是模仿参考图生成的～"
-        target = sys.argv[5] if len(sys.argv) > 5 else None
+        
+        # JSON 模式：解析参数
+        if json_mode:
+            channel = None
+            caption = "这是模仿参考图生成的～"
+            target = None
+            for i, arg in enumerate(sys.argv[3:], 3):
+                if arg.startswith('--caption='):
+                    caption = arg[len('--caption='):]
+        else:
+            channel = sys.argv[3] if len(sys.argv) > 3 else None
+            caption = sys.argv[4] if len(sys.argv) > 4 else "这是模仿参考图生成的～"
+            target = sys.argv[5] if len(sys.argv) > 5 else None
         
         if not os.path.exists(reference_image):
             logger.error(f"参考图不存在：{reference_image}")
+            sys.exit(1)
+        
+        # 路径白名单验证（防止路径遍历攻击）
+        allowed_dirs = [
+            Path('/home/admin/.openclaw/media/inbound'),
+            Path('/tmp/openclaw'),
+            config.get_temp_dir(),
+        ]
+        is_allowed = any(is_safe_path(base_dir.resolve(), reference_image) for base_dir in allowed_dirs)
+        if not is_allowed:
+            logger.error(f"⚠️ 参考图路径不在允许范围内：{reference_image}")
             sys.exit(1)
         
         success = generate_from_reference(reference_image, caption, channel, target)

@@ -32,9 +32,8 @@ sanitize_input() {
   local input="$1"
   # 严格长度限制（可配置）
   [ ${#input} -gt "$AEVIA_MAX_INPUT_LENGTH" ] && input="${input:0:$AEVIA_MAX_INPUT_LENGTH}"
-  # 只保留安全的字母数字、中文、标点和空格
-  # 移除所有控制字符、反引号、美元符号、反斜杠、管道符、分号等 shell 元字符
-  echo "$input"|tr -cd '[:alnum:][:space:][:punct:]'|tr -d '`$\\|;&<>(){}[]!~#*?'
+  # 使用 printf 替代 echo（避免 - 开头的输入被解析为选项）
+  printf '%s' "$input"|tr -cd '[:alnum:][:space:][:punct:]'|tr -d '`$\\|;&<>(){}[]!~#*?/'
 }
 
 error() { 
@@ -65,24 +64,23 @@ detect_mode() {
   local input="$1"
   local has_image="${AEVIA_IMAGE_PATH:-}"
   
-  # 语音模式
-  if echo "$input" | grep -qiE "发语音|语音消息|说句话|tts"; then
+  # 语音模式（最高优先级）
+  if printf '%s' "$input" | grep -qiE "发语音|语音消息|说句话|tts"; then
     echo "voice"
     return
   fi
   
-  # 视频模式
-  if echo "$input" | grep -qiE "生成视频|做视频|图生视频"; then
+  # 视频模式（第二优先级，检查完整关键词 + 截断保护）
+  if printf '%s' "$input" | grep -qiE "生成视频|做视频|图生视频|视频生成"; then
     echo "video"
     return
   fi
-  
   
   # ========== 参考生图模式 ==========
   # 关键词：参考、模仿、照著、学这张、生成一张类似的、同样的场景
   # 条件：必须有图片 + 参考类关键词
   if [ -n "$has_image" ]; then
-    if echo "$input" | grep -qiE "参考|模仿|照著|学这张|类似的|同样的|照这个|按这个|生成一张|来一张"; then
+    if printf '%s' "$input" | grep -qiE "参考|模仿|照著|学这张|类似的|同样的|照这个|按这个|生成一张|来一张"; then
       echo "selfie-reference"
       return
     fi
@@ -91,7 +89,7 @@ detect_mode() {
   # ========== 场景生图模式 ==========
   # 关键词：照片、图片、自拍、发张、看看你、穿、穿搭、生成、来一张、想要、场景、在...里/前/下
   # 条件：有场景描述（可以是纯文字，也可以有图片但没参考关键词）
-  if echo "$input" | grep -qiE "照片|图片|自拍|发张|看看你|穿|穿搭|生成|来一张|想要|场景|在.*里|在.*前|在.*下"; then
+  if printf '%s' "$input" | grep -qiE "照片|图片|自拍|发张|看看你|穿|穿搭|生成|来一张|想要|场景|在.*里|在.*前|在.*下"; then
     if [ -n "$has_image" ]; then
       # 有图片但没参考关键词 → 使用图片作为场景参考（参考生图的简化版）
       echo "selfie-reference"
@@ -114,7 +112,7 @@ run_voice() {
   
   info "🎙️ 语音模式"
   local speech_text
-  speech_text=$(echo "$input"|sed -E 's/^(发语音 [:：]?|语音消息 [:：]?)//i'|xargs)
+  speech_text=$(printf '%s' "$input"|sed -E 's|^(发语音 [:：]?|语音消息 [:：]?)||i'|xargs)
   [ -z "$speech_text" ] && speech_text="你好呀，我是小柔～"
   
   # 根据平台选择音频格式
@@ -174,7 +172,7 @@ run_video() {
   
   # 提取 prompt
   local prompt
-  prompt=$(echo "$input"|sed -E 's/^(生成视频|做视频|图生视频)[:：]?//i'|xargs)
+  prompt=$(printf '%s' "$input"|sed -E 's|^(生成视频|做视频|图生视频)[:：]?||i'|xargs)
   [ -z "$prompt" ] && prompt="一个美丽的女孩自然微笑，动作自然舒展"
   
   if [ -n "$image_path" ]; then
@@ -224,7 +222,7 @@ run_selfie_scene() {
   
   # 提取场景描述
   local context
-  context=$(echo "$input"|sed -E 's/^(自拍|照片|图片|发张|生成|来一张|想要)[:：]?//i'|xargs)
+  context=$(printf '%s' "$input"|sed -E 's|^(自拍|照片|图片|发张|生成|来一张|想要)[:：]?||i'|xargs)
   [ -z "$context" ] && context="时尚穿搭，自然微笑"
   
   local caption="给你看看我现在的样子~"
@@ -261,11 +259,17 @@ run_chat() {
   local input="$1"
   local target="$2"
   
+  # target 空值保护
+  if [ -z "$target" ]; then
+    error "未指定目标用户（target）"
+  fi
+  
   info "💬 聊天模式"
   
   # 使用 jq 安全构造 JSON（必须安装 jq）
   local temp_json
   temp_json=$(mktemp)
+  trap 'rm -f "$temp_json"' EXIT
   
   if ! command -v jq &>/dev/null; then
     error "jq 未安装，请运行：apt install jq 或 brew install jq"
@@ -280,7 +284,7 @@ run_chat() {
     ]}' > "$temp_json"
   
   local response
-  response=$(curl -s -f -X POST "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions" \
+  response=$(curl --tlsv1.2 --max-redirs 3 -f -X POST "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions" \
     -H "Authorization: Bearer $DASHSCOPE_API_KEY" \
     -H "Content-Type: application/json" \
     -d @"$temp_json" 2>/dev/null) || error "API 请求失败"
@@ -291,8 +295,6 @@ run_chat() {
   
   echo "$reply"
   openclaw message send --channel "$AEVIA_CHANNEL" --target "$target" --message "$reply"
-  
-  rm -f "$temp_json"
 }
 
 # ============ 主流程 ============

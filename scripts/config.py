@@ -37,37 +37,42 @@ class Config:
         return cls._instance
     
     def _load_config_file(self) -> dict:
-        """加载配置文件（带缓存）"""
+        """加载配置文件（带缓存，线程安全）"""
         import time
-        current_time = time.time()
         
-        # 检查缓存是否有效
-        if self._config_cache and (current_time - self._cache_timestamp) < self._cache_ttl:
-            return self._config_cache
-        
-        # 重新加载配置
-        config_file = Path.home() / '.openclaw/openclaw.json'
-        if config_file.exists():
-            try:
-                self._config_cache = json.loads(config_file.read_text(encoding='utf-8'))
-                self._cache_timestamp = current_time
+        # 加锁保护缓存检查和加载
+        with self._lock:
+            current_time = time.time()
+            
+            # 检查缓存是否有效
+            if self._config_cache and (current_time - self._cache_timestamp) < self._cache_ttl:
                 return self._config_cache
-            except Exception as e:
-                logger.debug(f"读取配置文件失败：{e}")
-        
-        self._config_cache = {}
-        return {}
+            
+            # 重新加载配置
+            config_file = Path.home() / '.openclaw/openclaw.json'
+            if config_file.exists():
+                try:
+                    self._config_cache = json.loads(config_file.read_text(encoding='utf-8'))
+                    self._cache_timestamp = current_time
+                    return self._config_cache
+                except Exception as e:
+                    logger.debug(f"读取配置文件失败：{e}")
+            
+            self._config_cache = {}
+            return {}
     
     def get_api_key(self) -> str:
         """获取 API Key（环境变量 > 配置文件，带缓存）"""
-        if self._api_key:
-            return self._api_key
-        
-        # 环境变量优先
+        # 环境变量优先（每次检查，支持运行时切换）
         api_key = os.environ.get('DASHSCOPE_API_KEY', '')
         if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
             self._api_key = api_key
             return api_key
+        
+        # 使用缓存的配置
+        with self._lock:
+            if self._api_key:
+                return self._api_key
         
         # 配置文件（使用缓存）
         config = self._load_config_file()
@@ -81,6 +86,13 @@ class Config:
                 return api_key
         
         raise ConfigurationError("API Key 未配置")
+    
+    def refresh_api_key(self) -> None:
+        """刷新 API Key 缓存，强制重新读取配置"""
+        with self._lock:
+            self._api_key = None
+            self._config_cache = None
+            self._cache_timestamp = 0
     
     def get_temp_dir(self) -> Path:
         """获取临时目录"""
