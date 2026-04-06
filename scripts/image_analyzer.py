@@ -200,8 +200,6 @@ def analyze_image_file(image_path: str) -> Optional[str]:
     """
     try:
         # P1 修复：验证路径安全性
-        from pathlib import Path
-        import os
         
         # 检查文件是否存在
         if not os.path.exists(image_path):

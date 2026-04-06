@@ -147,7 +147,7 @@ def build_prompt(context: str) -> Tuple[str, str]:
     ]
     for pattern in injection_patterns:
         if pattern in context_lower:
-            logger.warning(f"⚠️ 检测到潜在 Prompt Injection 模式：{pattern}（仅警告，不拒绝）")
+            raise ValueError(f"检测到潜在 Prompt Injection 模式：{pattern}")
     
     # 网红风格基础元素 - 减少 AI 感，增加真实感，清淡妆容，无腮红
     influencer_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红"
@@ -227,7 +227,7 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
             logger.error(f"❌ {model_name} API 错误：{result_json}")
             if attempt < max_retries:
                 logger.warning(f"⚠️ {model_name} 重试中...")
-                time.sleep(1 * (attempt + 1))  # 线性退避（非指数）（非指数）（非指数）（非指数）（非指数）
+                time.sleep(1 * (attempt + 1))  # 线性退避
                 continue
             return (model_name, None)
         
@@ -257,7 +257,7 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
             return (model_name, None)
 
 
-def generate_images_dual_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
+def generate_images_dual_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:  # 当前未使用
     """
     使用 2 个模型并发生成图片（参考生图模式）- wan2.7-image + qwen-image-2.0-pro
     

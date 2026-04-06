@@ -151,8 +151,12 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
     try:
         api_key = load_api_key()
     except TTSError as e:
-        logger.error(str(e))
-        return False, str(e)
+        error_msg = str(e)
+        # 清理已存在的输出文件
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        logger.error(error_msg)
+        return False, error_msg
     
     # H-3 修复：使用线程锁保护 API Key 环境变量
     # C-3 修复：函数返回时清理环境变量
@@ -215,6 +219,12 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
         
         return False, "未知错误"
     finally:
+        # 失败时清理已存在的输出文件
+        if os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+            except Exception:
+                pass
         # 清理环境变量中的 API Key（C-3 修复）
         if _original_key is not None:
             os.environ['DASHSCOPE_API_KEY'] = _original_key

@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.13.0] - 2026-04-06
+
+### 🔥 第 12 轮 Code Review 修复
+
+**小柔 AI v5.13.0 - 代码质量全面打磨**
+
+### 🛡️ 修复统计
+| 优先级 | 问题数 | 状态 |
+|--------|--------|------|
+| 🔴 High | 1 | ✅ |
+| 🟡 Medium | 5 | ✅ |
+| 🟢 Low | 2 | ✅ |
+
+### 关键修复
+| 编号 | 问题 | 修复 |
+|------|------|------|
+| H-1 | Prompt Injection 仅警告不拒绝 | 改为 raise ValueError 拒绝处理 |
+| M-1 | 重复注释 "（非指数）" x5 | 精简为 # 线性退避 |
+| M-2 | SafeLogger 缩进不一致 | 统一缩进 |
+| M-3 | 函数内重复导入 | 移除 |
+| M-4 | argparse 延迟导入 | 移到文件顶部 |
+| M-5 | SKILL.md 文档不一致 | 更正为单模型 |
+| M-6 | 死代码未标注 | 添加注释说明 |
+| L-1 | 直接调用分支无长度限制 | 添加截断 |
+| L-2 | 失败时不清理输出文件 | 添加清理逻辑 |
+
+---
+
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
 ## [5.12.0] - 2026-04-06
 
 ### 🔧 功能调整 + 安全修复

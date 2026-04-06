@@ -349,6 +349,7 @@ case "${1:-}" in
     # 强制模式：直接调用对应函数，不经过 detect_mode
     target="${2:-${AEVIA_TARGET:-}}"
     user_input=$(printf '%s' "$*"|tr -d '\x00-\x1f\x7f-\x9f`$\\|;&<>(){}[]#*')
+  [ ${#user_input} -gt "$AEVIA_MAX_INPUT_LENGTH" ] && user_input="${user_input:0:$AEVIA_MAX_INPUT_LENGTH}"
     case "$mode" in
       selfie-scene) run_selfie_scene "$user_input" "$target" ;;
       selfie-reference) run_selfie_reference "$user_input" "$target" ;;
