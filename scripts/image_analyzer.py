@@ -257,13 +257,8 @@ if __name__ == "__main__":
         logger.error(f"图片不存在：{image_path}")
         sys.exit(1)
     
-    # 路径白名单验证（P2-5 修复：使用 config 统一目录列表）
-    is_allowed = any(
-        Path(image_path).resolve().is_relative_to(allowed.resolve())
-        for allowed in config.ALLOWED_IMAGE_DIRS
-    )
-    
-    if not is_allowed:
+    # P19-P2-NEW-3 修复：复用 _is_path_allowed 函数
+    if not _is_path_allowed(image_path):
         logger.error(f"图片路径不在允许范围内：{image_path}")
         sys.exit(1)
     

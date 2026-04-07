@@ -13,12 +13,12 @@ from typing import Optional, List
 logger = logging.getLogger('config')
 logger.setLevel(logging.DEBUG)
 
-# P2-5 修复：统一允许目录列表，供所有模块引用
-ALLOWED_IMAGE_DIRS: List[Path] = [
+# P2-5 修复：统一允许目录列表（P19-P2-1：不可变 tuple 防止外部篡改）
+ALLOWED_IMAGE_DIRS: Tuple[Path, ...] = (
     Path('/home/admin/.openclaw/media/inbound'),
     Path('/tmp/openclaw'),
     Path('/tmp/xiaorou'),
-]
+)
 
 
 class ConfigurationError(Exception):

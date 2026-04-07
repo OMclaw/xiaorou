@@ -94,8 +94,8 @@ def sanitize_input(text: str, max_length: int = MAX_INPUT_LENGTH) -> str:
     # 移除控制字符（包括换行、回车）
     text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', text)
     
-    # 移除危险字符（防止注入）（P3-1 修复：保留 ! 非危险字符）
-    text = re.sub(r'[`$(){};|&\\<>[\]*?]', '', text)
+    # 移除危险字符（防止注入）（P3-1 修复：保留 ! 非危险字符；P19-P1-NEW-1 修复：正确匹配单反斜杠）
+    text = re.sub(r'[`$(){};|&<>[\]*?\\]', '', text)
     
     # 移除 Unicode 控制字符（如从右到左覆盖符）
     text = re.sub(r'[\u200e\u200f\u202a-\u202e]', '', text)
@@ -274,10 +274,10 @@ def generate_images_single_model(image_path: Path, prompt: str, api_key: str) ->
     Returns:
         [(model_name, image_url), ...] 成功生成的图片列表
     """
-    models = ['wan2.7-image']
+    # P19-P2-NEW-2 修复：删除冗余 models 列表
+    model_name = 'wan2.7-image'
     results = []
     
-    model_name = 'wan2.7-image'
     logger.info(f"  使用模型：{model_name}")
     model_result = generate_single_image(model_name, image_path, prompt, api_key)
     if model_result[1]:
@@ -286,7 +286,7 @@ def generate_images_single_model(image_path: Path, prompt: str, api_key: str) ->
     else:
         logger.warning(f"⚠️ {model_name} 生成失败")
     
-    logger.info(f"📊 生成结果：{len(results)}/{len(models)} 成功")
+    logger.info(f"📊 生成结果：{len(results)}/1 成功")
     return results
 
 
