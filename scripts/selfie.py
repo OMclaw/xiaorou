@@ -729,26 +729,11 @@ if __name__ == "__main__":
     if sys.argv[1] == '--reference' and len(sys.argv) >= 3:
         reference_image = sys.argv[2]
         
-        # JSON 模式：解析参数
-        channel = None
-        caption = "这是模仿参考图生成的～"
-        target = None
-        success = False
-        if json_mode:
-            for i, arg in enumerate(sys.argv[3:], 3):
-                if arg.startswith('--caption='):
-                    caption = arg[len('--caption='):]
-        else:
-            channel = sys.argv[3] if len(sys.argv) > 3 else None
-            caption = sys.argv[4] if len(sys.argv) > 4 else "这是模仿参考图生成的～"
-            target = sys.argv[5] if len(sys.argv) > 5 else None
-            success = generate_from_reference(reference_image, caption, channel, target)
-        
+        # 先验证文件存在和路径安全（P1-1 修复：在任何模式下都先验证）
         if not os.path.exists(reference_image):
             logger.error(f"参考图不存在：{reference_image}")
             sys.exit(1)
         
-        # 路径白名单验证（防止路径遍历攻击）
         allowed_dirs = [
             Path('/home/admin/.openclaw/media/inbound'),
             Path('/tmp/openclaw'),
@@ -759,6 +744,20 @@ if __name__ == "__main__":
             logger.error(f"⚠️ 参考图路径不在允许范围内：{reference_image}")
             sys.exit(1)
         
+        # 解析参数
+        channel = None
+        caption = "这是模仿参考图生成的～"
+        target = None
+        if json_mode:
+            for i, arg in enumerate(sys.argv[3:], 3):
+                if arg.startswith('--caption='):
+                    caption = arg[len('--caption='):]
+        else:
+            channel = sys.argv[3] if len(sys.argv) > 3 else None
+            caption = sys.argv[4] if len(sys.argv) > 4 else "这是模仿参考图生成的～"
+            target = sys.argv[5] if len(sys.argv) > 5 else None
+        
+        # 统一调用生成函数
         success = generate_from_reference(reference_image, caption, channel, target)
     else:
         # 场景生图模式
