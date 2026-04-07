@@ -30,21 +30,14 @@ class ImageAnalysisError(Exception):
     pass
 
 
-# P2-3 修复：添加路径安全检查函数
-_ALLOWED_DIRS = [
-    Path('/home/admin/.openclaw/media/inbound'),
-    Path('/tmp/openclaw'),
-    Path('/tmp/xiaorou'),
-]
-
-
+# P2-3 修复：路径安全检查函数（P2-5 修复：使用 config 统一目录列表）
 def _is_path_allowed(file_path: str) -> bool:
     """检查文件路径是否在允许的目录列表内"""
     try:
         resolved = Path(file_path).resolve()
         return any(
             resolved.is_relative_to(allowed.resolve())
-            for allowed in _ALLOWED_DIRS
+            for allowed in config.ALLOWED_IMAGE_DIRS
         )
     except Exception:
         return False
@@ -52,8 +45,10 @@ def _is_path_allowed(file_path: str) -> bool:
 
 def get_image_base64(image_path: str) -> str:
     """读取图片并转换为 base64"""
-    # 检查文件大小（限制 10MB）
+    # 检查文件大小（限制 10MB）（P3-2 修复：添加空文件检查）
     file_size = os.path.getsize(image_path)
+    if file_size == 0:
+        raise ImageAnalysisError(f"图片文件为空：{image_path}")
     if file_size > 10 * 1024 * 1024:
         raise ImageAnalysisError(f"图片文件过大：{file_size / 1024 / 1024:.2f}MB（限制 10MB）")
     
@@ -92,7 +87,7 @@ def _call_multimodal_api(image_base64: str, analysis_prompt: str, api_key: str, 
         model=model,
         messages=messages,
         api_key=api_key,
-        timeout=API_TIMEOUT
+        timeout=API_TIMEOUT  # P1-2 修复：传入超时参数
     )
     
     if response.status_code == 200 and response.output:
@@ -262,21 +257,11 @@ if __name__ == "__main__":
         logger.error(f"图片不存在：{image_path}")
         sys.exit(1)
     
-    # 路径白名单验证
-    allowed_dirs = [
-        Path('/home/admin/.openclaw/media/inbound'),
-        Path('/tmp/openclaw'),
-        Path('/tmp/xiaorou'),
-    ]
-    
-    is_allowed = False
-    for allowed_dir in allowed_dirs:
-        try:
-            Path(image_path).resolve().relative_to(allowed_dir.resolve())
-            is_allowed = True
-            break
-        except ValueError:
-            continue
+    # 路径白名单验证（P2-5 修复：使用 config 统一目录列表）
+    is_allowed = any(
+        Path(image_path).resolve().is_relative_to(allowed.resolve())
+        for allowed in config.ALLOWED_IMAGE_DIRS
+    )
     
     if not is_allowed:
         logger.error(f"图片路径不在允许范围内：{image_path}")

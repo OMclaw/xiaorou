@@ -13,6 +13,7 @@ import base64
 import logging
 import re
 import time
+import threading
 import shutil
 import mimetypes
 import subprocess
@@ -24,9 +25,6 @@ from typing import Optional, Tuple, List
 # 导入统一配置
 from config import config, ConfigurationError
 
-# 使用配置模块
-TEMP_DIR = config.get_temp_dir() / 'selfies'
-TEMP_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
 MAX_INPUT_LENGTH = 500
 DEFAULT_IMAGE_SIZE = "1K"
 PROMPT_EXTEND = False  # 关闭 AI 自动优化提示词
@@ -46,6 +44,7 @@ logger = logging.getLogger(__name__)
 # P2-1 修复：飞书 token 缓存
 _feishu_token: Optional[str] = None
 _feishu_token_time: float = 0
+_feishu_token_lock = threading.Lock()  # P1-3 修复：并发刷新保护
 
 
 def is_safe_path(base_dir: Path, file_path: str) -> bool:
@@ -95,8 +94,8 @@ def sanitize_input(text: str, max_length: int = MAX_INPUT_LENGTH) -> str:
     # 移除控制字符（包括换行、回车）
     text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', text)
     
-    # 移除危险字符（防止注入）
-    text = re.sub(r'[`$(){};|&!\\<>[\]*?]', '', text)
+    # 移除危险字符（防止注入）（P3-1 修复：保留 ! 非危险字符）
+    text = re.sub(r'[`$(){};|&\\<>[\]*?]', '', text)
     
     # 移除 Unicode 控制字符（如从右到左覆盖符）
     text = re.sub(r'[\u200e\u200f\u202a-\u202e]', '', text)
@@ -293,7 +292,6 @@ def generate_images_single_model(image_path: Path, prompt: str, api_key: str) ->
 
 def get_feishu_credentials() -> Tuple[Optional[str], Optional[str]]:
     """获取飞书 API 凭证（P2 修复 - 添加类型注解）"""
-    import json
     config_file = os.path.expanduser('~/.openclaw/openclaw.json')
     
     if os.path.exists(config_file):
@@ -323,37 +321,43 @@ def get_feishu_credentials() -> Tuple[Optional[str], Optional[str]]:
 
 
 def get_feishu_access_token() -> Optional[str]:
-    """获取飞书 access_token（带 2 小时缓存）"""
+    """获取飞书 access_token（带 2 小时缓存，线程安全）"""
     global _feishu_token, _feishu_token_time
 
-    # 检查缓存是否有效（2 小时）
+    # 快速检查（无锁）
     if _feishu_token and (time.time() - _feishu_token_time) < 7200:
         return _feishu_token
 
-    app_id, app_secret = get_feishu_credentials()
-    if not app_id or not app_secret:
-        logger.warning("未配置飞书凭证，无法获取 access_token")
+    # 加锁刷新（P1-3 修复：防止并发竞态）
+    with _feishu_token_lock:
+        # double-check
+        if _feishu_token and (time.time() - _feishu_token_time) < 7200:
+            return _feishu_token
+
+        app_id, app_secret = get_feishu_credentials()
+        if not app_id or not app_secret:
+            logger.warning("未配置飞书凭证，无法获取 access_token")
+            return None
+
+        token_url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/"
+        try:
+            token_response = requests.post(
+                token_url,
+                headers={"Content-Type": "application/json"},
+                json={"app_id": app_id, "app_secret": app_secret},
+                timeout=30
+            )
+            token_data = token_response.json()
+            access_token = token_data.get('tenant_access_token', '')
+
+            if access_token:
+                _feishu_token = access_token
+                _feishu_token_time = time.time()
+                return access_token
+        except Exception as e:
+            logger.warning(f"获取飞书 access_token 失败：{e}")
+
         return None
-
-    token_url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/"
-    try:
-        token_response = requests.post(
-            token_url,
-            headers={"Content-Type": "application/json"},
-            json={"app_id": app_id, "app_secret": app_secret},
-            timeout=30
-        )
-        token_data = token_response.json()
-        access_token = token_data.get('tenant_access_token', '')
-
-        if access_token:
-            _feishu_token = access_token
-            _feishu_token_time = time.time()
-            return access_token
-    except Exception as e:
-        logger.warning(f"获取飞书 access_token 失败：{e}")
-
-    return None
 
 
 def upload_feishu_image(image_file: str) -> Optional[str]:
@@ -649,13 +653,8 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
             logger.error(f"图片分析模块不存在：{analyzer_path}")
             return False
         
-        # 安全检查：验证参考图路径
-        allowed_dirs = [
-            Path('/home/admin/.openclaw/media/inbound'),
-            Path('/tmp/openclaw'),
-            config.get_temp_dir()
-        ]
-        is_allowed = any(is_safe_path(base_dir, reference_image_path) for base_dir in allowed_dirs)
+        # 安全检查：验证参考图路径（P2-5 修复：使用统一目录列表）
+        is_allowed = any(is_safe_path(base_dir, reference_image_path) for base_dir in config.ALLOWED_IMAGE_DIRS)
         if not is_allowed:
             logger.error(f"⚠️ 参考图路径不在允许范围内：{reference_image_path}")
             return False
@@ -734,12 +733,8 @@ if __name__ == "__main__":
             logger.error(f"参考图不存在：{reference_image}")
             sys.exit(1)
         
-        allowed_dirs = [
-            Path('/home/admin/.openclaw/media/inbound'),
-            Path('/tmp/openclaw'),
-            config.get_temp_dir(),
-        ]
-        is_allowed = any(is_safe_path(base_dir.resolve(), reference_image) for base_dir in allowed_dirs)
+        # P2-5 修复：使用统一目录列表
+        is_allowed = any(is_safe_path(base_dir.resolve(), reference_image) for base_dir in config.ALLOWED_IMAGE_DIRS)
         if not is_allowed:
             logger.error(f"⚠️ 参考图路径不在允许范围内：{reference_image}")
             sys.exit(1)

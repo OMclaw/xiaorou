@@ -188,9 +188,9 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-
         
         # 2. 上传文件到 OSS（P2 修复 - 文件名二次验证）
         file_name = Path(file_path).name
-        # 验证文件名安全性
+        # 验证文件名安全性（P3-3 修复：日志中使用脱敏文件名）
         if not file_name or '..' in file_name or file_name.startswith('/'):
-            logger.error(f"❌ 无效的文件名：{file_name}")
+            logger.error("❌ 无效的文件名")
             return None
         required_keys = ['upload_dir', 'oss_access_key_id', 'signature', 'policy', 
                          'x_oss_object_acl', 'x_oss_forbid_overwrite', 'upload_host']
@@ -552,10 +552,11 @@ def image_to_video(
     api_key = config.get_api_key()
     timestamp = int(time.time())
 
-    # P2-6 修复：prompt injection 检测
+    # P2-6 修复：prompt injection 检测（与 selfie.py 保持一致）
     injection_keywords = [
-        'ignore', 'disregard', 'system prompt', 'override',
-        '忽略', '无视', '覆盖', '系统提示',
+        'ignore', 'disregard', 'system prompt', 'system instruction',
+        'previous instructions', 'above instructions', 'override',
+        '忽略', '无视', '覆盖', '系统提示', '之前的指令',
     ]
     prompt_lower = prompt.lower()
     for keyword in injection_keywords:

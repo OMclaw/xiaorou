@@ -7,11 +7,18 @@ import json
 import logging
 import threading
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 # 创建 logger
 logger = logging.getLogger('config')
 logger.setLevel(logging.DEBUG)
+
+# P2-5 修复：统一允许目录列表，供所有模块引用
+ALLOWED_IMAGE_DIRS: List[Path] = [
+    Path('/home/admin/.openclaw/media/inbound'),
+    Path('/tmp/openclaw'),
+    Path('/tmp/xiaorou'),
+]
 
 
 class ConfigurationError(Exception):
@@ -26,7 +33,7 @@ class Config:
     _api_key_timestamp: float = 0  # API Key 缓存时间戳
     _config_cache: Optional[dict] = None  # 配置文件缓存
     _cache_timestamp: float = 0  # 缓存时间戳
-    _lock = threading.Lock()  # 线程锁
+    _lock = threading.RLock()  # 可重入锁，防止嵌套调用死锁（P1-1 修复）
     # P3-4 修复：TTL 缓存值
     _api_key_ttl_value: Optional[int] = None
     _cache_ttl_value: Optional[int] = None
