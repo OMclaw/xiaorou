@@ -9,18 +9,16 @@ if sys.version_info < (3, 9):
 
 import argparse
 import threading
-import json
 import logging
 import os
 import time
 import re
 import random
-from pathlib import Path
 from typing import Optional, Tuple
 
 # 全局禁用数据检查（所有 DashScope API 调用）
 try:
-    import dashscope
+    import dashscope  # pylint: disable=unused-import
     from dashscope.audio.tts_v2 import SpeechSynthesizer, AudioFormat
 except ImportError:
     print("❌ 缺少依赖：dashscope\n   请运行：pip3 install dashscope", file=sys.stderr)
