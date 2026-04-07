@@ -48,8 +48,14 @@ DEFAULT_CHANNEL = os.environ.get('AEVIA_CHANNEL', 'feishu')
 session = requests.Session()
 
 # 进程退出时清理连接池（防止 fd 泄漏）
-import atexit
-atexit.register(lambda: session.close())
+# P3-2 修复：带 try/except 的安全关闭
+def _safe_close_session():
+    try:
+        session.close()
+    except Exception:
+        pass
+
+atexit.register(_safe_close_session)
 
 # ============ 安全工具函数 ============
 
@@ -121,7 +127,7 @@ def retry_on_failure(max_attempts: int = 3, delay: float = 1.0):
     def decorator(func):
         def wrapper(*args, **kwargs):
             last_exception = None
-            current_delay = delay  # 每次调用重置 delay
+            current_delay = delay  # 初始延迟，重试时指数递增
             for attempt in range(1, max_attempts + 1):
                 try:
                     return func(*args, **kwargs)
@@ -545,7 +551,18 @@ def image_to_video(
     
     api_key = config.get_api_key()
     timestamp = int(time.time())
-    
+
+    # P2-6 修复：prompt injection 检测
+    injection_keywords = [
+        'ignore', 'disregard', 'system prompt', 'override',
+        '忽略', '无视', '覆盖', '系统提示',
+    ]
+    prompt_lower = prompt.lower()
+    for keyword in injection_keywords:
+        if keyword.lower() in prompt_lower:
+            logger.error(f"❌ 检测到潜在 Prompt Injection 关键词：{keyword}")
+            return None
+
     # 步骤 1: 验证图片
     if not os.path.exists(image_path):
         logger.error(f"❌ 图片不存在：{image_path}")

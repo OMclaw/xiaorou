@@ -30,6 +30,26 @@ class ImageAnalysisError(Exception):
     pass
 
 
+# P2-3 修复：添加路径安全检查函数
+_ALLOWED_DIRS = [
+    Path('/home/admin/.openclaw/media/inbound'),
+    Path('/tmp/openclaw'),
+    Path('/tmp/xiaorou'),
+]
+
+
+def _is_path_allowed(file_path: str) -> bool:
+    """检查文件路径是否在允许的目录列表内"""
+    try:
+        resolved = Path(file_path).resolve()
+        return any(
+            resolved.is_relative_to(allowed.resolve())
+            for allowed in _ALLOWED_DIRS
+        )
+    except Exception:
+        return False
+
+
 def get_image_base64(image_path: str) -> str:
     """读取图片并转换为 base64"""
     # 检查文件大小（限制 10MB）

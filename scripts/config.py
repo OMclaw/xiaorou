@@ -27,14 +27,21 @@ class Config:
     _config_cache: Optional[dict] = None  # 配置文件缓存
     _cache_timestamp: float = 0  # 缓存时间戳
     _lock = threading.Lock()  # 线程锁
+    # P3-4 修复：TTL 缓存值
+    _api_key_ttl_value: Optional[int] = None
+    _cache_ttl_value: Optional[int] = None
     
     @property
     def _api_key_ttl(self) -> int:
-        return int(os.environ.get('XIAOROU_API_KEY_TTL', '60'))
-    
+        if self._api_key_ttl_value is None:
+            self._api_key_ttl_value = int(os.environ.get('XIAOROU_API_KEY_TTL', '60'))
+        return self._api_key_ttl_value
+
     @property
     def _cache_ttl(self) -> int:
-        return int(os.environ.get('XIAOROU_CONFIG_CACHE_TTL', '300'))
+        if self._cache_ttl_value is None:
+            self._cache_ttl_value = int(os.environ.get('XIAOROU_CONFIG_CACHE_TTL', '300'))
+        return self._cache_ttl_value
     
     def __new__(cls) -> 'Config':
         # 双重检查锁定模式

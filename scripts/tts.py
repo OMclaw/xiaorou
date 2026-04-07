@@ -112,13 +112,18 @@ def load_api_key() -> str:
 
 
 def get_audio_duration(audio_path: str) -> Optional[int]:
-    """获取音频时长（毫秒）- 纯 Python 实现，不依赖 ffprobe"""
+    """获取音频时长（毫秒）- 根据扩展名选择比特率估算"""
     try:
-        # OPUS 文件时长估算（基于文件大小和比特率）
-        # 飞书语音 32kbps OPUS，约 4KB/s
         file_size = os.path.getsize(audio_path)
-        # 估算：32kbps = 4KB/s，实际会有 OGG 容器开销
-        estimated_duration_ms = int((file_size / 4000) * 1000)
+        # P3-3 修复：根据扩展名选择比特率
+        ext = os.path.splitext(audio_path)[1].lower()
+        if ext == '.opus':
+            bytes_per_sec = 4000    # 32kbps OPUS ≈ 4KB/s
+        elif ext == '.mp3':
+            bytes_per_sec = 32000   # 256kbps MP3 ≈ 32KB/s
+        else:
+            bytes_per_sec = 16000   # 其他 ≈ 16KB/s
+        estimated_duration_ms = int((file_size / bytes_per_sec) * 1000)
         return estimated_duration_ms
     except Exception as e:
         logger.debug(f"获取音频时长失败：{e}")
@@ -158,78 +163,78 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
         logger.error(error_msg)
         return False, error_msg
     
-    # H-3 修复：使用线程锁保护 API Key 环境变量
+    # P1-3 修复：线程锁覆盖整个 SDK 调用（包括环境变量设置和合成调用）
     # C-3 修复：函数返回时清理环境变量
     with _tts_lock:
         _original_key = os.environ.get('DASHSCOPE_API_KEY')
         os.environ['DASHSCOPE_API_KEY'] = api_key
-    
-    try:
-        if voice not in AVAILABLE_VOICES:
-            logger.warning(f"音色 '{voice}' 不在推荐列表中")
-        
-        output_dir = os.path.dirname(output_path)
-        if output_dir and not os.path.exists(output_dir):
-            os.makedirs(output_dir, exist_ok=True)
-        
-        for attempt in range(1, retries + 1):
-            try:
-                logger.info(f"正在生成语音 (尝试 {attempt}/{retries})...")
-                
-                # 根据平台自动选择格式
-                audio_format = None
-                if channel:
-                    format_info, ext = get_format_for_channel(channel, output_path)
-                    if format_info:
-                        audio_format = format_info
-                        # 如果文件路径没有后缀，自动添加
-                        if not any(output_path.endswith(s) for s in ['.opus', '.wav', '.mp3']):
-                            output_path = output_path + ext
-                            logger.info(f"自动添加文件后缀：{output_path}")
-                
-                # 如果没有指定 channel 或平台未知，根据文件后缀判断（向后兼容）
-                if not audio_format:
-                    if output_path.endswith('.opus'):
-                        audio_format = AudioFormat.OGG_OPUS_24KHZ_MONO_32KBPS
-                    elif output_path.endswith('.wav'):
-                        audio_format = AudioFormat.WAV_24000HZ_MONO_16BIT
+
+        try:
+            if voice not in AVAILABLE_VOICES:
+                logger.warning(f"音色 '{voice}' 不在推荐列表中")
+
+            output_dir = os.path.dirname(output_path)
+            if output_dir and not os.path.exists(output_dir):
+                os.makedirs(output_dir, exist_ok=True)
+
+            for attempt in range(1, retries + 1):
+                try:
+                    logger.info(f"正在生成语音 (尝试 {attempt}/{retries})...")
+
+                    # 根据平台自动选择格式
+                    audio_format = None
+                    if channel:
+                        format_info, ext = get_format_for_channel(channel, output_path)
+                        if format_info:
+                            audio_format = format_info
+                            # 如果文件路径没有后缀，自动添加
+                            if not any(output_path.endswith(s) for s in ['.opus', '.wav', '.mp3']):
+                                output_path = output_path + ext
+                                logger.info(f"自动添加文件后缀：{output_path}")
+
+                    # 如果没有指定 channel 或平台未知，根据文件后缀判断（向后兼容）
+                    if not audio_format:
+                        if output_path.endswith('.opus'):
+                            audio_format = AudioFormat.OGG_OPUS_24KHZ_MONO_32KBPS
+                        elif output_path.endswith('.wav'):
+                            audio_format = AudioFormat.WAV_24000HZ_MONO_16BIT
+                        else:
+                            audio_format = AudioFormat.MP3_24000HZ_MONO_256KBPS
+
+                    synthesizer = SpeechSynthesizer(model=model, voice=voice, format=audio_format)
+                    audio = synthesizer.call(text)
+
+                    with open(output_path, 'wb') as f:
+                        f.write(audio)
+
+                    file_size = os.path.getsize(output_path)
+                    logger.info(f"✓ 语音生成成功 ({file_size} bytes)")
+                    return True, output_path
+
+                except Exception as e:
+                    error_msg = str(e)
+                    logger.error(f"API 错误：{error_msg}")
+                    if attempt < retries:
+                        jitter = random.uniform(0, 0.5)
+                        wait_time = (RETRY_DELAY * attempt) + jitter
+                        logger.warning(f"{wait_time:.2f}秒后重试...")
+                        time.sleep(wait_time)
                     else:
-                        audio_format = AudioFormat.MP3_24000HZ_MONO_256KBPS
-                
-                synthesizer = SpeechSynthesizer(model=model, voice=voice, format=audio_format)
-                audio = synthesizer.call(text)
-                
-                with open(output_path, 'wb') as f:
-                    f.write(audio)
-                
-                file_size = os.path.getsize(output_path)
-                logger.info(f"✓ 语音生成成功 ({file_size} bytes)")
-                return True, output_path
-                
-            except Exception as e:
-                error_msg = str(e)
-                logger.error(f"API 错误：{error_msg}")
-                if attempt < retries:
-                    jitter = random.uniform(0, 0.5)
-                    wait_time = (RETRY_DELAY * attempt) + jitter
-                    logger.warning(f"{wait_time:.2f}秒后重试...")
-                    time.sleep(wait_time)
-                else:
-                    return False, f"API 错误：{error_msg}"
-        
-        return False, "未知错误"
-    finally:
-        # 失败时清理已存在的输出文件
-        if os.path.exists(output_path):
-            try:
-                os.remove(output_path)
-            except Exception:
-                pass
-        # 清理环境变量中的 API Key（C-3 修复）
-        if _original_key is not None:
-            os.environ['DASHSCOPE_API_KEY'] = _original_key
-        else:
-            os.environ.pop('DASHSCOPE_API_KEY', None)
+                        return False, f"API 错误：{error_msg}"
+
+            return False, "未知错误"
+        finally:
+            # 失败时清理已存在的输出文件
+            if os.path.exists(output_path):
+                try:
+                    os.remove(output_path)
+                except Exception:
+                    pass
+            # 清理环境变量中的 API Key（C-3 修复）
+            if _original_key is not None:
+                os.environ['DASHSCOPE_API_KEY'] = _original_key
+            else:
+                os.environ.pop('DASHSCOPE_API_KEY', None)
 
 
 def main():

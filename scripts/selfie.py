@@ -13,6 +13,9 @@ import base64
 import logging
 import re
 import time
+import shutil
+import mimetypes
+import subprocess
 import requests
 from pathlib import Path
 from typing import Optional, Tuple, List
@@ -39,6 +42,10 @@ logging.basicConfig(
     stream=sys.stderr
 )
 logger = logging.getLogger(__name__)
+
+# P2-1 修复：飞书 token 缓存
+_feishu_token: Optional[str] = None
+_feishu_token_time: float = 0
 
 
 def is_safe_path(base_dir: Path, file_path: str) -> bool:
@@ -126,7 +133,6 @@ def get_image_base64(image_path: Path) -> str:
     if file_size > 10 * 1024 * 1024:
         raise ValueError(f"图片文件过大：{file_size / 1024 / 1024:.2f}MB（限制 10MB）")
     
-    import mimetypes
     mime_type, _ = mimetypes.guess_type(image_path)
     if not mime_type or not mime_type.startswith('image/'):
         mime_type = 'image/png'
@@ -316,25 +322,43 @@ def get_feishu_credentials() -> Tuple[Optional[str], Optional[str]]:
     return None, None
 
 
-def upload_feishu_image(image_file: str) -> Optional[str]:
-    """上传图片到飞书，返回 image_key"""
-    import requests
-    
+def get_feishu_access_token() -> Optional[str]:
+    """获取飞书 access_token（带 2 小时缓存）"""
+    global _feishu_token, _feishu_token_time
+
+    # 检查缓存是否有效（2 小时）
+    if _feishu_token and (time.time() - _feishu_token_time) < 7200:
+        return _feishu_token
+
     app_id, app_secret = get_feishu_credentials()
     if not app_id or not app_secret:
-        logger.warning("未配置飞书凭证，无法使用原生图片格式")
+        logger.warning("未配置飞书凭证，无法获取 access_token")
         return None
-    
+
     token_url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/"
-    token_response = requests.post(
-        token_url,
-        headers={"Content-Type": "application/json"},
-        json={"app_id": app_id, "app_secret": app_secret},
-        timeout=30
-    )
-    token_data = token_response.json()
-    access_token = token_data.get('tenant_access_token', '')
-    
+    try:
+        token_response = requests.post(
+            token_url,
+            headers={"Content-Type": "application/json"},
+            json={"app_id": app_id, "app_secret": app_secret},
+            timeout=30
+        )
+        token_data = token_response.json()
+        access_token = token_data.get('tenant_access_token', '')
+
+        if access_token:
+            _feishu_token = access_token
+            _feishu_token_time = time.time()
+            return access_token
+    except Exception as e:
+        logger.warning(f"获取飞书 access_token 失败：{e}")
+
+    return None
+
+
+def upload_feishu_image(image_file: str) -> Optional[str]:
+    """上传图片到飞书，返回 image_key"""
+    access_token = get_feishu_access_token()
     if not access_token:
         logger.warning("获取飞书 access_token 失败")
         return None
@@ -363,22 +387,7 @@ def upload_feishu_image(image_file: str) -> Optional[str]:
 
 def send_feishu_image_message(image_key: str, caption: str, receive_id: str, receive_id_type: str = "open_id") -> bool:
     """发送飞书原生图片消息"""
-    import requests
-    
-    app_id, app_secret = get_feishu_credentials()
-    if not app_id or not app_secret:
-        return False
-    
-    token_url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/"
-    token_response = requests.post(
-        token_url,
-        headers={"Content-Type": "application/json"},
-        json={"app_id": app_id, "app_secret": app_secret},
-        timeout=30
-    )
-    token_data = token_response.json()
-    access_token = token_data.get('tenant_access_token', '')
-    
+    access_token = get_feishu_access_token()
     if not access_token:
         return False
     
@@ -421,8 +430,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
     """发送图片到频道，飞书使用原生图片格式，其他平台使用文件"""
     try:
         logger.info(f"📤 发送到：{channel} (model: {model_name})")
-        import requests, subprocess
-        
+
         # 模型名称放在 caption 最开头，使用 emoji 标识
         model_display = get_model_display(model_name)
         full_caption = f"{model_display} {caption}"
@@ -468,7 +476,6 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         
         # 验证文件类型（防止恶意文件）
         # 使用 mimetypes 替代废弃的 imghdr (Python 3.13+)
-        import mimetypes
         mime_type, _ = mimetypes.guess_type(temp_file)
         if mime_type not in ['image/jpeg', 'image/png', 'image/webp']:
             logger.error(f"文件类型不正确：{mime_type}，仅支持 jpeg/png/webp")
@@ -504,7 +511,6 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             latest_path = config.get_temp_dir() / f'selfie_latest_{user_id}.jpg'
             temp_dst = None
             try:
-                import shutil
                 # 先写入临时文件，再原子重命名
                 temp_dst = str(latest_path) + '.tmp'
                 shutil.copy2(temp_file, temp_dst)
@@ -543,10 +549,15 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
 
 def generate_selfie(context: str, caption: str = "给你看看我现在的样子~", channel: Optional[str] = None, target: Optional[str] = None) -> bool:
     """普通模式：根据文字描述生成图片，单模型生成"""
+    # P1-2 修复：target 格式校验
+    if target and not re.match(r'^ou_[a-z0-9_]+$', target):
+        logger.warning(f"⚠️ target 格式不符合预期（应为 ou_[a-z0-9_]+）：{target}")
+    # P2-2 修复：临时文件清理由 send_to_channel 的 finally 块自行处理
+    # 若发生 KeyboardInterrupt，send_to_channel 确保已下载的临时文件被清理
     try:
         api_key = validate_config()
         logger.info(f"✅ API Key 已加载")
-        
+
         image_path = validate_character_image()
         logger.info("✅ 头像文件验证通过")
         
@@ -605,10 +616,15 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
     Returns:
         是否成功
     """
+    # P1-2 修复：target 格式校验
+    if target and not re.match(r'^ou_[a-z0-9_]+$', target):
+        logger.warning(f"⚠️ target 格式不符合预期（应为 ou_[a-z0-9_]+）：{target}")
+    # P2-2 修复：临时文件清理由 send_to_channel 的 finally 块自行处理
+    # 若发生 KeyboardInterrupt，send_to_channel 确保已下载的临时文件被清理
     try:
         api_key = validate_config()
         logger.info(f"✅ API Key 已加载")
-        
+
         # 1. 验证参考图
         ref_path = Path(reference_image_path)
         if not ref_path.exists():
@@ -644,7 +660,6 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
             logger.error(f"⚠️ 参考图路径不在允许范围内：{reference_image_path}")
             return False
         
-        import subprocess
         try:
             result = subprocess.run(
                 ['python3', str(analyzer_path), reference_image_path],
@@ -715,10 +730,11 @@ if __name__ == "__main__":
         reference_image = sys.argv[2]
         
         # JSON 模式：解析参数
+        channel = None
+        caption = "这是模仿参考图生成的～"
+        target = None
+        success = False
         if json_mode:
-            channel = None
-            caption = "这是模仿参考图生成的～"
-            target = None
             for i, arg in enumerate(sys.argv[3:], 3):
                 if arg.startswith('--caption='):
                     caption = arg[len('--caption='):]
@@ -726,6 +742,7 @@ if __name__ == "__main__":
             channel = sys.argv[3] if len(sys.argv) > 3 else None
             caption = sys.argv[4] if len(sys.argv) > 4 else "这是模仿参考图生成的～"
             target = sys.argv[5] if len(sys.argv) > 5 else None
+            success = generate_from_reference(reference_image, caption, channel, target)
         
         if not os.path.exists(reference_image):
             logger.error(f"参考图不存在：{reference_image}")
