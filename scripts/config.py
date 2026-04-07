@@ -7,7 +7,7 @@ import json
 import logging
 import threading
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 # 创建 logger
 logger = logging.getLogger('config')

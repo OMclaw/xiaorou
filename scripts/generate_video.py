@@ -20,6 +20,7 @@ import os
 import sys
 import time
 import re
+import atexit
 import requests
 import logging
 import subprocess
@@ -378,7 +379,7 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
     logger.info(f"⏳ 等待视频生成完成...")
     
     start_time = time.time()
-    poll_interval = POLL_INTERVAL  # 初始轮询间隔
+    poll_interval: float = POLL_INTERVAL  # 初始轮询间隔
     unknown_state_count = 0  # P21-P3-NEW-1 修复：未知状态计数器
     max_unknown_states = 10  # 最多允许 10 次未知状态
     
@@ -538,8 +539,8 @@ def image_to_video(
     resolution: str = "720P",
     duration: int = 5,
     model: str = "wan2.6-i2v",
-    channel: str = None,
-    target: str = None,
+    channel: Optional[str] = None,
+    target: Optional[str] = None,
     send_message: bool = True
 ) -> Optional[str]:
     """
