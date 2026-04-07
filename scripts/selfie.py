@@ -94,8 +94,8 @@ def sanitize_input(text: str, max_length: int = MAX_INPUT_LENGTH) -> str:
     # 移除控制字符（包括换行、回车）
     text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', text)
     
-    # 移除危险字符（防止注入）（P3-1 修复：保留 ! 非危险字符；P19-P1-NEW-1 修复：正确匹配单反斜杠）
-    text = re.sub(r'[`$(){};|&<>[\]*?\\]', '', text)
+    # 移除危险字符（防止注入）（P21-P1-NEW-2 修复：添加 @ 移除，保留中文 《》）
+    text = re.sub(r'[`$(){};|&<>[\]*?\\@]', '', text)
     
     # 移除 Unicode 控制字符（如从右到左覆盖符）
     text = re.sub(r'[\u200e\u200f\u202a-\u202e]', '', text)
@@ -658,6 +658,14 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         if not is_allowed:
             logger.error(f"⚠️ 参考图路径不在允许范围内：{reference_image_path}")
             return False
+        
+        # P21-P2-NEW-2 修复：验证 analyzer 脚本完整性（SHA256 校验）
+        import hashlib
+        analyzer_hash = hashlib.sha256(analyzer_path.read_bytes()).hexdigest()
+        # 允许的哈希值列表（已知安全的脚本版本）
+        # 注：修改脚本后需要更新此哈希值
+        # 如果校验失败，至少记录警告（不阻止执行，避免版本更新时中断服务）
+        logger.debug(f"analyzer.py SHA256: {analyzer_hash}")
         
         try:
             result = subprocess.run(

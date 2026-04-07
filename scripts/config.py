@@ -124,10 +124,11 @@ class Config:
             self._cache_timestamp = 0
     
     def get_temp_dir(self) -> Path:
-        """获取临时目录"""
-        temp_dir = Path(os.environ.get('XIAOROU_TEMP_DIR', '/tmp/xiaorou'))
-        temp_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-        return temp_dir
+        """获取临时目录（P21-P2-NEW-3 修复：缓存结果）"""
+        if not hasattr(self, '_temp_dir_cached'):
+            self._temp_dir_cached = Path(os.environ.get('XIAOROU_TEMP_DIR', '/tmp/xiaorou'))
+            self._temp_dir_cached.mkdir(mode=0o700, parents=True, exist_ok=True)
+        return self._temp_dir_cached
     
     def get_log_level(self) -> str:
         """获取日志级别"""

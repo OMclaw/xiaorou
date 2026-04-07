@@ -217,7 +217,9 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-
             response = session.post(policy_data['upload_host'], files=files, timeout=60, verify=True)
         
         if response.status_code != 200:
-            logger.error(f"❌ 上传失败：{response.text[:200]}")
+            # P21-P2-NEW-1 修复：脱敏上传错误响应（防止泄露 OSS 凭证）
+            safe_text = re.sub(r'[a-zA-Z0-9+/=]{20,}', '****REDACTED****', response.text[:200])
+            logger.error(f"❌ 上传失败：{safe_text}")
             return None
         
         # 返回 oss:// URL
@@ -377,6 +379,8 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
     
     start_time = time.time()
     poll_interval = POLL_INTERVAL  # 初始轮询间隔
+    unknown_state_count = 0  # P21-P3-NEW-1 修复：未知状态计数器
+    max_unknown_states = 10  # 最多允许 10 次未知状态
     
     while time.time() - start_time < MAX_WAIT:
         try:
@@ -413,7 +417,12 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
                 logger.error("❌ 任务已被取消")
                 return (False, "任务已被取消")
             else:
-                logger.warning(f"⚠️ 未知状态：{task_status}")
+                # P21-P3-NEW-1 修复：未知状态限制重试次数
+                unknown_state_count += 1
+                if unknown_state_count > max_unknown_states:
+                    logger.error(f"❌ 未知状态过多（{unknown_state_count}次），终止轮询：{task_status}")
+                    return (False, f"未知状态过多（{task_status}）")
+                logger.warning(f"⚠️ 未知状态：{task_status}（{unknown_state_count}/{max_unknown_states}）")
                 time.sleep(poll_interval)
                 continue
                 
@@ -562,17 +571,7 @@ def image_to_video(
     api_key = config.get_api_key()
     timestamp = int(time.time())
 
-    # P2-6 修复：prompt injection 检测（与 selfie.py 保持一致）
-    injection_keywords = [
-        'ignore', 'disregard', 'system prompt', 'system instruction',
-        'previous instructions', 'above instructions', 'override',
-        '忽略', '无视', '覆盖', '系统提示', '之前的指令',
-    ]
-    prompt_lower = prompt.lower()
-    for keyword in injection_keywords:
-        if keyword.lower() in prompt_lower:
-            logger.error(f"❌ 检测到潜在 Prompt Injection 关键词：{keyword}")
-            return None
+    # P21-P1-NEW-1 修复：generate_video 已有 injection 检测，image_to_video 无需重复
 
     # 步骤 1: 验证图片
     if not os.path.exists(image_path):
