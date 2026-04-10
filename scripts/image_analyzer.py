@@ -208,14 +208,16 @@ def build_reference_prompt(description: str) -> str:
 **生成目标 = 小柔的脸（图 1）+ 参考图的场景/服装/光影/姿势/表情（图 2）**
 
 【人物一致性 - 绝对禁止改变】
-- **必须使用输入图片（小柔头像）的脸部**，100% 保留小柔的五官、脸型、神态
+- **必须 100% 使用输入图片（小柔头像）的脸部**，完全保留小柔的五官、脸型、神态、发型
+- **禁止使用参考图的脸部**，参考图仅提供场景/服装/姿势/光影
+- **禁止混合两张图片的脸部特征**，必须完全使用输入图片的脸
 - 严格保留输入图片的人脸五官、脸型、神态、眼睛、鼻子、嘴巴、眉毛、耳朵完全不变
 - 不要改变脸型、下巴轮廓、颧骨形状、下颌线、额头形状
 - 不要改变眼睛形状、大小、间距、眼神、眼睑、睫毛
 - 不要改变鼻子形状、鼻梁高度、鼻翼宽度、鼻尖形状
 - 不要改变嘴唇厚度、嘴角形状、唇色、唇形
 - 不要改变发型、发色、发量、刘海、发际线
-- 人物身份必须是小柔，绝对不能变成其他人
+- 人物身份必须是小柔，绝对不能变成参考图里的人或其他人
 
 【允许改变的内容 - 从参考图提取并融入 prompt】
 - 全身穿搭（上衣、下装、连衣裙、配饰等）
@@ -225,11 +227,12 @@ def build_reference_prompt(description: str) -> str:
 - 拍摄角度、景深、构图
 - 表情（微笑、眼神等）
 
-【人物一致性反向提示词 - 最高权重】
-(different face:3.0), (different person:3.0), (wrong identity:3.0), (changed face:3.0), 
-(inconsistent face:3.0), (not the same person:3.0), (face from reference:3.0),
-(cloned face:2.5), (facial distortion:2.5), (altered features:2.5), (changed features:2.5),
-(blended face:2.5), (mixed face:2.5), (morphed face:2.5), (transformed face:2.5),
+【人物一致性反向提示词 - 终极权重】
+(different face:4.0), (different person:4.0), (wrong identity:4.0), (changed face:4.0), 
+(inconsistent face:4.0), (not the same person:4.0), (face from reference:4.0), (face swap:4.0),
+(cloned face:3.5), (facial distortion:3.5), (altered features:3.5), (changed features:3.5),
+(blended face:3.5), (mixed face:3.5), (morphed face:3.5), (transformed face:3.5),
+(another person face:4.0), (reference face:4.0), (use reference face:4.0),
 (worst quality, low quality:1.4), (deformed, distorted, disfigured:1.3), 
 bad anatomy, poorly drawn face, mutation, bad proportions, (blur, out of focus:1.2)"""
     
@@ -284,9 +287,10 @@ bad anatomy, poorly drawn face, mutation, bad proportions, (blur, out of focus:1
     # 组合完整 prompt - 商拍模板框架 + 人物一致性 + 参考图细节
     full_prompt = f"""{instruction}。
 
-【商拍模板框架 - 英文专业描述 + 强人物一致性】
-**CRITICAL: Use ONLY the face from input image (小柔), DO NOT use face from reference photo!**
-An East Asian female model (小柔 - use input image face ONLY), mid-20s, professional commercial photography shot. {extract_clothing_from_description(description)}. Shot in {extract_location_from_description(description)}. {extract_lighting_from_description(description)} lighting. {extract_pose_from_description(description)}. Captured with iPhone 15 Pro Max, natural skin folds and wrinkles, subtle shadow layers, realistic environmental details. Magazine editorial quality, ultra-detailed skin texture, natural color grading, Kodak Portra 400 film emulation. **Same person as input image, identical face, no face swap!**
+【商拍模板框架 - 英文专业描述 + 终极人物一致性】
+**EXTREMELY CRITICAL: Use ONLY the face from input image (小柔), NEVER use face from reference photo!**
+**STRICTLY same person as input image, 100% identical face, ABSOLUTELY NO face swap!**
+An East Asian female model (小柔 - MUST use input image face, DO NOT blend or mix with reference face), mid-20s, professional commercial photography shot. {extract_clothing_from_description(description)}. Shot in {extract_location_from_description(description)}. {extract_lighting_from_description(description)} lighting. {extract_pose_from_description(description)}. Captured with iPhone 15 Pro Max, natural skin folds and wrinkles, subtle shadow layers, realistic environmental details. Magazine editorial quality, ultra-detailed skin texture, natural color grading, Kodak Portra 400 film emulation. **IDENTICAL face to input image, same person, no transformation, no morphing!**
 
 【参考图细节 - 中文补充】{description}。
 
