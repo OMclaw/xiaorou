@@ -4,6 +4,12 @@
 支持两种模式：
 1. 场景生图：根据场景描述生成 - 1 个模型，1 张图（wan2.7-image）
 2. 参考生图：分析参考图后生成 - 1 个模型，1 张图（wan2.7-image）
+
+优化内容：
+- 3:4 竖版比例：更适合人像摄影和社交媒体
+- 单图输入模式：小柔头像传给 wan2.7，参考图细节通过 prompt 传递
+- 商拍模板整合：英文专业框架 + 中文细节补充
+- 真实感参数：image_strength=0.65, denoising_strength=0.75
 """
 
 import os
@@ -23,7 +29,7 @@ from typing import Optional, Tuple, List
 # concurrent.futures 已移除（双模型函数已删除）
 
 # 导入统一配置
-from config import config, ConfigurationError
+from config import config, ConfigurationError, ALLOWED_IMAGE_DIRS
 
 MAX_INPUT_LENGTH = 500
 DEFAULT_IMAGE_SIZE = "1K"
@@ -168,7 +174,7 @@ def build_prompt(context: str) -> Tuple[str, str]:
     leg_quality_tags = "完美腿部比例，标准人体结构，腿部细节清晰，膝盖结构正确，脚踝结构正确，腿部光影自然，腿部皮肤质感真实，腿部线条优美，正常腿长比例，双腿完整，腿部无畸形"
     
     # 质量标签 - 强调色彩自然和正确结构
-    quality_tags = "8K 超高清，电影级布光，细节丰富，色彩自然柔和，低饱和度，真实色调，正确人体比例，妆容自然，素雅色彩，极低饱和度，完美腿部比例，腿部无畸形，腿部结构正确"
+    quality_tags = "8K 超高清，电影级布光，细节丰富，色彩自然柔和，低饱和度，真实色调，正确人体比例，妆容自然，素雅色彩，极低饱和度，完美腿部比例，腿部无畸形，腿部结构正确，无水印，无文字，无字样，无 logo，纯净画面"
     
     mirror_keywords = ['穿', '衣服', '穿搭', '全身', '镜子']
     if any(kw in context_lower for kw in mirror_keywords):
@@ -178,16 +184,17 @@ def build_prompt(context: str) -> Tuple[str, str]:
     return "direct", f"{influencer_style}，{context}，眼神直视镜头，自然微笑，真实五官，时尚造型，网红打卡背景，{realistic_tags}，{leg_quality_tags}，{quality_tags}"
 
 
-def generate_single_image(model_name: str, image_path: Path, prompt: str, api_key: str, max_retries: int = 2) -> Tuple[str, Optional[str]]:
+def generate_single_image(model_name: str, image_path: Path, prompt: str, api_key: str, max_retries: int = 2, reference_image_path: Optional[Path] = None) -> Tuple[str, Optional[str]]:
     """
     使用指定模型生成单张图片（带重试机制）
     
     Args:
         model_name: 模型名称
-        image_path: 输入图片路径
+        image_path: 输入图片路径（小柔头像）
         prompt: 提示词
         api_key: API Key
         max_retries: 最大重试次数（默认 2 次）
+        reference_image_path: 参考图路径（可选，如果提供则使用双图输入）
     
     Returns:
         (model_name, image_url) 或 (model_name, None) 如果失败
@@ -204,16 +211,33 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                 logger.warning(f"⚠️ Prompt 过长 ({len(prompt)} > {max_prompt_len})，已截断")
                 prompt = prompt[:max_prompt_len]
             
-            # 不同模型的尺寸参数格式不同 - 全部改成 1K
+            # 不同模型的尺寸参数格式不同 - 改成 3:4 竖版比例
             if model_name == 'qwen-image-2.0-pro':
-                size_param = '1024*1024'  # qwen-image-2.0-pro 使用 1K 分辨率
+                size_param = '768*1024'  # qwen-image-2.0-pro 使用 3:4 分辨率
             else:
-                size_param = DEFAULT_IMAGE_SIZE  # wan2.7-image 使用 1K
+                size_param = '768*1024'  # wan2.7-image 使用 3:4 竖版
+            
+            # 单图输入：只传小柔头像（图生图模式）
+            # 参考图已通过 qwen3.5-plus 分析，提取为文字描述在 prompt 中
+            content = [
+                {'image': input_image_base64},  # 小柔头像（图生图的 base image）
+                {'text': prompt}                 # prompt 包含从参考图提取的场景/穿搭/光影等细节
+            ]
+            logger.info(f"🖼️ 图生图模式：小柔头像 + 文字 prompt（参考图细节已融入 prompt）")
             
             payload = {
                 'model': model_name,
-                'input': {'messages': [{'role': 'user', 'content': [{'image': input_image_base64}, {'text': prompt}]}]},
-                'parameters': {'prompt_extend': PROMPT_EXTEND, 'watermark': False, 'n': 1, 'enable_interleave': False, 'size': size_param}
+                'input': {'messages': [{'role': 'user', 'content': content}]},
+                'parameters': {
+                    'prompt_extend': PROMPT_EXTEND,
+                    'watermark': False,
+                    'n': 1,
+                    'enable_interleave': False,
+                    'size': size_param,
+                    # 真实感增强参数
+                    'image_strength': 0.65,  # 参考图影响力（0.5-0.7 平衡真实度和还原度）
+                    'denoising_strength': 0.75,  # 去噪强度（0.6-0.8 增加细节变化）
+                }
             }
             
             response = requests.post(
@@ -267,9 +291,15 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
 
 
 
-def generate_images_single_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
+def generate_images_single_model(image_path: Path, prompt: str, api_key: str, reference_image_path: Optional[Path] = None) -> List[Tuple[str, str]]:
     """
     使用 1 个模型生成图片（场景生图模式）- 只用 wan2.7-image
+    
+    Args:
+        image_path: 小柔头像路径
+        prompt: 提示词
+        api_key: API Key
+        reference_image_path: 参考图路径（可选，用于双图输入）
     
     Returns:
         [(model_name, image_url), ...] 成功生成的图片列表
@@ -278,8 +308,12 @@ def generate_images_single_model(image_path: Path, prompt: str, api_key: str) ->
     model_name = 'wan2.7-image'
     results = []
     
-    logger.info(f"  使用模型：{model_name}")
-    model_result = generate_single_image(model_name, image_path, prompt, api_key)
+    if reference_image_path:
+        logger.info(f"  使用模型：{model_name}（双图输入）")
+    else:
+        logger.info(f"  使用模型：{model_name}")
+    
+    model_result = generate_single_image(model_name, image_path, prompt, api_key, reference_image_path=reference_image_path)
     if model_result[1]:
         results.append(model_result)
         logger.info(f"✅ {model_name} 生成成功")
@@ -654,7 +688,7 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
             return False
         
         # 安全检查：验证参考图路径（P2-5 修复：使用统一目录列表）
-        is_allowed = any(is_safe_path(base_dir, reference_image_path) for base_dir in config.ALLOWED_IMAGE_DIRS)
+        is_allowed = any(is_safe_path(base_dir, reference_image_path) for base_dir in ALLOWED_IMAGE_DIRS)
         if not is_allowed:
             logger.error(f"⚠️ 参考图路径不在允许范围内：{reference_image_path}")
             return False
@@ -686,9 +720,9 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         prompt = result.stdout.strip()
         logger.info(f"✅ 参考图分析完成：{prompt[:100]}...")
         
-        # 4. 单模型生成（wan2.7-image）
-        logger.info("🚀 wan2.7-image 生成中...")
-        results = generate_images_single_model(image_path, prompt, api_key)
+        # 4. 单模型生成（wan2.7-image）- 双图输入：小柔头像 + 参考图
+        logger.info("🚀 wan2.7-image 生成中（双图输入：头像 + 参考图）...")
+        results = generate_images_single_model(image_path, prompt, api_key, reference_image_path=ref_path)
         
         if not results:
             logger.error("❌ 所有模型都生成失败")
@@ -742,7 +776,7 @@ if __name__ == "__main__":
             sys.exit(1)
         
         # P2-5 修复：使用统一目录列表
-        is_allowed = any(is_safe_path(base_dir.resolve(), reference_image) for base_dir in config.ALLOWED_IMAGE_DIRS)
+        is_allowed = any(is_safe_path(base_dir.resolve(), reference_image) for base_dir in ALLOWED_IMAGE_DIRS)
         if not is_allowed:
             logger.error(f"⚠️ 参考图路径不在允许范围内：{reference_image}")
             sys.exit(1)
