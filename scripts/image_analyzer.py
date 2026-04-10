@@ -226,9 +226,10 @@ def build_reference_prompt(description: str) -> str:
 - 表情（微笑、眼神等）
 
 【人物一致性反向提示词 - 最高权重】
-(different face:2.5), (different person:2.5), (wrong identity:2.5), (changed face:2.5), 
-(inconsistent face:2.5), (not the same person:2.5), (cloned face:2.0), 
-(facial distortion:2.0), (altered features:2.0), (changed features:2.0),
+(different face:3.0), (different person:3.0), (wrong identity:3.0), (changed face:3.0), 
+(inconsistent face:3.0), (not the same person:3.0), (face from reference:3.0),
+(cloned face:2.5), (facial distortion:2.5), (altered features:2.5), (changed features:2.5),
+(blended face:2.5), (mixed face:2.5), (morphed face:2.5), (transformed face:2.5),
 (worst quality, low quality:1.4), (deformed, distorted, disfigured:1.3), 
 bad anatomy, poorly drawn face, mutation, bad proportions, (blur, out of focus:1.2)"""
     
@@ -283,8 +284,9 @@ bad anatomy, poorly drawn face, mutation, bad proportions, (blur, out of focus:1
     # 组合完整 prompt - 商拍模板框架 + 人物一致性 + 参考图细节
     full_prompt = f"""{instruction}。
 
-【商拍模板框架 - 英文专业描述】
-An East Asian female model (小柔), mid-20s, professional commercial photography shot. {extract_clothing_from_description(description)}. Shot in {extract_location_from_description(description)}. {extract_lighting_from_description(description)} lighting. {extract_pose_from_description(description)}. Captured with iPhone 15 Pro Max, natural skin folds and wrinkles, subtle shadow layers, realistic environmental details. Magazine editorial quality, ultra-detailed skin texture, natural color grading, Kodak Portra 400 film emulation.
+【商拍模板框架 - 英文专业描述 + 强人物一致性】
+**CRITICAL: Use ONLY the face from input image (小柔), DO NOT use face from reference photo!**
+An East Asian female model (小柔 - use input image face ONLY), mid-20s, professional commercial photography shot. {extract_clothing_from_description(description)}. Shot in {extract_location_from_description(description)}. {extract_lighting_from_description(description)} lighting. {extract_pose_from_description(description)}. Captured with iPhone 15 Pro Max, natural skin folds and wrinkles, subtle shadow layers, realistic environmental details. Magazine editorial quality, ultra-detailed skin texture, natural color grading, Kodak Portra 400 film emulation. **Same person as input image, identical face, no face swap!**
 
 【参考图细节 - 中文补充】{description}。
 
