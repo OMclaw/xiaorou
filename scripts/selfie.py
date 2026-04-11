@@ -535,6 +535,13 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             '--media', temp_file
         ]
 
+        # 添加 --account 参数（飞书必须，避免跨应用 open_id 错误）
+        # 从环境变量读取，支持 AEVIA_ACCOUNT 或 OPENCLAW_ACCOUNT
+        account = os.environ.get('AEVIA_ACCOUNT') or os.environ.get('OPENCLAW_ACCOUNT', '')
+        if account:
+            cmd_args.extend(['--account', account])
+            logger.info(f"使用账号：{account}")
+
         result = None
         try:
             result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
