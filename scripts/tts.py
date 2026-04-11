@@ -243,11 +243,8 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
                     os.remove(output_path)
                 except Exception:
                     pass
-            # 清理环境变量中的 API Key（C-3 修复）
-            if _original_key is not None:
-                os.environ['DASHSCOPE_API_KEY'] = _original_key
-            else:
-                os.environ.pop('DASHSCOPE_API_KEY', None)
+            # P0-4 修复：不再需要清理环境变量（使用 per-request key）
+            pass
 
 
 def main():

@@ -649,7 +649,6 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             os.remove(temp_file)
             return False
 
-            return False
 
         # 所有平台统一使用 openclaw message send 命令(包括飞书)
         # 这样可以避免跨应用 open_id 权限问题

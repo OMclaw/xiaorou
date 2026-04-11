@@ -33,15 +33,10 @@ from typing import Optional, Tuple
 from config import config, ConfigurationError
 
 # ============ 配置初始化 ============
-
-# 使用配置模块（延迟创建，避免 import 时副作用 - L-7 修复）
-def _get_temp_dir() -> Path:
-    """获取视频临时目录（懒加载）"""
-    temp_dir = config.get_temp_dir() / 'videos'
-    temp_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-    return temp_dir
+# ========== 常量定义 ==========
+MAX_VIDEO_SIZE_MB = int(os.environ.get('XIAOROU_MAX_VIDEO_SIZE', '200'))
 POLL_INTERVAL = int(os.environ.get('XIAOROU_POLL_INTERVAL', '10'))
-MAX_WAIT = int(os.environ.get('XIAOROU_MAX_WAIT', '600'))  # 10 分钟超时控制
+MAX_WAIT = int(os.environ.get('XIAOROU_MAX_WAIT', '300'))  # 5 分钟超时控制
 # 从环境变量读取目标平台，支持多平台
 DEFAULT_TARGET = os.environ.get('AEVIA_TARGET', '')
 DEFAULT_CHANNEL = os.environ.get('AEVIA_CHANNEL', 'feishu')
