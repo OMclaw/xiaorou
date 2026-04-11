@@ -140,15 +140,16 @@ run_voice() {
   mkdir -p "$temp_dir" 2>/dev/null || true
   chmod 700 "$temp_dir" 2>/dev/null || true
   
-  # 使用 mktemp 创建不可预测的临时文件（避免竞争条件攻击）
+  # P1-4 修复：始终使用 mktemp 创建临时文件，失败则报错（不使用不安全的 fallback）
   local temp_audio
   temp_audio=$(mktemp "$temp_dir/xiaorou_voice_XXXXXX.$audio_ext" 2>/dev/null) || {
-    # fallback: 使用更随机的临时文件名
+    # 尝试系统临时目录
     temp_audio=$(mktemp -t "xiaorou_voice_XXXXXXXXXX.$audio_ext" 2>/dev/null) || {
-      # 最后 fallback: 使用时间戳 + 随机数
-      temp_audio="$temp_dir/xiaorou_voice_$(date +%s%N)_$RANDOM.$audio_ext"
+      error "无法创建安全的临时文件，请检查 /tmp 目录权限"
     }
   }
+  # 设置严格的文件权限
+  chmod 600 "$temp_audio" 2>/dev/null || true
   
   info "正在生成语音：$speech_text (格式：$audio_ext, 平台：$AEVIA_CHANNEL)"
   if python3 "$SCRIPT_DIR/tts.py" "$speech_text" "$temp_audio" 2>&1; then
@@ -272,6 +273,7 @@ run_chat() {
   local temp_json
   trap 'rm -f "$temp_json"' EXIT
   temp_json=$(mktemp)
+  chmod 600 "$temp_json"  # P1-4 修复：保护临时 JSON 文件权限
   
   jq -n \
     --arg input "$input" \

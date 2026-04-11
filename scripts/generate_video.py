@@ -23,6 +23,7 @@ import re
 import atexit
 import requests
 import logging
+import functools
 import subprocess
 import argparse
 from pathlib import Path

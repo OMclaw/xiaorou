@@ -13,12 +13,22 @@ from typing import Optional, List, Tuple
 logger = logging.getLogger('config')
 logger.setLevel(logging.DEBUG)
 
-# P2-5 修复：统一允许目录列表（P19-P2-1：不可变 tuple 防止外部篡改）
-ALLOWED_IMAGE_DIRS: Tuple[Path, ...] = (
-    Path('/home/admin/.openclaw/media/inbound'),
-    Path('/tmp/openclaw'),
-    Path('/tmp/xiaorou'),
-)
+# P1-3 修复：支持通过环境变量扩展允许的目录列表
+def get_allowed_image_dirs() -> Tuple[Path, ...]:
+    """从环境变量获取允许的目录列表"""
+    env_dirs = os.environ.get('XIAOROU_ALLOWED_DIRS', '')
+    if env_dirs:
+        # 支持冒号分隔的多个路径
+        return tuple(Path(p.strip()) for p in env_dirs.split(':') if p.strip())
+    # 默认目录
+    return (
+        Path('/home/admin/.openclaw/media/inbound'),
+        Path('/tmp/openclaw'),
+        Path('/tmp/xiaorou'),
+    )
+
+# 保持向后兼容的常量（使用默认值）
+ALLOWED_IMAGE_DIRS = get_allowed_image_dirs()
 
 
 class ConfigurationError(Exception):
