@@ -26,6 +26,7 @@ import mimetypes
 import subprocess
 import requests
 from pathlib import Path
+from urllib.parse import urlparse
 from typing import Optional, Tuple, List
 # concurrent.futures 已移除(双模型函数已删除)
 
@@ -593,12 +594,18 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT, stream=True)
         response.raise_for_status()
         
-        # P1-6 修复：SSRF 防护 - 验证最终 URL（防止重定向攻击）
+        # P1-2 修复：SSRF 防护增强 - 使用 URL 解析 + 后缀匹配（防止域名绕过）
         final_url = response.url
-        allowed_domains = ['dashscope.aliyuncs.com', 'aliyuncs.com', 'oss-cn', 'oss-accelerate', 'volces.com']
-        is_allowed = any(domain in final_url for domain in allowed_domains)
+        allowed_domains = ['dashscope.aliyuncs.com', 'aliyuncs.com', 'volces.com']
+        parsed = urlparse(final_url)
+        hostname = parsed.hostname or ''
+        # 精确匹配或后缀匹配（防止 evil-dashscope.aliyuncs.com 绕过）
+        is_allowed = any(
+            hostname == domain or hostname.endswith('.' + domain)
+            for domain in allowed_domains
+        )
         if not is_allowed:
-            logger.error(f"⚠️ 下载 URL 重定向到非信任域：{final_url}")
+            logger.error(f"⚠️ 下载 URL 重定向到非信任域：{final_url} (hostname: {hostname})")
             return False
         
         # 检查重定向次数（防止重定向循环攻击）
@@ -811,9 +818,12 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
             return False
 
         # 安全检查:验证参考图路径(P2-5 修复:使用统一目录列表)
-        # P0-2 修复：对 reference_image_path 进行 resolve，防止路径遍历攻击
-        is_allowed = any(is_safe_path(base_dir.resolve(), str(Path(reference_image_path).resolve())) 
-                         for base_dir in ALLOWED_IMAGE_DIRS)
+        # P0-2 修复：统一 resolve 处理，防止路径遍历攻击
+        ref_resolved = Path(reference_image_path).resolve()
+        is_allowed = any(
+            is_safe_path(base_dir.resolve(), str(ref_resolved)) 
+            for base_dir in ALLOWED_IMAGE_DIRS
+        )
         if not is_allowed:
             logger.error(f"⚠️ 参考图路径不在允许范围内:{reference_image_path}")
             return False
@@ -843,7 +853,8 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
             return False
 
         prompt = result.stdout.strip()
-        logger.info(f"✅ 参考图分析完成:{prompt[:100]}...")
+        # P1-1 修复：只记录长度，不记录敏感内容
+        logger.info(f"✅ 参考图分析完成 (prompt 长度：{len(prompt)})")
 
         # 4. 单模型生成(wan2.7-image)- 双图输入:小柔头像 + 参考图
         logger.info("🚀 wan2.7-image 生成中(双图输入:头像 + 参考图)...")

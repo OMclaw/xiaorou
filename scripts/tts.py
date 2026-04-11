@@ -166,8 +166,7 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
     # P1-3 修复：线程锁覆盖整个 SDK 调用（包括环境变量设置和合成调用）
     # C-3 修复：函数返回时清理环境变量
     with _tts_lock:
-        _original_key = os.environ.get('DASHSCOPE_API_KEY')
-        os.environ['DASHSCOPE_API_KEY'] = api_key
+        # P0-4 修复：不再需要设置环境变量，使用 per-request key
 
         try:
             if voice not in AVAILABLE_VOICES:
@@ -201,7 +200,14 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
                         else:
                             audio_format = AudioFormat.MP3_24000HZ_MONO_256KBPS
 
-                    synthesizer = SpeechSynthesizer(model=model, voice=voice, format=audio_format)
+                    # P0-4 修复：使用 per-request key 而非环境变量（线程安全）
+                    # DashScope SDK 支持通过 api_key 参数直接传参
+                    synthesizer = SpeechSynthesizer(
+                        model=model, 
+                        voice=voice, 
+                        format=audio_format,
+                        api_key=api_key  # 直接传参，不依赖全局环境变量
+                    )
                     audio = synthesizer.call(text)
 
                     with open(output_path, 'wb') as f:

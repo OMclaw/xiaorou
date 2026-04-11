@@ -38,21 +38,23 @@ sanitize_input() {
 }
 
 error() { 
-  # 错误信息也要净化，防止日志注入
+  # P1-7 修复：使用 printf 避免 $* 展开，更严格的净化
   local msg
-  msg=$(echo "$*"|tr -cd '[:alnum:][:space:][:punct:]-_')
-  echo "❌ 错误：$msg" >&2
+  msg=$(printf '%s' "$*" | tr -cd '[:alnum:][:space:][:punct:]-_')
+  printf '%s\n' "❌ 错误：$msg" >&2
   exit 1
 }
 warn() { 
+  # P1-7 修复：使用 printf 避免 $* 展开
   local msg
-  msg=$(echo "$*"|tr -cd '[:alnum:][:space:][:punct:]-_')
-  echo "⚠️ 警告：$msg" >&2
+  msg=$(printf '%s' "$*" | tr -cd '[:alnum:][:space:][:punct:]-_')
+  printf '%s\n' "⚠️ 警告：$msg" >&2
 }
 info() { 
+  # P1-7 修复：使用 printf 避免 $* 展开
   local msg
-  msg=$(echo "$*"|tr -cd '[:alnum:][:space:][:punct:]-_')
-  echo "ℹ️  $msg"
+  msg=$(printf '%s' "$*" | tr -cd '[:alnum:][:space:][:punct:]-_')
+  printf '%s\n' "ℹ️  $msg"
 }
 
 # ============ 模式检测 ============

@@ -83,6 +83,16 @@ class Config:
             # 重新加载配置（P1-4 修复：支持环境变量指定配置文件路径）
             config_file = self._get_config_path()
             if config_file.exists():
+                # P1-5 修复：验证配置文件权限（防止读取被篡改的配置）
+                try:
+                    stat_info = config_file.stat()
+                    # 检查是否对组/其他用户可读（权限过宽）
+                    if stat_info.st_mode & 0o077:
+                        logger.warning(f"配置文件权限过宽：{config_file} (mode: {oct(stat_info.st_mode)})")
+                        # 不阻止读取，但记录警告
+                except OSError:
+                    logger.debug(f"无法检查配置文件权限：{config_file}")
+                
                 try:
                     self._config_cache = json.loads(config_file.read_text(encoding='utf-8'))
                     self._cache_timestamp = current_time
