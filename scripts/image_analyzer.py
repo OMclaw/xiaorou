@@ -14,7 +14,6 @@
 from dashscope import MultiModalConversation
 import os
 import sys
-import json
 import base64
 import logging
 import re
@@ -28,7 +27,7 @@ from config import config, ConfigurationError, ALLOWED_IMAGE_DIRS
 # ========== 常量定义 ==========
 API_TIMEOUT = int(os.environ.get('XIAOROU_API_TIMEOUT', '120'))
 MAX_FILE_SIZE_MB = 20
-MAX_PROMPT_LENGTH = 4000
+MAX_PROMPT_LENGTH = 6000
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stderr)
 logger = logging.getLogger(__name__)
@@ -62,12 +61,12 @@ def _is_path_allowed(file_path: str) -> bool:
 
 def get_image_base64(image_path: str) -> str:
     """读取图片并转换为 base64"""
-    # 检查文件大小（限制 10MB）（P3-2 修复：添加空文件检查）
+    # 检查文件大小（限制 20MB）（P3-2 修复：添加空文件检查）
     file_size = os.path.getsize(image_path)
     if file_size == 0:
         raise ImageAnalysisError(f"图片文件为空：{image_path}")
     if file_size > MAX_FILE_SIZE_MB * 1024 * 1024:
-        raise ImageAnalysisError(f"图片文件过大：{file_size / 1024 / 1024:.2f}MB（限制 10MB）")
+        raise ImageAnalysisError(f"图片文件过大：{file_size / 1024 / 1024:.2f}MB（限制 {MAX_FILE_SIZE_MB}MB）")
     
     import mimetypes
     mime_type, _ = mimetypes.guess_type(image_path)

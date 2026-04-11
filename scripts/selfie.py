@@ -916,7 +916,7 @@ if __name__ == "__main__":
     import fcntl
 
     # 防并发刷屏锁机制
-    LOCK_FILE = "/tmp/xiaorou/selfie_task.lock"
+    LOCK_FILE = str(config.get_temp_dir() / "selfie_task.lock")
     os.makedirs(os.path.dirname(LOCK_FILE), exist_ok=True)
 
     lock_fd = None

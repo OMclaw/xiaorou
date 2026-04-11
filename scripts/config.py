@@ -33,6 +33,15 @@ def get_allowed_image_dirs() -> Tuple[Path, ...]:
 ALLOWED_IMAGE_DIRS = get_allowed_image_dirs()
 
 
+# ========== 图片相关常量 ==========
+# 图片文件大小限制（MB）
+MAX_IMAGE_SIZE_MB = int(os.environ.get('XIAOROU_MAX_IMAGE_SIZE', '20'))
+# 图片分析 prompt 最大长度
+MAX_IMAGE_PROMPT_LENGTH = int(os.environ.get('XIAOROU_MAX_IMAGE_PROMPT_LENGTH', '6000'))
+# 下载图片最大大小（MB）
+MAX_DOWNLOAD_SIZE_MB = int(os.environ.get('XIAOROU_MAX_DOWNLOAD_SIZE', '20'))
+
+
 class ConfigurationError(Exception):
     """配置错误"""
     pass

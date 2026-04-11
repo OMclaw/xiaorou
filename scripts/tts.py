@@ -33,10 +33,6 @@ _tts_lock = threading.Lock()
 # 可用音色列表（包含小柔默认音色）
 
 # ========== 常量定义 ==========
-DEFAULT_MODEL = 'cosyvoice-v1'
-DEFAULT_VOICE = 'longhua'
-DEFAULT_RETRIES = 3
-DEFAULT_TIMEOUT = 60
 
 AVAILABLE_VOICES = ["longanyang", "longxiaochun", "longcheng", "longxiaoyu", "longxiaoxia", "longya", "longwan", "longyingxiao_v3"]
 DEFAULT_VOICE = "longyingxiao_v3"
