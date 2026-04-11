@@ -467,7 +467,7 @@ def download_video(video_url: str, output_path: str) -> bool:
         if content_length:
             try:
                 size_mb = int(content_length) / 1024 / 1024
-                if size_mb > 200:
+                if size_mb > MAX_VIDEO_SIZE_MB:
                     logger.error(f"❌ 视频过大（{size_mb:.1f}MB > 200MB）")
                     return False
             except (ValueError, TypeError):

@@ -64,7 +64,7 @@ def get_image_base64(image_path: str) -> str:
     file_size = os.path.getsize(image_path)
     if file_size == 0:
         raise ImageAnalysisError(f"图片文件为空：{image_path}")
-    if file_size > 10 * 1024 * 1024:
+    if file_size > MAX_FILE_SIZE_MB * 1024 * 1024:
         raise ImageAnalysisError(f"图片文件过大：{file_size / 1024 / 1024:.2f}MB（限制 10MB）")
     
     import mimetypes

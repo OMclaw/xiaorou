@@ -33,6 +33,14 @@ from typing import Optional, Tuple, List
 # 导入统一配置
 from config import config, ConfigurationError, ALLOWED_IMAGE_DIRS
 
+
+# ========== 常量定义 ==========
+IMAGE_STRENGTH_DEFAULT = float(os.environ.get('XIAOROU_IMAGE_STRENGTH', '0.65'))
+DENOISING_STRENGTH_DEFAULT = float(os.environ.get('XIAOROU_DENOISING_STRENGTH', '0.75'))
+MAX_DOWNLOAD_SIZE_MB = 20
+MAX_IMAGE_SIZE_MB = 10
+MAX_PROMPT_LENGTH = 6000
+
 MAX_INPUT_LENGTH = 500
 DEFAULT_IMAGE_SIZE = "1K"
 PROMPT_EXTEND = False  # 关闭 AI 自动优化提示词
@@ -204,7 +212,7 @@ def get_image_base64(image_path: Path) -> str:
     file_size = image_path.stat().st_size
     if file_size == 0:
         raise ValueError(f"图片文件为空:{image_path}")
-    if file_size > 10 * 1024 * 1024:
+    if file_size > MAX_IMAGE_SIZE_MB * 1024 * 1024:
         raise ValueError(f"图片文件过大:{file_size / 1024 / 1024:.2f}MB(限制 10MB)")
 
     mime_type, _ = mimetypes.guess_type(image_path)
@@ -274,7 +282,7 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
             logger.info(f"🖼️ 使用本地头像,模型:{model_name} (尝试 {attempt + 1}/{max_retries + 1})")
 
             # Prompt 长度校验(防止超长 prompt 导致 API 拒绝或静默截断)
-            max_prompt_len = 6000
+            max_prompt_len = MAX_PROMPT_LENGTH
             if len(prompt) > max_prompt_len:
                 logger.warning(f"⚠️ Prompt 过长 ({len(prompt)} > {max_prompt_len}),已截断")
                 prompt = prompt[:max_prompt_len]
@@ -303,8 +311,8 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                     'enable_interleave': False,
                     'size': size_param,
                     # 真实感增强参数
-                    'image_strength': 0.65,  # 参考图影响力(0.5-0.7 平衡真实度和还原度)
-                    'denoising_strength': 0.75,  # 去噪强度(0.6-0.8 增加细节变化)
+                    'image_strength': IMAGE_STRENGTH_DEFAULT,  # 参考图影响力(0.5-0.7 平衡真实度和还原度)
+                    'denoising_strength': DENOISING_STRENGTH_DEFAULT,  # 去噪强度(0.6-0.8 增加细节变化)
                 }
             }
 
@@ -626,7 +634,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             return False
 
         # H-2 修复:流式下载并限制总大小
-        max_download_size = 20 * 1024 * 1024  # 20MB
+        max_download_size = MAX_DOWNLOAD_SIZE_MB * 1024 * 1024  # 20MB
         downloaded = 0
         with open(temp_file, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):

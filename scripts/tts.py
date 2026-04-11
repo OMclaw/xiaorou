@@ -31,6 +31,13 @@ logger = logging.getLogger('cosyvoice-tts')
 _tts_lock = threading.Lock()
 
 # 可用音色列表（包含小柔默认音色）
+
+# ========== 常量定义 ==========
+DEFAULT_MODEL = 'cosyvoice-v1'
+DEFAULT_VOICE = 'longhua'
+DEFAULT_RETRIES = 3
+DEFAULT_TIMEOUT = 60
+
 AVAILABLE_VOICES = ["longanyang", "longxiaochun", "longcheng", "longxiaoyu", "longxiaoxia", "longya", "longwan", "longyingxiao_v3"]
 DEFAULT_VOICE = "longyingxiao_v3"
 DEFAULT_MODEL = "cosyvoice-v3-flash"
@@ -176,7 +183,7 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
             if output_dir and not os.path.exists(output_dir):
                 os.makedirs(output_dir, exist_ok=True)
 
-            for attempt in range(1, retries + 1):
+            for attempt in range(1, DEFAULT_RETRIES + 1):
                 try:
                     logger.info(f"正在生成语音 (尝试 {attempt}/{retries})...")
 
