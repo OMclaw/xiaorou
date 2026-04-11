@@ -133,17 +133,26 @@ class Config:
             self._cache_timestamp = 0
     
     def get_temp_dir(self) -> Path:
-        """获取临时目录（P1-5 修复：增强权限检查）"""
+        """获取临时目录（P0-3 修复：root UID 安全增强）"""
         if not hasattr(self, '_temp_dir_cached'):
-            temp_dir = Path(os.environ.get('XIAOROU_TEMP_DIR', f'/tmp/xiaorou_{os.getuid()}'))
+            uid = os.getuid()
+            # P0-3 修复：如果 UID 为 0(root)，使用随机后缀避免共享目录
+            if uid == 0:
+                import secrets
+                suffix = secrets.token_hex(8)
+                logger.debug("检测到 root 用户，使用随机临时目录后缀")
+            else:
+                suffix = str(uid)
+            
+            temp_dir = Path(os.environ.get('XIAOROU_TEMP_DIR', f'/tmp/xiaorou_{suffix}'))
             
             # 检查目录是否已存在且所有者不匹配
             if temp_dir.exists():
                 try:
                     stat_info = temp_dir.stat()
-                    if stat_info.st_uid != os.getuid():
+                    if stat_info.st_uid != uid:
                         raise ConfigurationError(
-                            f"临时目录所有者不匹配：{temp_dir} (所有者 UID: {stat_info.st_uid}, 当前 UID: {os.getuid()})"
+                            f"临时目录所有者不匹配：{temp_dir} (所有者 UID: {stat_info.st_uid}, 当前 UID: {uid})"
                         )
                 except OSError as e:
                     logger.debug(f"检查临时目录权限失败：{e}")

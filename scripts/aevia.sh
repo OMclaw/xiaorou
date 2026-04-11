@@ -32,9 +32,9 @@ sanitize_input() {
   local input="$1"
   # 严格长度限制（可配置）
   [ ${#input} -gt "$AEVIA_MAX_INPUT_LENGTH" ] && input="${input:0:$AEVIA_MAX_INPUT_LENGTH}"
-  # 只移除明确的危险字符，保留 Unicode（含中文）和 `/`（URL/路径需要）
-  # 移除控制字符和 shell 元字符（但保留 / 避免破坏 URL 和正常文本）
-  printf '%s' "$input"|tr -d '\x00-\x1f\x7f-\x9f`$\\|;&<>()'
+  # P0-4 修复：只保留安全的可见字符（中文、英文、数字、常见标点、空格、/）
+  # 避免使用 \x00-\x1f 范围（部分 shell 环境不生效）
+  printf '%s' "$input" | tr -cd '[:alnum:][:space:][:punct:]/'
 }
 
 error() { 

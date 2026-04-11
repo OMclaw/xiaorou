@@ -38,14 +38,22 @@ class ImageAnalysisError(Exception):
 
 
 # P2-3 修复：路径安全检查函数（P2-5 修复：使用统一目录列表）
+# P1-1 修复：Python 3.8 兼容性（is_relative_to 需要 3.9+）
 def _is_path_allowed(file_path: str) -> bool:
     """检查文件路径是否在允许的目录列表内"""
     try:
         resolved = Path(file_path).resolve()
-        return any(
-            resolved.is_relative_to(allowed.resolve())
-            for allowed in ALLOWED_IMAGE_DIRS
-        )
+        for allowed in ALLOWED_IMAGE_DIRS:
+            allowed_resolved = allowed.resolve()
+            try:
+                # Python 3.9+ 使用 is_relative_to
+                if resolved.is_relative_to(allowed_resolved):
+                    return True
+            except AttributeError:
+                # Python 3.8 备用方案：使用字符串前缀检查
+                if str(resolved).startswith(str(allowed_resolved) + os.sep):
+                    return True
+        return False
     except Exception:
         return False
 

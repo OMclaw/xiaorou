@@ -588,6 +588,10 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         temp_file = f'{temp_dir}/selfie_{safe_model_name}_{timestamp}.jpg'
         os.makedirs(str(temp_dir), mode=0o700, exist_ok=True)
 
+        # 发起 HTTP 请求下载图片
+        response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT, stream=True)
+        response.raise_for_status()
+        
         # P1-6 修复：SSRF 防护 - 验证最终 URL（防止重定向攻击）
         final_url = response.url
         allowed_domains = ['dashscope.aliyuncs.com', 'aliyuncs.com', 'oss-cn', 'oss-accelerate', 'volces.com']
@@ -629,12 +633,6 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             os.remove(temp_file)
             return False
 
-            return False
-            return False
-            return False
-            return False
-            return False
-            return False
             return False
 
         # 所有平台统一使用 openclaw message send 命令(包括飞书)
