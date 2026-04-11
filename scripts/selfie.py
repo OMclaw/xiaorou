@@ -162,13 +162,13 @@ def build_prompt(context: str) -> Tuple[str, str]:
     ]
     for pattern in injection_patterns:
         if pattern in context_lower:
-            raise ValueError(f"检测到潜在 Prompt Injection 模式：{pattern}")
-    
-    # 网红风格基础元素 - 减少 AI 感，增加真实感，清淡妆容，无腮红
-    influencer_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红"
-    
-    # 真实感增强标签 - 自然光滑，无黑点，淡粉色嘴唇，无腮红，色彩自然，正确人体结构，清淡妆容
-    realistic_tags = "真实摄影，自然光滑皮肤，清透肌肤，真实光影，柔和光线，生活照风格，无 AI 感，无塑料感，无黑点，无瑕疵，无口红，裸唇，唇色自然，无妆感，嘴唇本色，无腮红，清淡底妆，底妆轻薄透明，腮红极淡，几乎无腮红，裸妆效果，妆容极淡，色彩柔和自然，低饱和度，避免过度鲜艳，正确人体结构，正常双手，无多余肢体，妆容清淡自然，脸部妆容自然，避免浓妆，色彩素雅，莫兰迪色系，极低饱和度，色彩非常淡，淡雅色调，低对比度，柔和色彩，【自然真实 - 极高优先级】动作极其自然，表情生动真实，姿态放松不僵硬，抓拍感强，生活化场景，日常自然状态，完全不做作，肢体语言流畅，神态自然有神，避免摆拍感，避免刻板姿势，避免表情呆板"
+            raise ValueError(f"检测到潜在 Prompt Injection 模式:{pattern}")
+
+    # 网红风格基础元素 - 减少 AI 感,增加真实感,清淡妆容,无腮红
+    influencer_style = "网红风格,时尚穿搭,专业摄影,清淡妆容,裸妆,无腮红"
+
+    # 真实感增强标签 - 自然光滑,无黑点,淡粉色嘴唇,无腮红,色彩自然,正确人体结构,清淡妆容
+    realistic_tags = "真实摄影,自然光滑皮肤,清透肌肤,真实光影,柔和光线,生活照风格,无 AI 感,无塑料感,无黑点,无瑕疵,无口红,裸唇,唇色自然,无妆感,嘴唇本色,无腮红,清淡底妆,底妆轻薄透明,腮红极淡,几乎无腮红,裸妆效果,妆容极淡,色彩柔和自然,低饱和度,避免过度鲜艳,正确人体结构,正常双手,无多余肢体,妆容清淡自然,脸部妆容自然,避免浓妆,色彩素雅,莫兰迪色系,极低饱和度,色彩非常淡,淡雅色调,低对比度,柔和色彩,【自然真实 - 极高优先级】动作极其自然,表情生动真实,姿态放松不僵硬,抓拍感强,生活化场景,日常自然状态,完全不做作,肢体语言流畅,神态自然有神,避免摆拍感,避免刻板姿势,避免表情呆板"
     # 腿部质量标签 - 专门针对腿部优化
     leg_quality_tags = "完美腿部比例,标准人体结构,腿部细节清晰,膝盖结构正确,脚踝结构正确,腿部光影自然,腿部皮肤质感真实,腿部线条优美,正常腿长比例,双腿完整,腿部无畸形"
 
@@ -755,9 +755,6 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
-    # --json 模式:输出 JSON 结果,不发送(由 bot 处理发送)
-=======
     import fcntl
 
     # 防并发刷屏锁机制
@@ -770,7 +767,7 @@ if __name__ == "__main__":
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         lock_fd.write(str(os.getpid()))
     except IOError:
-        # 如果无法获取锁,说明已有任务在运行,直接退出防止刷屏
+        # 如果无法获取锁，说明已有任务在运行，直接退出防止刷屏
         print("Task is already running. Skipping to prevent spam.")
         sys.exit(0)
 
@@ -787,8 +784,7 @@ if __name__ == "__main__":
             pass
     atexit.register(release_lock)
 
-    # --json 模式:输出 JSON 结果,不发送(由 bot 处理发送)
->>>>>>> 1fa6e25 (优化生图 prompt: 增强自然真实感,强调动作表情自然,避免摆拍感)
+    # --json 模式：输出 JSON 结果，不发送（由 bot 处理发送）
     json_mode = '--json' in sys.argv
 
     if len(sys.argv) < 2 or (len(sys.argv) == 2 and sys.argv[1] == '--json'):
