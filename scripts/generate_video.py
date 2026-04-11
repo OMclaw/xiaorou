@@ -462,11 +462,16 @@ def download_video(video_url: str, output_path: str) -> bool:
         response = session.get(video_url, timeout=300, stream=True, verify=True)
         response.raise_for_status()
         
-        # 检查 Content-Length
+        # P0-5 修复：添加异常处理，防止 Content-Length 非整数导致崩溃
         content_length = response.headers.get('Content-Length')
-        if content_length and int(content_length) > 200 * 1024 * 1024:
-            logger.error(f"❌ 视频过大（{int(content_length) / 1024 / 1024:.1f}MB > 200MB）")
-            return False
+        if content_length:
+            try:
+                size_mb = int(content_length) / 1024 / 1024
+                if size_mb > 200:
+                    logger.error(f"❌ 视频过大（{size_mb:.1f}MB > 200MB）")
+                    return False
+            except (ValueError, TypeError):
+                logger.warning(f"⚠️ Content-Length 无效：{content_length}")
         
         with open(temp_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):

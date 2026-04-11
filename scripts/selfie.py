@@ -21,6 +21,7 @@ import re
 import time
 import threading
 import shutil
+import tempfile
 import mimetypes
 import subprocess
 import requests
@@ -810,7 +811,9 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
             return False
 
         # 安全检查:验证参考图路径(P2-5 修复:使用统一目录列表)
-        is_allowed = any(is_safe_path(base_dir, reference_image_path) for base_dir in ALLOWED_IMAGE_DIRS)
+        # P0-2 修复：对 reference_image_path 进行 resolve，防止路径遍历攻击
+        is_allowed = any(is_safe_path(base_dir.resolve(), str(Path(reference_image_path).resolve())) 
+                         for base_dir in ALLOWED_IMAGE_DIRS)
         if not is_allowed:
             logger.error(f"⚠️ 参考图路径不在允许范围内:{reference_image_path}")
             return False
