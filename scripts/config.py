@@ -14,8 +14,10 @@ logger = logging.getLogger('config')
 logger.setLevel(logging.DEBUG)
 
 # P1-3 修复：支持通过环境变量扩展允许的目录列表
+# ⚠️ 注意：ALLOWED_IMAGE_DIRS 在模块加载时即确定，后续环境变量修改无效
+# 建议使用 get_allowed_image_dirs() 函数获取最新值
 def get_allowed_image_dirs() -> Tuple[Path, ...]:
-    """从环境变量获取允许的目录列表"""
+    """从环境变量获取允许的目录列表（动态获取，支持环境变量覆盖）"""
     env_dirs = os.environ.get('XIAOROU_ALLOWED_DIRS', '')
     if env_dirs:
         # 支持冒号分隔的多个路径
@@ -27,7 +29,7 @@ def get_allowed_image_dirs() -> Tuple[Path, ...]:
         Path('/tmp/xiaorou'),
     )
 
-# 保持向后兼容的常量（使用默认值）
+# 保持向后兼容的常量（⚠️ 模块加载时即确定）
 ALLOWED_IMAGE_DIRS = get_allowed_image_dirs()
 
 

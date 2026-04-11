@@ -35,8 +35,8 @@ from config import config, ConfigurationError
 # ============ 配置初始化 ============
 # ========== 常量定义 ==========
 MAX_VIDEO_SIZE_MB = int(os.environ.get('XIAOROU_MAX_VIDEO_SIZE', '200'))
-POLL_INTERVAL = int(os.environ.get('XIAOROU_POLL_INTERVAL', '10'))
-MAX_WAIT = int(os.environ.get('XIAOROU_MAX_WAIT', '300'))  # 5 分钟超时控制
+POLL_INTERVAL_SECONDS = int(os.environ.get('XIAOROU_POLL_INTERVAL', '10'))
+MAX_WAIT_SECONDS = int(os.environ.get('XIAOROU_MAX_WAIT', '300'))  # 5 分钟超时控制
 # 从环境变量读取目标平台，支持多平台
 DEFAULT_TARGET = os.environ.get('AEVIA_TARGET', '')
 DEFAULT_CHANNEL = os.environ.get('AEVIA_CHANNEL', 'feishu')

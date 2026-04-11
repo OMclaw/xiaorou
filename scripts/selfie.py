@@ -156,6 +156,20 @@ def _validate_image_file(file_path: str) -> bool:
         return False
 
 
+
+
+def is_lock_expired(lock_path: str, timeout_seconds: int = 300) -> bool:
+    """检查锁文件是否过期（P0-5 修复：防止进程异常退出后锁文件残留）"""
+    try:
+        if not os.path.exists(lock_path):
+            return True
+        # 检查文件修改时间
+        mtime = os.path.getmtime(lock_path)
+        return (time.time() - mtime) > timeout_seconds
+    except Exception:
+        return False
+
+
 def sanitize_input(text: str, max_length: int = MAX_INPUT_LENGTH) -> str:
     """
     净化用户输入,移除危险字符并验证长度
