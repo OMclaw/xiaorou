@@ -27,8 +27,8 @@ from config import config, ConfigurationError, ALLOWED_IMAGE_DIRS
 
 # ========== 常量定义 ==========
 API_TIMEOUT = int(os.environ.get('XIAOROU_API_TIMEOUT', '120'))
-MAX_FILE_SIZE_MB = 10
-MAX_PROMPT_LENGTH = 2000
+MAX_FILE_SIZE_MB = 20
+MAX_PROMPT_LENGTH = 4000
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s', stream=sys.stderr)
 logger = logging.getLogger(__name__)
