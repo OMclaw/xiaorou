@@ -70,8 +70,8 @@ class Config:
             if self._config_cache and (current_time - self._cache_timestamp) < self._cache_ttl:
                 return self._config_cache
             
-            # 重新加载配置
-            config_file = Path.home() / '.openclaw/openclaw.json'
+            # 重新加载配置（P1-4 修复：支持环境变量指定配置文件路径）
+            config_file = self._get_config_path()
             if config_file.exists():
                 try:
                     self._config_cache = json.loads(config_file.read_text(encoding='utf-8'))
@@ -85,6 +85,15 @@ class Config:
             
             self._config_cache = {}
             return {}
+    
+    def _get_config_path(self) -> Path:
+        """获取配置文件路径（支持环境变量）"""
+        # 支持环境变量指定配置文件路径
+        env_path = os.environ.get('OPENCLAW_CONFIG_PATH', '')
+        if env_path:
+            return Path(env_path)
+        # 默认路径
+        return Path.home() / '.openclaw/openclaw.json'
     
     def get_api_key(self) -> str:
         """获取 API Key（环境变量 > 配置文件，带 TTL 缓存）"""
@@ -124,10 +133,25 @@ class Config:
             self._cache_timestamp = 0
     
     def get_temp_dir(self) -> Path:
-        """获取临时目录（P21-P2-NEW-3 修复：缓存结果）"""
+        """获取临时目录（P1-5 修复：增强权限检查）"""
         if not hasattr(self, '_temp_dir_cached'):
-            self._temp_dir_cached = Path(os.environ.get('XIAOROU_TEMP_DIR', '/tmp/xiaorou'))
-            self._temp_dir_cached.mkdir(mode=0o700, parents=True, exist_ok=True)
+            temp_dir = Path(os.environ.get('XIAOROU_TEMP_DIR', f'/tmp/xiaorou_{os.getuid()}'))
+            
+            # 检查目录是否已存在且所有者不匹配
+            if temp_dir.exists():
+                try:
+                    stat_info = temp_dir.stat()
+                    if stat_info.st_uid != os.getuid():
+                        raise ConfigurationError(
+                            f"临时目录所有者不匹配：{temp_dir} (所有者 UID: {stat_info.st_uid}, 当前 UID: {os.getuid()})"
+                        )
+                except OSError as e:
+                    logger.debug(f"检查临时目录权限失败：{e}")
+            
+            # 创建目录（mode=0o700 确保只有当前用户可访问）
+            temp_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+            self._temp_dir_cached = temp_dir
+            
         return self._temp_dir_cached
     
     def get_log_level(self) -> str:

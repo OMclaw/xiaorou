@@ -57,6 +57,8 @@ def is_safe_path(base_dir: Path, file_path: str) -> bool:
     """
     检查文件路径是否在允许的目录内(防止路径遍历攻击)
 
+    P1-6 修复:增强路径遍历检查,防止符号链接和 .. 绕过
+
     Args:
         base_dir: 允许的基础目录
         file_path: 要检查的文件路径
@@ -65,6 +67,28 @@ def is_safe_path(base_dir: Path, file_path: str) -> bool:
         是否安全
     """
     try:
+        # 拒绝包含 .. 的路径(显式路径遍历)
+        if '..' in str(file_path):
+            logger.warning(f"检测到路径遍历尝试:{file_path}")
+            return False
+
+        # 拒绝非绝对路径(要求明确指定)
+        if not os.path.isabs(file_path):
+            logger.warning(f"拒绝相对路径:{file_path}")
+            return False
+
+        # 检查符号链接(防止通过符号链接绕过)
+        if os.path.islink(file_path):
+            try:
+                link_target = os.readlink(file_path)
+                # 拒绝指向外部的符号链接
+                if link_target.startswith('/') and not str(link_target).startswith(str(base_dir)):
+                    logger.warning(f"检测到外部符号链接:{file_path} -> {link_target}")
+                    return False
+            except OSError:
+                return False
+
+        # 解析真实路径(包括符号链接)
         base_dir = base_dir.resolve()
         resolved = Path(file_path).resolve()
 
@@ -75,7 +99,50 @@ def is_safe_path(base_dir: Path, file_path: str) -> bool:
             return True
         except ValueError:
             return False
-    except Exception:
+    except Exception as e:
+        logger.debug(f"路径安全检查失败:{e}")
+        return False
+
+
+
+
+def _validate_image_file(file_path: str) -> bool:
+    """
+    验证图片文件类型（基于魔数检查）
+    
+    P1-6 修复：增强文件类型验证，防止恶意文件伪造扩展名
+    
+    Args:
+        file_path: 图片文件路径
+    
+    Returns:
+        是否是有效的图片文件
+    """
+    magic_bytes = {
+        b'\xff\xd8\xff': 'jpeg',
+        b'\x89PNG\r\n\x1a\n': 'png',
+        b'RIFF....WEBP': 'webp',
+    }
+    
+    try:
+        with open(file_path, 'rb') as f:
+            header = f.read(12)
+        
+        # 检查 JPEG
+        if header[:3] == b'\xff\xd8\xff':
+            return True
+        
+        # 检查 PNG
+        if header[:8] == b'\x89PNG\r\n\x1a\n':
+            return True
+        
+        # 检查 WEBP (RIFF....WEBP)
+        if header[:4] == b'RIFF' and header[8:12] == b'WEBP':
+            return True
+        
+        return False
+    except Exception as e:
+        logger.debug(f"图片魔数检查失败：{e}")
         return False
 
 
@@ -422,11 +489,33 @@ def upload_feishu_image(image_file: str) -> Optional[str]:
     return None
 
 
-def send_feishu_image_message(image_key: str, caption: str, receive_id: str, receive_id_type: str = "open_id") -> bool:
-    """发送飞书原生图片消息"""
+def send_feishu_image_message(image_key: str, caption: str, receive_id: str, receive_id_type: Optional[str] = None) -> bool:
+    """发送飞书原生图片消息
+
+    Args:
+        image_key: 飞书图片 key
+        caption: 图片描述文字
+        receive_id: 接收者 ID
+        receive_id_type: 接收者 ID 类型(open_id/union_id/user_id/app_open_id),不传则自动识别
+
+    Returns:
+        是否发送成功
+    """
     access_token = get_feishu_access_token()
     if not access_token:
         return False
+
+    # 自动识别 ID 类型(P0-2 修复:避免跨应用 open_id 错误)
+    if receive_id_type is None:
+        if receive_id.startswith('ou_'):
+            receive_id_type = 'union_id'
+        elif receive_id.startswith('ai_'):
+            receive_id_type = 'app_open_id'
+        elif receive_id.startswith('u_'):
+            receive_id_type = 'user_id'
+        else:
+            receive_id_type = 'open_id'
+        logger.debug(f"自动识别 receive_id_type: {receive_id_type} for {receive_id[:10]}...")
 
     message_url = f"https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type={receive_id_type}"
     content = json.dumps({"image_key": image_key, "text": caption})
@@ -447,6 +536,25 @@ def send_feishu_image_message(image_key: str, caption: str, receive_id: str, rec
     if result.get('code') == 0:
         logger.info("✅ 飞书原生图片消息发送成功")
         return True
+
+    # P0-3 修复:检测 401 错误,自动刷新 token 后重试
+    if result.get('code') == 99991663:  # 飞书 token 无效错误码
+        logger.warning("检测到 token 无效,尝试刷新后重试...")
+        global _feishu_token, _feishu_token_time
+        _feishu_token = None  # 清空缓存
+        _feishu_token_time = 0
+        access_token = get_feishu_access_token()  # 重新获取
+        if access_token:
+            response = requests.post(
+                message_url,
+                headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+                json=message_data,
+                timeout=60
+            )
+            result = response.json()
+            if result.get('code') == 0:
+                logger.info("✅ 飞书原生图片消息发送成功(重试后)")
+                return True
 
     logger.error(f"飞书图片消息发送失败:{result}")
     return False
@@ -480,10 +588,20 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         temp_file = f'{temp_dir}/selfie_{safe_model_name}_{timestamp}.jpg'
         os.makedirs(str(temp_dir), mode=0o700, exist_ok=True)
 
-        response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT, stream=True)
-        response.raise_for_status()
+        # P1-6 修复：SSRF 防护 - 验证最终 URL（防止重定向攻击）
+        final_url = response.url
+        allowed_domains = ['dashscope.aliyuncs.com', 'aliyuncs.com', 'oss-cn', 'oss-accelerate', 'volces.com']
+        is_allowed = any(domain in final_url for domain in allowed_domains)
+        if not is_allowed:
+            logger.error(f"⚠️ 下载 URL 重定向到非信任域：{final_url}")
+            return False
+        
+        # 检查重定向次数（防止重定向循环攻击）
+        if len(response.history) > 5:
+            logger.error(f"重定向次数过多：{len(response.history)}")
+            return False
 
-        # 先检查 Content-Type(L-5 修复:避免下载非图片内容)
+        # 先检查 Content-Type(L-5 修复：避免下载非图片内容)
         content_type = response.headers.get('Content-Type', '')
         if not content_type.startswith('image/'):
             logger.error(f"远程资源不是图片类型:{content_type}")
@@ -511,12 +629,12 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             os.remove(temp_file)
             return False
 
-        # 验证文件类型(防止恶意文件)
-        # 使用 mimetypes 替代废弃的 imghdr (Python 3.13+)
-        mime_type, _ = mimetypes.guess_type(temp_file)
-        if mime_type not in ['image/jpeg', 'image/png', 'image/webp']:
-            logger.error(f"文件类型不正确:{mime_type},仅支持 jpeg/png/webp")
-            os.remove(temp_file)
+            return False
+            return False
+            return False
+            return False
+            return False
+            return False
             return False
 
         # 所有平台统一使用 openclaw message send 命令(包括飞书)
@@ -535,12 +653,12 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             '--media', temp_file
         ]
 
-        # 添加 --account 参数（飞书必须，避免跨应用 open_id 错误）
-        # 从环境变量读取，支持 AEVIA_ACCOUNT 或 OPENCLAW_ACCOUNT
+        # 添加 --account 参数(飞书必须,避免跨应用 open_id 错误)
+        # 从环境变量读取,支持 AEVIA_ACCOUNT 或 OPENCLAW_ACCOUNT
         account = os.environ.get('AEVIA_ACCOUNT') or os.environ.get('OPENCLAW_ACCOUNT', '')
         if account:
             cmd_args.extend(['--account', account])
-            logger.info(f"使用账号：{account}")
+            logger.info(f"使用账号:{account}")
 
         result = None
         try:
@@ -774,7 +892,7 @@ if __name__ == "__main__":
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         lock_fd.write(str(os.getpid()))
     except IOError:
-        # 如果无法获取锁，说明已有任务在运行，直接退出防止刷屏
+        # 如果无法获取锁,说明已有任务在运行,直接退出防止刷屏
         print("Task is already running. Skipping to prevent spam.")
         sys.exit(0)
 
@@ -791,7 +909,7 @@ if __name__ == "__main__":
             pass
     atexit.register(release_lock)
 
-    # --json 模式：输出 JSON 结果，不发送（由 bot 处理发送）
+    # --json 模式:输出 JSON 结果,不发送(由 bot 处理发送)
     json_mode = '--json' in sys.argv
 
     if len(sys.argv) < 2 or (len(sys.argv) == 2 and sys.argv[1] == '--json'):
