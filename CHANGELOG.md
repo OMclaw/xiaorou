@@ -2,6 +2,110 @@
 
 All notable changes to this project will be documented in this file.
 
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [5.25.3] - 2026-04-12
+
+### 🔧 功能完善
+
+**小柔 AI v5.25.3 - 完整支持飞书所有 ID 类型**
+
+#### ✨ 新增支持
+- 添加 `on_` → `union_id` 识别
+- 完整的 ID 类型映射表
+
+#### 📝 ID 类型映射
+```
+ou_ → open_id       # 用户 open_id（最常用）
+on_ → union_id      # 用户 union_id
+ai_ → app_open_id   # 应用 open_id
+u_  → user_id       # 用户 user_id
+```
+
+---
+
+## [5.25.2] - 2026-04-12
+
+### 🐛 P0 Bug 修复
+
+**小柔 AI v5.25.2 - 修复飞书原生图片消息发送失败**
+
+#### 🔧 问题原因
+- ❌ 之前：`ou_xxx` 被识别为 `union_id`
+- ✅ 现在：`ou_xxx` 正确识别为 `open_id`
+
+#### 📊 错误表现
+```
+错误码：99992364
+错误信息：user id cross tenant
+```
+
+#### ✅ 修复效果
+- 飞书原生图片消息发送成功
+- 图片直接显示在聊天中
+- 无 cross tenant 错误
+
+---
+
+## [5.25.1] - 2026-04-12
+
+### 🐛 Bug 修复
+
+**小柔 AI v5.25.1 - 文件名格式化修复**
+
+#### 🔧 修复内容
+- 修复输出目录 f-string 格式化问题
+- 现在正确生成：`selfie_{user}_{timestamp}_{seq}.jpg`
+
+---
+
+## [5.25.0] - 2026-04-12
+
+### ✨ 新功能
+
+**小柔 AI v5.25.0 - 飞书原生图片消息支持**
+
+#### 🔧 技术实现
+- 飞书平台使用 `upload_feishu_image()` 上传图片获取 `image_key`
+- 使用 `send_feishu_image_message()` 发送原生图片消息
+- 图片直接显示在飞书聊天中（不是文件链接）
+- 同时永久保存到 `outputs/` 目录
+
+#### 📁 文件位置
+**永久输出目录**：
+```
+/home/admin/.openclaw/workspace/skills/xiaorou/outputs/
+```
+
+**文件名格式**：
+```
+selfie_{user}_{timestamp}_{seq}.jpg
+```
+
+---
+
+## [5.24.0] - 2026-04-12
+
+### ✨ 新功能
+
+**小柔 AI v5.24.0 - 永久输出目录支持**
+
+#### 🔧 功能说明
+- 新增 `config.get_output_dir()` 方法
+- 生成的图片永久保存到 `outputs/` 目录
+- 文件名格式：`selfie_{user}_{timestamp}_{seq}.jpg`
+- 同时保留临时副本（兼容视频生成等功能）
+
+#### 📁 目录对比
+| 目录 | 用途 | 清理策略 |
+|------|------|----------|
+| `/tmp/xiaorou/` | 临时文件 | 系统重启/定期清理 |
+| `outputs/` | 永久输出 | 手动清理 |
+
+---
+
 ## [5.23.0] - 2026-04-12
 
 ### 🔥 高频并发优化 - 锁机制全面升级
