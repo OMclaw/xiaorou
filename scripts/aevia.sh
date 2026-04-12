@@ -34,7 +34,7 @@ sanitize_input() {
   [ ${#input} -gt "$AEVIA_MAX_INPUT_LENGTH" ] && input="${input:0:$AEVIA_MAX_INPUT_LENGTH}"
   # P0-4 修复：只保留安全的可见字符（中文、英文、数字、常见标点、空格、/）
   # 避免使用 \x00-\x1f 范围（部分 shell 环境不生效）
-  printf '%s' "$input" | tr -cd '[:alnum:][:space:]/,.!?，。！？、：；（）《》""''-'
+  printf '%s' "$input" | tr -cd '[:alnum:][:space:]/,.!?，。！？、：；（）《》-'
 }
 
 error() { 

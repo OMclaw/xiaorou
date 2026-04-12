@@ -376,7 +376,7 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
     logger.info(f"⏳ 等待视频生成完成...")
     
     start_time = time.time()
-    poll_interval: float = POLL_INTERVAL  # 初始轮询间隔
+    poll_interval: float = POLL_INTERVAL_SECONDS  # 初始轮询间隔
     unknown_state_count = 0  # P21-P3-NEW-1 修复：未知状态计数器
     max_unknown_states = 10  # 最多允许 10 次未知状态
     

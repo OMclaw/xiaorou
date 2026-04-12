@@ -677,7 +677,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         output_path = output_dir / f'selfie_{user_id}_{timestamp}_{int(time.time() * 1000) % 10000:04d}.jpg'
         try:
             shutil.copy2(temp_file, str(output_path))
-            logger.info(f"✓ 已永久保存自拍到:{{output_path}}")
+            logger.info(f"✓ 已永久保存自拍到:{output_path}")
         except Exception as e:
             logger.debug(f"保存输出文件：{{e}}")
 
@@ -759,18 +759,6 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             try:
                 shutil.copy2(temp_file, str(temp_path))
             except: pass
-            temp_dst = None
-            try:
-                # 先写入临时文件,再原子重命名
-                temp_dst = f"{latest_path}.{uuid.uuid4().hex}.tmp"
-                shutil.copy2(temp_file, temp_dst)
-                os.replace(temp_dst, str(latest_path))  # 原子操作
-                logger.info(f"✓ 已保存最新自拍到:{latest_path}")
-            except Exception as e:
-                logger.warning(f"保存自拍失败:{e}")
-                # 清理临时文件
-                if temp_dst and os.path.exists(temp_dst):
-                    os.remove(temp_dst)
 
             if result.returncode == 0:
                 logger.info("✓ 图片发送成功")
