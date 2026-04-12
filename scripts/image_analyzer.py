@@ -36,6 +36,14 @@ logger = logging.getLogger(__name__)
 class ImageAnalysisError(Exception):
     """图片分析异常"""
     pass
+# Prompt 标签常量（P3-3 修复：集中管理）
+PROMPT_CRITICAL_FACE_WARNING = "**EXTREMELY CRITICAL: Use ONLY the face from input image (小柔), NEVER use face from reference photo!**\n**STRICTLY same person as input image, 100% identical face, ABSOLUTELY NO face swap!**"
+PROMPT_FACE_WARNING2 = "**IDENTICAL face to input image, same person, no transformation, no morphing!**"
+PROMPT_BASE_TEMPLATE = "An East Asian female model (小柔 - MUST use input image face, DO NOT blend or mix with reference face), mid-20s, professional commercial photography shot. {extract_clothing_from_description(description)}. Shot in {extract_location_from_description(description)}. {extract_lighting_from_description(description)} lighting. {extract_pose_from_description(description)}. Captured with iPhone 15 Pro Max, natural skin folds and wrinkles, subtle shadow layers, realistic environmental details. Magazine editorial quality, ultra-detailed skin texture, natural color grading, Kodak Portra 400 film emulation. {PROMPT_FACE_WARNING2}"
+PROMPT_REFERENCE_LABEL = "【参考图细节 - 中文补充】"
+PROMPT_BASE_STYLE_LABEL = "【基础风格】"
+PROMPT_REALISTIC_LABEL = "【真实感】"
+PROMPT_QUALITY_LABEL = "【画质】"
 
 
 # P2-3 修复：路径安全检查函数（P2-5 修复：使用统一目录列表）

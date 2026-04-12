@@ -36,6 +36,8 @@ from config import config, ConfigurationError, ALLOWED_IMAGE_DIRS
 
 
 # ========== 常量定义 ==========
+MAX_IMAGE_SIZE_BYTES = 20 * 1024 * 1024  # 20MB
+CHUNK_SIZE = 8192  # 下载块大小
 IMAGE_STRENGTH_DEFAULT = float(os.environ.get('XIAOROU_IMAGE_STRENGTH', '0.65'))
 DENOISING_STRENGTH_DEFAULT = float(os.environ.get('XIAOROU_DENOISING_STRENGTH', '0.75'))
 MAX_DOWNLOAD_SIZE_MB = 20
@@ -64,53 +66,35 @@ _feishu_token_time: float = 0
 _feishu_token_lock = threading.Lock()   # P1-3 修复:并发刷新保护
 
 
+def _has_path_traversal(file_path: str) -> bool:
+    """检查路径是否包含遍历攻击 (..)"""
+    return ".." in str(file_path)
+
+
+def _is_absolute_path(file_path: str) -> bool:
+    """检查路径是否为绝对路径"""
+    return os.path.isabs(file_path)
+
+
 def is_safe_path(base_dir: Path, file_path: str) -> bool:
-    """
-    检查文件路径是否在允许的目录内(防止路径遍历攻击)
-
-    P1-6 修复:增强路径遍历检查,防止符号链接和 .. 绕过
-
-    Args:
-        base_dir: 允许的基础目录
-        file_path: 要检查的文件路径
-
-    Returns:
-        是否安全
-    """
+    """检查文件路径是否在允许的目录内 (防止路径遍历攻击)"""
     try:
-         # 拒绝包含 .. 的路径(显式路径遍历)
-        if '..' in str(file_path):
+        if _has_path_traversal(file_path):
             logger.warning(f"检测到路径遍历尝试:{file_path}")
             return False
-
-         # 拒绝非绝对路径(要求明确指定)
-        if not os.path.isabs(file_path):
+        if not _is_absolute_path(file_path):
             logger.warning(f"拒绝相对路径:{file_path}")
             return False
-
-         # 检查符号链接(防止通过符号链接绕过)
-        if os.path.islink(file_path):
-            try:
-                link_target = os.readlink(file_path)
-                 # 拒绝指向外部的符号链接
-                if link_target.startswith('/') and not str(link_target).startswith(str(base_dir)):
-                    logger.warning(f"检测到外部符号链接:{file_path} -> {link_target}")
-                    return False
-            except OSError:
-                return False
-
-         # 解析真实路径(包括符号链接)
         base_dir = base_dir.resolve()
-        resolved = Path(file_path).resolve(strict=True)   # P1-6 修复：确保路径存在
-
-         # 严格检查:必须是子目录,不能只是前缀匹配
-         # 例如:/tmp/openclaw_evil 不应该通过 /tmp/openclaw 的检查
+        resolved = Path(file_path).resolve(strict=True)
         try:
             resolved.relative_to(base_dir)
             return True
         except ValueError:
             return False
-    except Exception as e:
+    except (OSError, ValueError) as e:
+        logger.debug(f"路径安全检查失败:{e}")
+        return False
         logger.debug(f"路径安全检查失败:{e}")
         return False
 
@@ -1037,4 +1021,3 @@ if __name__ == "__main__":
 
     sys.exit(0 if success else 1)
 
-# 常量定义（魔法数字集中管理）
