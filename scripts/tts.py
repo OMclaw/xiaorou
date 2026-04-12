@@ -179,7 +179,7 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
             if output_dir and not os.path.exists(output_dir):
                 os.makedirs(output_dir, exist_ok=True)
 
-            for attempt in range(1, DEFAULT_RETRIES + 1):
+            for attempt in range(1, retries + 1):
                 try:
                     logger.info(f"正在生成语音 (尝试 {attempt}/{retries})...")
 

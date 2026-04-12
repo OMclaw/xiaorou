@@ -262,15 +262,16 @@ def generate_video(
     Returns:
         (成功标志，视频 URL 或错误信息)
     """
-    # P19-P2-NEW-1 修复：prompt injection 检测
-    injection_keywords = [
-        'ignore', 'disregard', 'system prompt', 'system instruction',
-        'previous instructions', 'above instructions', 'override',
-        '忽略', '无视', '覆盖', '系统提示', '之前的指令',
+    # P19-P2-NEW-1 修复：prompt injection 检测（正则表达式）
+    import re
+    injection_patterns = [
+        r'\b(ignore|disregard|override|bypass)\s+(all\s+)?(previous|above|prior|system)?\s*(instruction|prompt|rule)',
+        r'\b系统提示\b.*\b(忽略 | 覆盖 | 无视)\b',
+        r'\b(不要 | 别 | 停止)\s*(遵守 | 遵循 | 听从)\b',
     ]
-    for keyword in injection_keywords:
-        if keyword in prompt.lower():
-            return (False, f"检测到潜在 Prompt Injection 关键词：{keyword}")
+    for pattern in injection_patterns:
+        if re.search(pattern, prompt, re.IGNORECASE):
+            return (False, f"检测到潜在 Prompt Injection 尝试")
 
     if not api_key:
         api_key = config.get_api_key()

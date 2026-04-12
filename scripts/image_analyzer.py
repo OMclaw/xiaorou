@@ -281,17 +281,9 @@ bad anatomy, poorly drawn face, mutation, bad proportions, (blur, out of focus:1
     # 【新增】环境融合 - 人物与背景自然融合
     environment_blend = """人物与背景自然融合无违和感，环境光遮蔽（AO）效果明显（人物与地面接触处有阴影），接触阴影真实，人物在地面投射出清晰影子，影子方向与光源一致，环境反射（人物身上有背景色反射），色彩呼应（人物服装颜色与背景色调协调），背景虚化过渡自然无硬边，景深层次分明（前景 - 中景 - 背景），空间感强，三维立体感，真实空间关系和透视，真实的环境细节，环境纹理清晰，背景物体细节丰富，环境光影层次分明"""
     
-    # 【增强】反向提示词 - 强化避免 AI 感和畸形问题（特别加强手部，权重最高）
-    negative_tags = """避免 AI 感，避免塑料感，避免过度光滑，避免完美无瑕，避免数码合成感，避免 CG 感，避免 3D 渲染感，避免游戏画面感，避免卡通感，避免插画感，避免绘画感，避免 AI 生成痕迹，避免不自然光影，避免错误阴影，避免畸形，避免多手多腿，避免多余肢体，避免肢体扭曲，避免肢体融合，避免肢体重复，正常人体结构，双手双脚，比例正确，避免动作僵硬，避免姿势刻板，避免表情呆板，避免摆拍感，避免奇怪姿势，避免不自然动作，避免扭曲肢体，避免怪异体态，避免不协调动作，避免腿部畸形，避免腿部融合，避免腿部扭曲，避免多余膝盖，避免腿部消失，避免腿部过长，避免腿部过短，避免腿部比例失调，避免腿部细节模糊，避免腿部结构错误，避免膝盖畸形，避免脚踝畸形，
-    
-    【手部问题 - 最高优先级禁止】
-    避免手部缺失，避免无手，避免少手，避免单手，避免一只手，避免少手指，避免多手指，避免手指融合，避免手指粘连，避免手指扭曲，避免手指变形，避免手掌畸形，避免手腕扭曲，避免手臂缺失，避免手臂断裂，避免手部不完整，避免手部模糊，避免手部细节缺失，避免手部结构错误，避免手指关节错误，避免拇指缺失，避免小指缺失，避免手指数量错误，避免手掌朝向错误，避免手部比例失调，避免手部过大，避免手部过小，
-    
-    【英文反向提示词 - 手部强化权重】
-    (no hands:2.5), (missing hands:2.5), (missing fingers:2.5), (bad hands:2.0), (malformed hands:2.0), (mutated hands:2.0), (extra fingers:1.8), (fewer fingers:1.8), (wrong number of fingers:2.0), (hand deformation:2.0), (hand distortion:2.0), (missing arms:2.0), (missing limbs:2.0), (amputated:1.8), (disconnected limbs:1.8), (floating limbs:1.8), (poorly drawn hands:2.0), (poorly drawn fingers:2.0), (extra limbs:1.5), (too many fingers:1.8), (too few fingers:1.8), (club hands:2.0), (deformed fingers:2.0), (fused fingers:2.0), (webbed fingers:2.0), (missing thumb:2.0), (extra thumb:2.0), (long fingers:1.5), (short fingers:1.5), (stumpy fingers:1.8), (mitten hands:2.0), (paw hands:2.0), (claw hands:2.0),
-    
-    【通用反向提示词】
-    (worst quality, low quality:1.4), (deformed, distorted, disfigured:1.3), bad anatomy, extra limbs, mutated hands, poorly drawn hands, poorly drawn face, mutation, cloned face, bad proportions, floating limbs, disconnected limbs, malformed hands, malformed legs, extra legs, missing legs, fused legs, mutated legs, (malformed legs:1.4), (extra legs:1.4), (fused legs:1.3), (bad legs:1.3), (missing legs:1.3), (mutated legs:1.3), blur, out of focus, long neck, long body, bad hands, missing fingers, extra digit, fewer digits, cropped, jpeg artifacts, signature, watermark, username, blurry, 3d, cgi, cg, game, cartoon, anime, illustration, painting, digital art, ai generated"""
+    # 【精简】反向提示词 - 去重并统一权重（<500 字符）
+    negative_tags = """避免 AI 感，避免塑料感，避免过度光滑，避免数码合成感，避免 3D 渲染感，避免卡通插画感，避免不自然光影，避免畸形，避免多余肢体，正常人体结构，比例正确，避免动作僵硬，避免表情呆板，避免手部畸形，避免手指融合，避免腿部畸形，
+    (no hands:2.5), (missing hands:2.5), (bad hands:2.0), (malformed hands:2.0), (extra fingers:1.8), (fused fingers:2.0), (missing limbs:2.0), (disconnected limbs:1.8), (poorly drawn hands:2.0), (poorly drawn face:1.5), (bad anatomy:1.5), (worst quality, low quality:1.4), blur, out of focus, 3d, cgi, cartoon, anime, digital art"""
     
     # 组合完整 prompt - 商拍模板框架 + 人物一致性 + 参考图细节
     full_prompt = f"""{instruction}。

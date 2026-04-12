@@ -101,7 +101,7 @@ def is_safe_path(base_dir: Path, file_path: str) -> bool:
 
         # 解析真实路径(包括符号链接)
         base_dir = base_dir.resolve()
-        resolved = Path(file_path).resolve()
+        resolved = Path(file_path).resolve(strict=True)  # P1-6 修复：确保路径存在
 
         # 严格检查:必须是子目录,不能只是前缀匹配
         # 例如:/tmp/openclaw_evil 不应该通过 /tmp/openclaw 的检查
@@ -762,7 +762,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             temp_dst = None
             try:
                 # 先写入临时文件,再原子重命名
-                temp_dst = str(latest_path) + '.tmp'
+                temp_dst = f"{latest_path}.{uuid.uuid4().hex}.tmp"
                 shutil.copy2(temp_file, temp_dst)
                 os.replace(temp_dst, str(latest_path))  # 原子操作
                 logger.info(f"✓ 已保存最新自拍到:{latest_path}")
