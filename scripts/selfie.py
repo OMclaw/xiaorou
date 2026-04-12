@@ -541,7 +541,8 @@ def send_feishu_image_message(image_key: str, caption: str, receive_id: str, rec
         elif receive_id.startswith('u_'):
             receive_id_type = 'user_id'
         else:
-            receive_id_type = 'open_id'
+            logger.error(f"❌ 无法识别 receive_id 类型：{receive_id[:10]}... (期望前缀：ou_/on_/ai_/u_)")
+            return False  # 拒绝处理，避免跨 app 错误
         logger.debug(f"自动识别 receive_id_type: {receive_id_type} for {receive_id[:10]}...")
 
     message_url = f"https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type={receive_id_type}"
@@ -799,8 +800,8 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
 def generate_selfie(context: str, caption: str = "给你看看我现在的样子~", channel: Optional[str] = None, target: Optional[str] = None) -> bool:
     """普通模式:根据文字描述生成图片,单模型生成"""
     # P1-2 修复:target 格式校验
-    if target and not re.match(r'^ou_[a-z0-9_]+$', target):
-        logger.warning(f"⚠️ target 格式不符合预期(应为 ou_[a-z0-9_]+):{target}")
+    if target and not re.match(r'^(ou_|on_|ai_|u_)[a-z0-9_]+$', target):
+        logger.warning(f"⚠️ target 格式不符合预期(应为 (ou_|on_|ai_|u_)[a-z0-9_]+):{target}")
     # P2-2 修复:临时文件清理由 send_to_channel 的 finally 块自行处理
     # 若发生 KeyboardInterrupt,send_to_channel 确保已下载的临时文件被清理
     try:
@@ -866,8 +867,8 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
         是否成功
     """
     # P1-2 修复:target 格式校验
-    if target and not re.match(r'^ou_[a-z0-9_]+$', target):
-        logger.warning(f"⚠️ target 格式不符合预期(应为 ou_[a-z0-9_]+):{target}")
+    if target and not re.match(r'^(ou_|on_|ai_|u_)[a-z0-9_]+$', target):
+        logger.warning(f"⚠️ target 格式不符合预期(应为 (ou_|on_|ai_|u_)[a-z0-9_]+):{target}")
     # P2-2 修复:临时文件清理由 send_to_channel 的 finally 块自行处理
     # 若发生 KeyboardInterrupt,send_to_channel 确保已下载的临时文件被清理
     try:
