@@ -685,6 +685,11 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             if not send_target:
                 send_target = config.get_feishu_target()
             
+            if not send_target:
+                logger.error("未配置飞书目标用户（target），请设置 AEVIA_TARGET 环境变量或配置文件")
+                return False
+            
+            logger.info(f"📤 飞书目标用户：{send_target[:10]}...")
             image_key = upload_feishu_image(temp_file)
             if image_key:
                 if send_feishu_image_message(image_key, full_caption, send_target):
