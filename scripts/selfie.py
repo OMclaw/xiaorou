@@ -533,7 +533,9 @@ def send_feishu_image_message(image_key: str, caption: str, receive_id: str, rec
     # 自动识别 ID 类型(P0-2 修复:避免跨应用 open_id 错误)
     if receive_id_type is None:
         if receive_id.startswith('ou_'):
-            receive_id_type = 'open_id'  # ✅ 修复：ou_是 open_id
+            receive_id_type = 'open_id'  # ✅ ou_=open_id
+        elif receive_id.startswith('on_'):
+            receive_id_type = 'union_id'  # ✅ on_=union_id
         elif receive_id.startswith('ai_'):
             receive_id_type = 'app_open_id'
         elif receive_id.startswith('u_'):
