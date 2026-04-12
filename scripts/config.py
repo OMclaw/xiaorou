@@ -20,9 +20,9 @@ def get_allowed_image_dirs() -> Tuple[Path, ...]:
     """从环境变量获取允许的目录列表（动态获取，支持环境变量覆盖）"""
     env_dirs = os.environ.get('XIAOROU_ALLOWED_DIRS', '')
     if env_dirs:
-        # 支持冒号分隔的多个路径
+         # 支持冒号分隔的多个路径
         return tuple(Path(p.strip()) for p in env_dirs.split(':') if p.strip())
-    # 默认目录
+     # 默认目录
     return (
         Path('/home/admin/.openclaw/media/inbound'),
         Path('/tmp/openclaw'),
@@ -51,11 +51,11 @@ class Config:
     """线程安全的单例配置类（带缓存）"""
     _instance: Optional['Config'] = None
     _api_key: Optional[str] = None
-    _api_key_timestamp: float = 0  # API Key 缓存时间戳
-    _config_cache: Optional[dict] = None  # 配置文件缓存
-    _cache_timestamp: float = 0  # 缓存时间戳
-    _lock = threading.RLock()  # 可重入锁，防止嵌套调用死锁（P1-1 修复）
-    # P3-4 修复：TTL 缓存值
+    _api_key_timestamp: float = 0   # API Key 缓存时间戳
+    _config_cache: Optional[dict] = None   # 配置文件缓存
+    _cache_timestamp: float = 0   # 缓存时间戳
+    _lock = threading.RLock()   # 可重入锁，防止嵌套调用死锁（P1-1 修复）
+     # P3-4 修复：TTL 缓存值
     _api_key_ttl_value: Optional[int] = None
     _cache_ttl_value: Optional[int] = None
     
@@ -72,7 +72,7 @@ class Config:
         return self._cache_ttl_value
     
     def __new__(cls) -> 'Config':
-        # 双重检查锁定模式
+         # 双重检查锁定模式
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -83,24 +83,24 @@ class Config:
         """加载配置文件（带缓存，线程安全）"""
         import time
         
-        # 加锁保护缓存检查和加载
+         # 加锁保护缓存检查和加载
         with self._lock:
             current_time = time.time()
             
-            # 检查缓存是否有效
+             # 检查缓存是否有效
             if self._config_cache and (current_time - self._cache_timestamp) < self._cache_ttl:
                 return self._config_cache
             
-            # 重新加载配置（P1-4 修复：支持环境变量指定配置文件路径）
+             # 重新加载配置（P1-4 修复：支持环境变量指定配置文件路径）
             config_file = self._get_config_path()
             if config_file.exists():
-                # P1-5 修复：验证配置文件权限（防止读取被篡改的配置）
+                 # P1-5 修复：验证配置文件权限（防止读取被篡改的配置）
                 try:
                     stat_info = config_file.stat()
-                    # 检查是否对组/其他用户可读（权限过宽）
+                     # 检查是否对组/其他用户可读（权限过宽）
                     if stat_info.st_mode & 0o077:
                         logger.warning(f"配置文件权限过宽：{config_file} (mode: {oct(stat_info.st_mode)})")
-                        # 不阻止读取，但记录警告
+                         # 不阻止读取，但记录警告
                 except OSError:
                     logger.debug(f"无法检查配置文件权限：{config_file}")
                 
@@ -119,30 +119,30 @@ class Config:
     
     def _get_config_path(self) -> Path:
         """获取配置文件路径（支持环境变量）"""
-        # 支持环境变量指定配置文件路径
+         # 支持环境变量指定配置文件路径
         env_path = os.environ.get('OPENCLAW_CONFIG_PATH', '')
         if env_path:
             return Path(env_path)
-        # 默认路径
+         # 默认路径
         return Path.home() / '.openclaw/openclaw.json'
     
     def get_api_key(self) -> str:
         """获取 API Key（环境变量 > 配置文件，带 TTL 缓存）"""
         import time
         
-        # 环境变量优先（每次检查，支持运行时切换）
+         # 环境变量优先（每次检查，支持运行时切换）
         api_key = os.environ.get('DASHSCOPE_API_KEY', '')
         if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
             self._api_key = api_key
             self._api_key_timestamp = time.time()
             return api_key
         
-        # 检查 API Key 缓存是否过期（H-2 修复：Key 轮换支持）
+         # 检查 API Key 缓存是否过期（H-2 修复：Key 轮换支持）
         with self._lock:
             if self._api_key and (time.time() - self._api_key_timestamp) < self._api_key_ttl:
                 return self._api_key
         
-        # 配置文件（使用缓存）
+         # 配置文件（使用缓存）
         config = self._load_config_file()
         if config:
             api_key = (
@@ -167,7 +167,7 @@ class Config:
         """获取临时目录（P0-3 修复：root UID 安全增强）"""
         if not hasattr(self, '_temp_dir_cached'):
             uid = os.getuid()
-            # P0-3 修复：如果 UID 为 0(root)，使用随机后缀避免共享目录
+             # P0-3 修复：如果 UID 为 0(root)，使用随机后缀避免共享目录
             if uid == 0:
                 import secrets
                 suffix = secrets.token_hex(8)
@@ -177,7 +177,7 @@ class Config:
             
             temp_dir = Path(os.environ.get('XIAOROU_TEMP_DIR', f'/tmp/xiaorou_{suffix}'))
             
-            # 检查目录是否已存在且所有者不匹配
+             # 检查目录是否已存在且所有者不匹配
             if temp_dir.exists():
                 try:
                     stat_info = temp_dir.stat()
@@ -188,7 +188,7 @@ class Config:
                 except OSError as e:
                     logger.debug(f"检查临时目录权限失败：{e}")
             
-            # 创建目录（mode=0o700 确保只有当前用户可访问）
+             # 创建目录（mode=0o700 确保只有当前用户可访问）
             temp_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
             self._temp_dir_cached = temp_dir
             
@@ -196,10 +196,10 @@ class Config:
     
     def get_output_dir(self) -> Path:
         """获取输出目录（永久保存生成的图片）"""
-        # 优先使用环境变量，否则使用技能目录下的 outputs 文件夹
+         # 优先使用环境变量，否则使用技能目录下的 outputs 文件夹
         output_dir = Path(os.environ.get('XIAOROU_OUTPUT_DIR', '/home/admin/.openclaw/workspace/skills/xiaorou/outputs'))
         
-        # 创建目录（mode=0o755 允许读取）
+         # 创建目录（mode=0o755 允许读取）
         output_dir.mkdir(mode=0o755, parents=True, exist_ok=True)
         return output_dir
     
@@ -212,7 +212,7 @@ class Config:
         env_target = os.environ.get('AEVIA_TARGET', '')
         if env_target:
             return env_target
-        # 从配置文件读取
+         # 从配置文件读取
         config = self._load_config_file()
         return config.get('skills', {}).get('entries', {}).get('xiaorou', {}).get('config', {}).get('feishu_target', '')
 

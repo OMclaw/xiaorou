@@ -18,7 +18,7 @@ from typing import Optional, Tuple
 
 # 全局禁用数据检查（所有 DashScope API 调用）
 try:
-    import dashscope  # pylint: disable=unused-import
+    import dashscope   # pylint: disable=unused-import
     from dashscope.audio.tts_v2 import SpeechSynthesizer, AudioFormat
 except ImportError:
     print("❌ 缺少依赖：dashscope\n   请运行：pip3 install dashscope", file=sys.stderr)
@@ -78,7 +78,7 @@ def validate_text(text: str) -> str:
         raise ValidationError("输入文本不能为空")
     text = text.strip()
     
-    # 防止 prompt injection 和恶意输入
+     # 防止 prompt injection 和恶意输入
     suspicious_patterns = [
         r'ignore\s+(all|previous|above|prior)',
         r'disregard\s+(all|previous|above|prior)',
@@ -100,14 +100,14 @@ def validate_text(text: str) -> str:
 def load_api_key() -> str:
     """统一使用 config.py 加载 API Key"""
     try:
-        # 尝试从 config 模块加载
+         # 尝试从 config 模块加载
         from config import config as cfg
         return cfg.get_api_key()
     except ImportError:
         logger.debug("config 模块未导入，使用备用方案")
     except Exception as e:
         logger.warning(f"从 config 加载异常：{e}，使用备用方案")
-    # 备用方案：直接读取环境变量
+     # 备用方案：直接读取环境变量
     api_key = os.environ.get('DASHSCOPE_API_KEY', '')
     if api_key and re.match(r'^sk-[a-zA-Z0-9]{20,}$', api_key):
         return api_key
@@ -118,14 +118,14 @@ def get_audio_duration(audio_path: str) -> Optional[int]:
     """获取音频时长（毫秒）- 根据扩展名选择比特率估算"""
     try:
         file_size = os.path.getsize(audio_path)
-        # P3-3 修复：根据扩展名选择比特率
+         # P3-3 修复：根据扩展名选择比特率
         ext = os.path.splitext(audio_path)[1].lower()
         if ext == '.opus':
-            bytes_per_sec = 4000    # 32kbps OPUS ≈ 4KB/s
+            bytes_per_sec = 4000     # 32kbps OPUS ≈ 4KB/s
         elif ext == '.mp3':
-            bytes_per_sec = 32000   # 256kbps MP3 ≈ 32KB/s
+            bytes_per_sec = 32000    # 256kbps MP3 ≈ 32KB/s
         else:
-            bytes_per_sec = 16000   # 其他 ≈ 16KB/s
+            bytes_per_sec = 16000    # 其他 ≈ 16KB/s
         estimated_duration_ms = int((file_size / bytes_per_sec) * 1000)
         return estimated_duration_ms
     except Exception as e:
@@ -136,7 +136,7 @@ def get_audio_duration(audio_path: str) -> Optional[int]:
 def validate_opus_file(file_path: str) -> bool:
     """验证 OPUS 文件 - 纯 Python 实现，不依赖 ffprobe"""
     try:
-        # OGG 容器以 OggS 开头
+         # OGG 容器以 OggS 开头
         with open(file_path, 'rb') as f:
             header = f.read(4)
             if header == b'OggS':
@@ -160,16 +160,16 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
         api_key = load_api_key()
     except TTSError as e:
         error_msg = str(e)
-        # 清理已存在的输出文件
+         # 清理已存在的输出文件
         if os.path.exists(output_path):
             os.remove(output_path)
         logger.error(error_msg)
         return False, error_msg
     
-    # P1-3 修复：线程锁覆盖整个 SDK 调用（包括环境变量设置和合成调用）
-    # C-3 修复：函数返回时清理环境变量
+     # P1-3 修复：线程锁覆盖整个 SDK 调用（包括环境变量设置和合成调用）
+     # C-3 修复：函数返回时清理环境变量
     with _tts_lock:
-        # P0-4 修复：不再需要设置环境变量，使用 per-request key
+         # P0-4 修复：不再需要设置环境变量，使用 per-request key
 
         try:
             if voice not in AVAILABLE_VOICES:
@@ -183,18 +183,18 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
                 try:
                     logger.info(f"正在生成语音 (尝试 {attempt}/{retries})...")
 
-                    # 根据平台自动选择格式
+                     # 根据平台自动选择格式
                     audio_format = None
                     if channel:
                         format_info, ext = get_format_for_channel(channel, output_path)
                         if format_info:
                             audio_format = format_info
-                            # 如果文件路径没有后缀，自动添加
+                             # 如果文件路径没有后缀，自动添加
                             if not any(output_path.endswith(s) for s in ['.opus', '.wav', '.mp3']):
                                 output_path = output_path + ext
                                 logger.info(f"自动添加文件后缀：{output_path}")
 
-                    # 如果没有指定 channel 或平台未知，根据文件后缀判断（向后兼容）
+                     # 如果没有指定 channel 或平台未知，根据文件后缀判断（向后兼容）
                     if not audio_format:
                         if output_path.endswith('.opus'):
                             audio_format = AudioFormat.OGG_OPUS_24KHZ_MONO_32KBPS
@@ -203,13 +203,13 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
                         else:
                             audio_format = AudioFormat.MP3_24000HZ_MONO_256KBPS
 
-                    # P0-4 修复：使用 per-request key 而非环境变量（线程安全）
-                    # DashScope SDK 支持通过 api_key 参数直接传参
+                     # P0-4 修复：使用 per-request key 而非环境变量（线程安全）
+                     # DashScope SDK 支持通过 api_key 参数直接传参
                     synthesizer = SpeechSynthesizer(
                         model=model, 
                         voice=voice, 
                         format=audio_format,
-                        api_key=api_key  # 直接传参，不依赖全局环境变量
+                        api_key=api_key   # 直接传参，不依赖全局环境变量
                     )
                     audio = synthesizer.call(text)
 
@@ -233,38 +233,38 @@ def text_to_speech(text: str, output_path: str, voice: str = DEFAULT_VOICE, mode
 
             return False, "未知错误"
         finally:
-            # 失败时清理已存在的输出文件
+             # 失败时清理已存在的输出文件
             if os.path.exists(output_path):
                 try:
                     os.remove(output_path)
                 except Exception:
                     pass
-            # P0-4 修复：不再需要清理环境变量（使用 per-request key）
+             # P0-4 修复：不再需要清理环境变量（使用 per-request key）
             pass
 
 
 def main():
-    # 智能默认值：从环境变量读取默认平台
+     # 智能默认值：从环境变量读取默认平台
     default_channel = os.environ.get('AEVIA_CHANNEL', None)
     
     parser = argparse.ArgumentParser(
         description='阿里云 CosyVoice 文字转语音',
         epilog='''
 使用示例：
-  # 飞书平台（自动选择 OPUS 格式）
+   # 飞书平台（自动选择 OPUS 格式）
   python3 tts.py "早上好呀" /tmp/voice.mp3 --channel feishu
   
-  # 或让脚本自动添加后缀
+   # 或让脚本自动添加后缀
   python3 tts.py "早上好呀" /tmp/voice --channel feishu
   
-  # Telegram/Discord（自动选择 MP3 格式）
+   # Telegram/Discord（自动选择 MP3 格式）
   python3 tts.py "Hello" /tmp/voice.mp3 --channel telegram
   
-  # 使用环境变量自动选择（推荐）
+   # 使用环境变量自动选择（推荐）
   export AEVIA_CHANNEL=feishu
   python3 tts.py "早上好呀" /tmp/voice
   
-  # 向后兼容：直接指定文件格式
+   # 向后兼容：直接指定文件格式
   python3 tts.py "早上好呀" /tmp/voice.opus
         ''',
         formatter_class=argparse.RawDescriptionHelpFormatter
@@ -301,17 +301,17 @@ def main():
     success, message = text_to_speech(text=text, output_path=output, voice=args.voice, model=args.model, channel=args.channel)
     
     if success:
-        # text_to_speech 可能修改输出路径（自动添加后缀），使用返回值中的实际路径
+         # text_to_speech 可能修改输出路径（自动添加后缀），使用返回值中的实际路径
         actual_path = message if isinstance(message, str) else output
         
-        # 获取音频时长并输出（供 shell 脚本使用）
+         # 获取音频时长并输出（供 shell 脚本使用）
         duration = get_audio_duration(actual_path)
         if duration:
             print(f"✅ 语音生成成功：{actual_path} (时长：{duration}ms)")
         else:
             print(f"✅ 语音生成成功：{actual_path}")
         
-        # 如果是 OPUS 格式，进行验证（L-3 修复：使用实际路径而非原始参数）
+         # 如果是 OPUS 格式，进行验证（L-3 修复：使用实际路径而非原始参数）
         if actual_path.endswith('.opus'):
             validate_opus_file(actual_path)
         

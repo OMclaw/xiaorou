@@ -36,7 +36,7 @@ from config import config, ConfigurationError
 # ========== 常量定义 ==========
 MAX_VIDEO_SIZE_MB = int(os.environ.get('XIAOROU_MAX_VIDEO_SIZE', '200'))
 POLL_INTERVAL_SECONDS = int(os.environ.get('XIAOROU_POLL_INTERVAL', '10'))
-MAX_WAIT_SECONDS = int(os.environ.get('XIAOROU_MAX_WAIT', '300'))  # 5 分钟超时控制
+MAX_WAIT_SECONDS = int(os.environ.get('XIAOROU_MAX_WAIT', '300'))   # 5 分钟超时控制
 # 从环境变量读取目标平台，支持多平台
 DEFAULT_TARGET = os.environ.get('AEVIA_TARGET', '')
 DEFAULT_CHANNEL = os.environ.get('AEVIA_CHANNEL', 'feishu')
@@ -66,11 +66,11 @@ def safe_log(message: str) -> str:
     Returns:
         脱敏后的消息
     """
-    # 脱敏 API Key (sk-xxx)
+     # 脱敏 API Key (sk-xxx)
     message = re.sub(r'sk-[a-zA-Z0-9]{20,}', 'sk-****REDACTED****', message)
-    # 脱敏 Bearer token
+     # 脱敏 Bearer token
     message = re.sub(r'Bearer\s+sk-[a-zA-Z0-9]+', 'Bearer ****REDACTED****', message)
-    # 脱敏 OSS URL（包含签名）
+     # 脱敏 OSS URL（包含签名）
     message = re.sub(r'Signature=[a-zA-Z0-9%]+', 'Signature=****REDACTED****', message)
     return message
 
@@ -124,21 +124,21 @@ def retry_on_failure(max_attempts: int = 3, delay: float = 1.0):
     def decorator(func):
         def wrapper(*args, **kwargs):
             last_exception = None
-            current_delay = delay  # 初始延迟，重试时指数递增
+            current_delay = delay   # 初始延迟，重试时指数递增
             for attempt in range(1, max_attempts + 1):
                 try:
                     return func(*args, **kwargs)
                 except (requests.RequestException, ConnectionError, TimeoutError) as e:
-                    # 网络异常，可重试
+                     # 网络异常，可重试
                     last_exception = e
                     if attempt < max_attempts:
                         logger.warning(f"⚠️ 尝试 {attempt}/{max_attempts} 失败（网络异常）：{e}，{current_delay:.1f}秒后重试...")
                         time.sleep(current_delay)
-                        current_delay *= 2  # 指数退避
+                        current_delay *= 2   # 指数退避
                     else:
                         logger.error(f"❌ 尝试 {max_attempts}/{max_attempts} 失败")
                 except Exception as e:
-                    # 非网络异常（如配置错误、验证失败），不重试，直接抛出
+                     # 非网络异常（如配置错误、验证失败），不重试，直接抛出
                     logger.error(f"❌ 不可恢复的错误（不重试）：{e}")
                     raise
             raise last_exception
@@ -164,7 +164,7 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-
         oss:// URL（失败返回 None）
     """
     try:
-        # 1. 获取上传凭证
+         # 1. 获取上传凭证
         logger.info(f"📤 正在获取上传凭证...")
         policy_url = "https://dashscope.aliyuncs.com/api/v1/uploads"
         params = {"action": "getPolicy", "model": model_name}
@@ -177,15 +177,15 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-
         
         policy_data = response.json().get('data', {})
         if not policy_data:
-            # 安全修复：不记录完整 JSON（可能包含 OSS 凭证）
+             # 安全修复：不记录完整 JSON（可能包含 OSS 凭证）
             logger.error("❌ 未获取到上传凭证（响应 data 为空）")
             return None
         
         logger.info(f"✅ 上传凭证获取成功")
         
-        # 2. 上传文件到 OSS（P2 修复 - 文件名二次验证）
+         # 2. 上传文件到 OSS（P2 修复 - 文件名二次验证）
         file_name = Path(file_path).name
-        # 验证文件名安全性（P3-3 修复：日志中使用脱敏文件名）
+         # 验证文件名安全性（P3-3 修复：日志中使用脱敏文件名）
         if not file_name or '..' in file_name or file_name.startswith('/'):
             logger.error("❌ 无效的文件名")
             return None
@@ -214,12 +214,12 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-
             response = session.post(policy_data['upload_host'], files=files, timeout=60, verify=True)
         
         if response.status_code != 200:
-            # P21-P2-NEW-1 修复：脱敏上传错误响应（防止泄露 OSS 凭证）
+             # P21-P2-NEW-1 修复：脱敏上传错误响应（防止泄露 OSS 凭证）
             safe_text = re.sub(r'[a-zA-Z0-9+/=]{20,}', '****REDACTED****', response.text[:200])
             logger.error(f"❌ 上传失败：{safe_text}")
             return None
         
-        # 返回 oss:// URL
+         # 返回 oss:// URL
         oss_url = f"oss://{key}"
         logger.info(f"✅ 文件上传成功：{oss_url}")
         logger.info(f"⏰ 有效期：48 小时")
@@ -262,7 +262,7 @@ def generate_video(
     Returns:
         (成功标志，视频 URL 或错误信息)
     """
-    # P19-P2-NEW-1 修复：prompt injection 检测（正则表达式）
+     # P19-P2-NEW-1 修复：prompt injection 检测（正则表达式）
     import re
     injection_patterns = [
         r'\b(ignore|disregard|override|bypass)\s+(all\s+)?(previous|above|prior|system)?\s*(instruction|prompt|rule)',
@@ -276,11 +276,11 @@ def generate_video(
     if not api_key:
         api_key = config.get_api_key()
     
-    # M-9 修复：prompt 空值校验
+     # M-9 修复：prompt 空值校验
     if not prompt or not prompt.strip():
         return (False, "prompt 不能为空")
     
-    # L-1 修复：参数校验
+     # L-1 修复：参数校验
     if resolution not in ('720P', '1080P'):
         return (False, f"不支持的分辨率：{resolution}（支持 720P/1080P）")
     if not (2 <= duration <= 10):
@@ -294,7 +294,7 @@ def generate_video(
     logger.info(f"  分辨率：{resolution}")
     logger.info(f"  时长：{duration}秒")
     
-    # 构建请求体（wan2.6-i2v 格式）
+     # 构建请求体（wan2.6-i2v 格式）
     input_data = {"prompt": prompt, "media": []}
     
     if img_url:
@@ -310,11 +310,11 @@ def generate_video(
             "resolution": resolution,
             "prompt_extend": False,
             "duration": duration,
-            "watermark": False  # 关闭水印
+            "watermark": False   # 关闭水印
         }
     }
     
-    # 提交异步任务
+     # 提交异步任务
     try:
         headers = {
             'Authorization': f'Bearer {api_key}',
@@ -322,7 +322,7 @@ def generate_video(
             'X-DashScope-Async': 'enable',
         }
         
-        # 如果是 oss:// URL，需要添加 OSS 资源解析 header
+         # 如果是 oss:// URL，需要添加 OSS 资源解析 header
         has_oss = (img_url and img_url.startswith('oss://')) or (audio_url and audio_url.startswith('oss://'))
         if has_oss:
             headers['X-DashScope-OssResourceResolve'] = 'enable'
@@ -348,7 +348,7 @@ def generate_video(
         
         logger.info(f"✅ 任务提交成功，task_id: {task_id}")
         
-        # 轮询任务状态
+         # 轮询任务状态
         return poll_task_status(task_id, api_key)
         
     except requests.exceptions.Timeout:
@@ -376,9 +376,9 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
     logger.info(f"⏳ 等待视频生成完成...")
     
     start_time = time.time()
-    poll_interval: float = POLL_INTERVAL_SECONDS  # 初始轮询间隔
-    unknown_state_count = 0  # P21-P3-NEW-1 修复：未知状态计数器
-    max_unknown_states = 10  # 最多允许 10 次未知状态
+    poll_interval: float = POLL_INTERVAL_SECONDS   # 初始轮询间隔
+    unknown_state_count = 0   # P21-P3-NEW-1 修复：未知状态计数器
+    max_unknown_states = 10   # 最多允许 10 次未知状态
     
     while time.time() - start_time < MAX_WAIT:
         try:
@@ -406,7 +406,7 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
                 return (False, f"视频生成失败：{error_message}")
             
             elif task_status in ['PENDING', 'RUNNING']:
-                # 指数退避：每次增加 50%，最大 30 秒
+                 # 指数退避：每次增加 50%，最大 30 秒
                 time.sleep(poll_interval)
                 poll_interval = min(poll_interval * 1.5, 30)
                 continue
@@ -415,7 +415,7 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
                 logger.error("❌ 任务已被取消")
                 return (False, "任务已被取消")
             else:
-                # P21-P3-NEW-1 修复：未知状态限制重试次数
+                 # P21-P3-NEW-1 修复：未知状态限制重试次数
                 unknown_state_count += 1
                 if unknown_state_count > max_unknown_states:
                     logger.error(f"❌ 未知状态过多（{unknown_state_count}次），终止轮询：{task_status}")
@@ -428,7 +428,7 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
             logger.error("❌ 轮询超时")
             continue
         except requests.exceptions.RequestException as e:
-            # 网络异常，可重试
+             # 网络异常，可重试
             logger.error(f"❌ 轮询失败（网络异常，可重试）：{type(e).__name__}: {e}")
             continue
         except Exception as e:
@@ -458,7 +458,7 @@ def download_video(video_url: str, output_path: str) -> bool:
         response = session.get(video_url, timeout=300, stream=True, verify=True)
         response.raise_for_status()
         
-        # P0-5 修复：添加异常处理，防止 Content-Length 非整数导致崩溃
+         # P0-5 修复：添加异常处理，防止 Content-Length 非整数导致崩溃
         content_length = response.headers.get('Content-Length')
         if content_length:
             try:
@@ -473,7 +473,7 @@ def download_video(video_url: str, output_path: str) -> bool:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
         
-        # 原子操作：重命名临时文件
+         # 原子操作：重命名临时文件
         os.replace(temp_path, output_path)
         
         logger.info(f"✅ 视频已保存：{output_path}")
@@ -481,7 +481,7 @@ def download_video(video_url: str, output_path: str) -> bool:
         
     except Exception as e:
         logger.error(f"❌ 下载失败：{type(e).__name__}: {e}")
-        # 清理不完整文件
+         # 清理不完整文件
         if os.path.exists(temp_path):
             os.remove(temp_path)
         return False
@@ -500,7 +500,7 @@ def send_to_channel(video_path: str, caption: str, channel: str = 'feishu', targ
     Returns:
         bool: 是否成功
     """
-    # 如果没有指定 target，从环境变量读取
+     # 如果没有指定 target，从环境变量读取
     if target is None:
         target = os.environ.get('AEVIA_TARGET', '')
     
@@ -562,7 +562,7 @@ def image_to_video(
     Returns:
         视频文件路径（失败返回 None）
     """
-    # 从环境变量读取默认值
+     # 从环境变量读取默认值
     if channel is None:
         channel = DEFAULT_CHANNEL
     if target is None:
@@ -574,9 +574,9 @@ def image_to_video(
     api_key = config.get_api_key()
     timestamp = int(time.time())
 
-    # P21-P1-NEW-1 修复：generate_video 已有 injection 检测，image_to_video 无需重复
+     # P21-P1-NEW-1 修复：generate_video 已有 injection 检测，image_to_video 无需重复
 
-    # 步骤 1: 验证图片
+     # 步骤 1: 验证图片
     if not os.path.exists(image_path):
         logger.error(f"❌ 图片不存在：{image_path}")
         return None
@@ -585,7 +585,7 @@ def image_to_video(
     logger.info(f"  图片路径：{image_path}")
     logger.info(f"✅ 图片验证通过")
     
-    # 步骤 2: 上传图片到 OSS
+     # 步骤 2: 上传图片到 OSS
     logger.info(f"📤 步骤 2: 上传图片到 DashScope OSS...")
     img_url = upload_to_dashscope(image_path, api_key, model)
     
@@ -593,7 +593,7 @@ def image_to_video(
         logger.error("❌ 流程终止：图片上传失败")
         return None
     
-    # 步骤 3: 上传音频（如果有）
+     # 步骤 3: 上传音频（如果有）
     audio_url = None
     if audio_path and os.path.exists(audio_path):
         logger.info(f"🎵 步骤 3: 上传音频到 DashScope OSS...")
@@ -601,7 +601,7 @@ def image_to_video(
         if not audio_url:
             logger.warning("⚠️ 音频上传失败，继续无音频视频流程...")
     
-    # 步骤 4: 生成视频
+     # 步骤 4: 生成视频
     success, video_result = generate_video(
         prompt=prompt,
         img_url=img_url,
@@ -616,13 +616,13 @@ def image_to_video(
         logger.error(f"❌ 流程终止：视频生成失败 - {video_result}")
         return None
     
-    # 步骤 5: 下载视频
+     # 步骤 5: 下载视频
     video_path = _get_temp_dir() / f"video_{timestamp}.mp4"
     if not download_video(video_result, str(video_path)):
         logger.error("❌ 流程终止：视频下载失败")
         return None
     
-    # 步骤 6: 发送到飞书
+     # 步骤 6: 发送到飞书
     if send_message:
         caption = f"🎬 小柔生成的视频～\n{prompt[:50]}..."
         if not send_to_channel(str(video_path), caption, channel, target):
@@ -640,7 +640,7 @@ def image_to_video(
 
 if __name__ == "__main__":
     
-    # 配置日志级别
+     # 配置日志级别
     log_level = config.get_log_level()
     logging.basicConfig(
         level=getattr(logging, log_level, logging.INFO),
