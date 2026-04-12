@@ -118,13 +118,13 @@ def is_safe_path(base_dir: Path, file_path: str) -> bool:
 
 def _validate_image_file(file_path: str) -> bool:
     """
-    验证图片文件类型（基于魔数检查）
-    
-    P1-6 修复：增强文件类型验证，防止恶意文件伪造扩展名
-    
+    验证图片文件类型(基于魔数检查)
+
+    P1-6 修复:增强文件类型验证,防止恶意文件伪造扩展名
+
     Args:
         file_path: 图片文件路径
-    
+
     Returns:
         是否是有效的图片文件
     """
@@ -133,33 +133,33 @@ def _validate_image_file(file_path: str) -> bool:
         b'\x89PNG\r\n\x1a\n': 'png',
         b'RIFF....WEBP': 'webp',
     }
-    
+
     try:
         with open(file_path, 'rb') as f:
             header = f.read(12)
-        
+
         # 检查 JPEG
         if header[:3] == b'\xff\xd8\xff':
             return True
-        
+
         # 检查 PNG
         if header[:8] == b'\x89PNG\r\n\x1a\n':
             return True
-        
+
         # 检查 WEBP (RIFF....WEBP)
         if header[:4] == b'RIFF' and header[8:12] == b'WEBP':
             return True
-        
+
         return False
     except Exception as e:
-        logger.debug(f"图片魔数检查失败：{e}")
+        logger.debug(f"图片魔数检查失败:{e}")
         return False
 
 
 
 
 def is_lock_expired(lock_path: str, timeout_seconds: int = 300) -> bool:
-    """检查锁文件是否过期（P0-5 修复：防止进程异常退出后锁文件残留）"""
+    """检查锁文件是否过期(P0-5 修复:防止进程异常退出后锁文件残留)"""
     try:
         if not os.path.exists(lock_path):
             return True
@@ -615,27 +615,27 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         # 发起 HTTP 请求下载图片
         response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT, stream=True)
         response.raise_for_status()
-        
-        # P1-2 修复：SSRF 防护增强 - 使用 URL 解析 + 后缀匹配（防止域名绕过）
+
+        # P1-2 修复:SSRF 防护增强 - 使用 URL 解析 + 后缀匹配(防止域名绕过)
         final_url = response.url
         allowed_domains = ['dashscope.aliyuncs.com', 'aliyuncs.com', 'volces.com']
         parsed = urlparse(final_url)
         hostname = parsed.hostname or ''
-        # 精确匹配或后缀匹配（防止 evil-dashscope.aliyuncs.com 绕过）
+        # 精确匹配或后缀匹配(防止 evil-dashscope.aliyuncs.com 绕过)
         is_allowed = any(
             hostname == domain or hostname.endswith('.' + domain)
             for domain in allowed_domains
         )
         if not is_allowed:
-            logger.error(f"⚠️ 下载 URL 重定向到非信任域：{final_url} (hostname: {hostname})")
-            return False
-        
-        # 检查重定向次数（防止重定向循环攻击）
-        if len(response.history) > 5:
-            logger.error(f"重定向次数过多：{len(response.history)}")
+            logger.error(f"⚠️ 下载 URL 重定向到非信任域:{final_url} (hostname: {hostname})")
             return False
 
-        # 先检查 Content-Type(L-5 修复：避免下载非图片内容)
+        # 检查重定向次数(防止重定向循环攻击)
+        if len(response.history) > 5:
+            logger.error(f"重定向次数过多:{len(response.history)}")
+            return False
+
+        # 先检查 Content-Type(L-5 修复:避免下载非图片内容)
         content_type = response.headers.get('Content-Type', '')
         if not content_type.startswith('image/'):
             logger.error(f"远程资源不是图片类型:{content_type}")
@@ -839,10 +839,10 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
             return False
 
         # 安全检查:验证参考图路径(P2-5 修复:使用统一目录列表)
-        # P0-2 修复：统一 resolve 处理，防止路径遍历攻击
+        # P0-2 修复:统一 resolve 处理,防止路径遍历攻击
         ref_resolved = Path(reference_image_path).resolve()
         is_allowed = any(
-            is_safe_path(base_dir.resolve(), str(ref_resolved)) 
+            is_safe_path(base_dir.resolve(), str(ref_resolved))
             for base_dir in ALLOWED_IMAGE_DIRS
         )
         if not is_allowed:
@@ -874,8 +874,8 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
             return False
 
         prompt = result.stdout.strip()
-        # P1-1 修复：只记录长度，不记录敏感内容
-        logger.info(f"✅ 参考图分析完成 (prompt 长度：{len(prompt)})")
+        # P1-1 修复:只记录长度,不记录敏感内容
+        logger.info(f"✅ 参考图分析完成 (prompt 长度:{len(prompt)})")
 
         # 4. 单模型生成(wan2.7-image)- 双图输入:小柔头像 + 参考图
         logger.info("🚀 wan2.7-image 生成中(双图输入:头像 + 参考图)...")
@@ -919,13 +919,25 @@ if __name__ == "__main__":
     LOCK_FILE = str(config.get_temp_dir() / "selfie_task.lock")
     os.makedirs(os.path.dirname(LOCK_FILE), exist_ok=True)
 
+    # P0-5 修复：检查锁文件是否过期（防止进程异常退出后残留）
+    if not is_lock_expired(LOCK_FILE, timeout_seconds=300):
+        print("Task is already running. Skipping to prevent spam.")
+        sys.exit(0)
+    
+    # 清理过期锁文件
+    if os.path.exists(LOCK_FILE):
+        try:
+            os.remove(LOCK_FILE)
+        except:
+            pass
+    
     lock_fd = None
     try:
         lock_fd = open(LOCK_FILE, 'w')
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         lock_fd.write(str(os.getpid()))
     except IOError:
-        # 如果无法获取锁,说明已有任务在运行,直接退出防止刷屏
+        # 如果无法获取锁，说明已有任务在运行，直接退出防止刷屏
         print("Task is already running. Skipping to prevent spam.")
         sys.exit(0)
 
