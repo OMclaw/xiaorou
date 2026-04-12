@@ -25,6 +25,7 @@ import tempfile
 import mimetypes
 import subprocess
 import requests
+import uuid
 from pathlib import Path
 from urllib.parse import urlparse
 from typing import Optional, Tuple, List
@@ -697,7 +698,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             # H-1 修复:清理 user_id 防止路径注入
             user_id = target or 'default'
             user_id = re.sub(r'[^a-zA-Z0-9_\-]', '_', str(user_id))[:32]
-            latest_path = config.get_temp_dir() / f'selfie_latest_{user_id}.jpg'
+            latest_path = config.get_temp_dir() / f'selfie_{user_id}_{uuid.uuid4().hex[:8]}.jpg  # P2-1 修复：UUID 防冲突'
             temp_dst = None
             try:
                 # 先写入临时文件,再原子重命名
@@ -920,7 +921,8 @@ if __name__ == "__main__":
     os.makedirs(os.path.dirname(LOCK_FILE), exist_ok=True)
 
     # P0-5 修复：检查锁文件是否过期（防止进程异常退出后残留）
-    if not is_lock_expired(LOCK_FILE, timeout_seconds=300):
+    # P0-6 优化：超时时间 300 秒 → 30 秒，支持高频并发测试
+    if not is_lock_expired(LOCK_FILE, timeout_seconds=30):
         print("Task is already running. Skipping to prevent spam.")
         sys.exit(0)
     
