@@ -671,7 +671,7 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
         user_id = re.sub(r'[^a-zA-Z0-9_\\-]', '_', str(user_id))[:32]
         timestamp = int(time.time())
         output_dir = config.get_output_dir()
-        output_path = output_dir / f'selfie_{{user_id}}_{{timestamp}}_{{int(time.time() * 1000) % 10000:04d}}.jpg'
+        output_path = output_dir / f'selfie_{user_id}_{timestamp}_{int(time.time() * 1000) % 10000:04d}.jpg'
         try:
             shutil.copy2(temp_file, str(output_path))
             logger.info(f"✓ 已永久保存自拍到:{{output_path}}")
