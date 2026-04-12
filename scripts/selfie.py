@@ -665,6 +665,39 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             return False
 
 
+
+        # P2-2 修复：永久保存到输出目录
+        user_id = target or 'default'
+        user_id = re.sub(r'[^a-zA-Z0-9_\\-]', '_', str(user_id))[:32]
+        timestamp = int(time.time())
+        output_dir = config.get_output_dir()
+        output_path = output_dir / f'selfie_{{user_id}}_{{timestamp}}_{{int(time.time() * 1000) % 10000:04d}}.jpg'
+        try:
+            shutil.copy2(temp_file, str(output_path))
+            logger.info(f"✓ 已永久保存自拍到:{{output_path}}")
+        except Exception as e:
+            logger.debug(f"保存输出文件：{{e}}")
+
+
+        # P2-3 修复：飞书使用原生图片消息（直接显示图片，而非文件）
+        if channel == 'feishu':
+            send_target = target or os.environ.get('AEVIA_TARGET', '')
+            if not send_target:
+                send_target = config.get_feishu_target()
+            
+            image_key = upload_feishu_image(temp_file)
+            if image_key:
+                if send_feishu_image_message(image_key, full_caption, send_target):
+                    logger.info("✓ 飞书原生图片发送成功")
+                    return True
+                else:
+                    logger.error("发送飞书图片消息失败")
+                    return False
+            else:
+                logger.error("上传飞书图片失败")
+                return False
+        
+        # 其他平台：使用 openclaw message send 命令
         # 所有平台统一使用 openclaw message send 命令(包括飞书)
         # 这样可以避免跨应用 open_id 权限问题
         send_target = target or os.environ.get('AEVIA_TARGET', '')
