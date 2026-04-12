@@ -194,6 +194,15 @@ class Config:
             
         return self._temp_dir_cached
     
+    def get_output_dir(self) -> Path:
+        """获取输出目录（永久保存生成的图片）"""
+        # 优先使用环境变量，否则使用技能目录下的 outputs 文件夹
+        output_dir = Path(os.environ.get('XIAOROU_OUTPUT_DIR', '/home/admin/.openclaw/workspace/skills/xiaorou/outputs'))
+        
+        # 创建目录（mode=0o755 允许读取）
+        output_dir.mkdir(mode=0o755, parents=True, exist_ok=True)
+        return output_dir
+    
     def get_log_level(self) -> str:
         """获取日志级别"""
         return os.environ.get('XIAOROU_LOG_LEVEL', 'INFO').upper()

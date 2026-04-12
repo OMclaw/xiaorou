@@ -698,7 +698,26 @@ def send_to_channel(image_url: str, caption: str, channel: str, model_name: str,
             # H-1 修复:清理 user_id 防止路径注入
             user_id = target or 'default'
             user_id = re.sub(r'[^a-zA-Z0-9_\-]', '_', str(user_id))[:32]
-            latest_path = config.get_temp_dir() / f'selfie_{user_id}_{uuid.uuid4().hex[:8]}.jpg  # P2-1 修复：UUID 防冲突'
+            # P2-2 修复：永久保存到输出目录
+            timestamp = int(time.time())
+            output_dir = config.get_output_dir()
+            output_path = output_dir / f'selfie_{user_id}_{timestamp}_{uuid.uuid4().hex[:8]}.jpg'
+            temp_dst = None
+            try:
+                temp_dst = str(output_path) + '.tmp'
+                shutil.copy2(temp_file, temp_dst)
+                os.replace(temp_dst, str(output_path))
+                logger.info(f"✓ 已永久保存自拍到:{output_path}")
+            except Exception as e:
+                logger.warning(f"保存自拍失败:{e}")
+                if temp_dst and os.path.exists(temp_dst):
+                    os.remove(temp_dst)
+            
+            # 同时保留临时副本（兼容视频生成）
+            temp_path = config.get_temp_dir() / f'selfie_{user_id}_{uuid.uuid4().hex[:8]}.jpg'
+            try:
+                shutil.copy2(temp_file, str(temp_path))
+            except: pass
             temp_dst = None
             try:
                 # 先写入临时文件,再原子重命名
