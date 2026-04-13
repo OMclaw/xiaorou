@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """tts.py - 文字转语音 (阿里云 CosyVoice 官方 SDK)"""
 
 # Python 版本检查（必须在所有 import 之前）

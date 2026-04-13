@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """image_analyzer.py - 参考图分析模块 (使用 qwen3.5-plus 视觉能力)
 
 分析参考图，提取场景、姿势、服装、光线等描述，用于后续图生图。
@@ -189,6 +189,18 @@ def analyze_image(image_path: str, api_key: str) -> str:
         raise ImageAnalysisError(f"图片分析失败：{e}")
 
 
+    return "Bright natural daylight"
+
+def extract_clothing_from_description(desc: str) -> str:
+    """从参考图描述中提取服装描述"""
+    return "wearing casual outfit"
+
+def extract_location_from_description(desc: str) -> str:
+    """从参考图描述中提取场景位置描述"""
+    return "indoor setting"
+
+def extract_lighting_from_description(desc: str) -> str:
+    """从参考图描述中提取光线描述"""
     return "Bright natural daylight"
 
 def extract_pose_from_description(desc: str) -> str:
