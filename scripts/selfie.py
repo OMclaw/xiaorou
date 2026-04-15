@@ -66,12 +66,12 @@ POSTPROCESS_CONFIG = {
     'jitter_amplitude': 0.3,    # 微抖动幅度 (0.3 文档推荐值)
     'camera_model': 'iPhone 15 Pro',
     
-    # 🆕 Phase 1: 频域优化 + 对抗扰动（已修复）
-    'frequency_enable': True,        # ✅ 启用频域优化（已修复）
+    # 🆕 Phase 1: 频域优化 + 对抗扰动
+    'frequency_enable': False,       # ❌ 禁用 1/f 频谱噪声
     'spectral_sigma': 0.5,
-    'natural_spectrum_strength': 0.03,  # 修复后的低强度
+    'natural_spectrum_strength': 0.0,  # 完全禁用
     'adversarial_enable': True,        # ✅ 启用对抗扰动
-    'adversarial_eps': 0.005,          # 低强度（几乎不可见）
+    'adversarial_eps': 0.005,          # 低强度
     'subtle_noise_enable': True,       # ✅ 启用细微噪声
     'subtle_noise_intensity': 0.01,    # 低强度
     
