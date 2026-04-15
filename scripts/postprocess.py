@@ -696,12 +696,13 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         'camera_model': 'iPhone 15 Pro',
         
         # 🆕 反 AI 检测配置（Phase 1-3）
-        # Phase 1: 频域优化 + 对抗扰动
+        # Phase 1: 频域优化 + 对抗扰动（参数已优化，不影响画质）
         'frequency_enable': True,
         'spectral_sigma': 0.5,
-        'natural_spectrum_strength': 0.15,
+        'natural_spectrum_strength': 0.06,  # 降低到 0.06（人眼几乎不可见）
         'adversarial_enable': True,
-        'adversarial_eps': 0.02,
+        'adversarial_eps': 0.008,           # 降低到 0.008（人眼几乎不可见）
+        'subtle_noise_intensity': 0.005,    # 降低到 0.005（人眼几乎不可见）
         
         # Phase 2: 多尺度 + 纹理一致性
         'multi_scale_enable': True,

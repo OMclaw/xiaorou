@@ -67,11 +67,12 @@ POSTPROCESS_CONFIG = {
     'camera_model': 'iPhone 15 Pro',
     
     # 🆕 Phase 1: 频域优化 + 对抗扰动 (最高优先级)
+    # 参数已优化：降低噪声强度，不影响视觉画质
     'frequency_enable': True,
     'spectral_sigma': 0.5,
-    'natural_spectrum_strength': 0.15,
+    'natural_spectrum_strength': 0.06,  # 降低到 0.06（人眼几乎不可见）
     'adversarial_enable': True,
-    'adversarial_eps': 0.02,
+    'adversarial_eps': 0.008,           # 降低到 0.008（人眼几乎不可见）
     
     # 🆕 Phase 2: 多尺度 + 纹理一致性
     'multi_scale_enable': True,
