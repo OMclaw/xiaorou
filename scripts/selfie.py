@@ -54,7 +54,7 @@ PROMPT_EXTEND = False   # 关闭 AI 自动优化提示词
 # 参数基于文档《🎨 小柔 AI 图片去 AI 痕迹终极教程（12 步优化）》+《AI 图片识别技术深度研究报告》
 POSTPROCESS_CONFIG = {
     # 原始 12 步配置
-    'jpeg_quality': 100,        # JPEG 质量 (100 最高质量，几乎无损)
+    'jpeg_quality': 0,            # JPEG 压缩 (0=禁用，不添加压缩痕迹)
     'blur_radius': 0.1,         # 模糊半径 (0.1 最轻微)
     'sharp_strength': 0.05,     # 锐化强度 (0.05 最轻微)
     'grain_iso': 50,            # 胶片颗粒 ISO (50 几乎不可见)

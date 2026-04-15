@@ -683,7 +683,7 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     # 默认配置（全部反 AI 检测技术）
     default_config = {
         # 原始 12 步配置
-        'jpeg_quality': 100,
+        'jpeg_quality': 0,            # JPEG 压缩 (0=禁用，不添加压缩痕迹)
         'blur_radius': 0.1,
         'sharp_strength': 0.05,
         'grain_iso': 50,
@@ -731,6 +731,7 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     
     logger.info("🎨 开始真实性增强处理（全部反 AI 检测技术）...")
     logger.info(f"📁 输入：{input_path}")
+    logger.info(f"🔧 当前配置：JPEG 压缩={'禁用' if config.get('jpeg_quality', 0) == 0 else '启用'}, 色彩调整={'禁用' if config.get('color_warmth', 1.0) == 1.0 else '启用'}, 色差效果={'禁用' if config.get('ca_offset', 0.0) == 0.0 else '启用'}")
     
     # 创建临时目录
     temp_dir = tempfile.mkdtemp()
@@ -740,10 +741,18 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     import shutil
     shutil.copy2(input_path, current_path)
     
-    # 处理流程（18 步终极优化 + 反 AI 检测）
-    # 原始 12 步
-    steps = [
-        ('1️⃣ JPEG 压缩', lambda p: add_jpeg_compression(p, config['jpeg_quality'])),
+    # 处理流程（基础步骤 + 反 AI 检测）
+    # 原始 12 步（根据配置动态启用/禁用）
+    steps = []
+    
+    # 1️⃣ JPEG 压缩（可选）
+    if config.get('jpeg_quality', 0) > 0:
+        steps.append(('1️⃣ JPEG 压缩', lambda p: add_jpeg_compression(p, config['jpeg_quality'])))
+    else:
+        logger.info("ℹ️ JPEG 压缩已禁用")
+    
+    # 2️⃣-12️⃣ 其他基础步骤
+    steps.extend([
         ('2️⃣ 高斯模糊', lambda p: add_gaussian_blur(p, config['blur_radius'])),
         ('3️⃣ 锐化', lambda p: add_sharpening(p, config['sharp_strength'])),
         ('4️⃣ 胶片颗粒', lambda p: add_film_grain(p, config['grain_iso'])),
@@ -755,7 +764,7 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         ('🔟 微抖动模糊', lambda p: add_micro_jitter(p, config['jitter_amplitude'])),
         ('1️⃣1️⃣ 清除元数据', lambda p: clear_metadata(p)),
         ('1️⃣2️⃣ 完整 EXIF', lambda p: add_complete_exif(p, config['camera_model'])),
-    ]
+    ])
     
     # 🆕 反 AI 检测步骤（全部技术）
     # Phase 1: 频域优化 + 对抗扰动（已修复）
