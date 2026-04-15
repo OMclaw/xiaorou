@@ -347,9 +347,9 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
              # 参考图已通过 qwen3.5-plus 分析,提取为文字描述在 prompt 中
             content = [
                 {'image': input_image_base64},   # 小柔头像(图生图的 base image)
-                {'text': prompt}                  # prompt 包含从参考图提取的场景/穿搭/光影等细节
+                {'text': '保持这张脸的面部特征不变，' + prompt}                  # prompt 包含从参考图提取的场景/穿搭/光影等细节
             ]
-            logger.info(f"🖼️ 图生图模式:小柔头像 + 文字 prompt(参考图细节已融入 prompt)")
+            logger.info(f"🖼️ 图生图模式:小柔头像 + 文字 prompt(强调保持小柔面部特征)")
 
             payload = {
                 'model': model_name,
