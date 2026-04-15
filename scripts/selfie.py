@@ -355,7 +355,7 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
             # 双图输入：小柔头像 (图 1) + 参考图 (图 2)
             content = [
                 {"image": input_image_base64},   # 图 1: 小柔头像
-                {"text": "保持这张脸的面部特征不变，参考第二张图的服装、场景、姿势"}
+                {"text": "【重要】图 1 是小柔的脸，必须完全保持不变，只参考图 2 的服装、场景、姿势"}
             ]
             
             # 如果有参考图，添加到 content 中作为图 2
