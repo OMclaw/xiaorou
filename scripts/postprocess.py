@@ -680,47 +680,46 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     Returns:
         最终输出图片路径
     """
-    # 默认配置（全部反 AI 检测技术）
+    # 默认配置（全部禁用 - 纯净模式）
     default_config = {
-        # 原始 12 步配置
-        'jpeg_quality': 0,            # JPEG 压缩 (0=禁用，不添加压缩痕迹)
-        'blur_radius': 0.0,         # 模糊半径 (0.0=禁用，不添加模糊)
-        'sharp_strength': 0.0,      # 锐化强度 (0.0=禁用，不添加锐化)
-        'grain_iso': 0,             # 胶片颗粒 ISO (0=禁用，不添加颗粒)
-        'vignette_intensity': 0.05,
-        'color_warmth': 1.0,        # 暖色调 (1.0=禁用，不调整色彩)
-        'ca_offset': 0.0,           # 色差偏移 (0.0=禁用，不添加色差)
-        'distortion_strength': 0.02,
-        'dust_density': 5,
-        'jitter_amplitude': 0.3,
+        # 原始 12 步配置 - 全部禁用
+        'jpeg_quality': 0,
+        'blur_radius': 0.0,
+        'sharp_strength': 0.0,
+        'grain_iso': 0,
+        'vignette_intensity': 0.0,
+        'color_warmth': 1.0,
+        'ca_offset': 0.0,
+        'distortion_strength': 0.0,
+        'dust_density': 0,
+        'jitter_amplitude': 0.0,
         'camera_model': 'iPhone 15 Pro',
         
-        # 🆕 Phase 1: 频域优化 + 对抗扰动
-        'frequency_enable': False,       # ❌ 禁用 1/f 频谱噪声
+        # Phase 1: 频域优化 + 对抗扰动 - 全部禁用
+        'frequency_enable': False,
         'spectral_sigma': 0.5,
-        'natural_spectrum_strength': 0.0,  # 完全禁用
-        'adversarial_enable': True,        # ✅ 启用对抗扰动
-        'adversarial_eps': 0.005,          # 低强度
-        'subtle_noise_enable': False,      # ❌ 禁用细微噪声
-        'subtle_noise_intensity': 0.0,     # 完全禁用
+        'natural_spectrum_strength': 0.0,
+        'adversarial_enable': False,
+        'adversarial_eps': 0.0,
+        'subtle_noise_enable': False,
+        'subtle_noise_intensity': 0.0,
         
-        # 🆕 Phase 2: 多尺度 + 纹理一致性（已修复）
-        'multi_scale_enable': True,        # ✅ 启用多尺度一致性（已修复）
+        # Phase 2: 多尺度 + 纹理一致性 - 全部禁用
+        'multi_scale_enable': False,
         'pyramid_levels': 4,
-        'patch_texture_enable': True,
+        'patch_texture_enable': False,
         'patch_size': 64,
         
-        # 🆕 Phase 3: 皮肤瑕疵 + JPEG 重压缩
-        'skin_imperfections_enable': True,  # ✅ 启用皮肤瑕疵
+        # Phase 3: 皮肤瑕疵 + JPEG 重压缩 - 全部禁用
+        'skin_imperfections_enable': False,
         'skin_mole_density': 0.3,
         'skin_lines_intensity': 0.1,
         'skin_pores_intensity': 0.05,
-        'jpeg_recompress_enable': False,     # ❌ 禁用 JPEG 重压缩
+        'jpeg_recompress_enable': False,
         'jpeg_recompress_cycles': 0,
         
-        # Phase 4: CLIP 特征 + 边缘自然化
-        'clip_optimize_enable': False,  # 可选，计算成本高
-        'edge_naturalize_enable': True,
+        # Phase 4: 边缘自然化 - 禁用
+        'edge_naturalize_enable': False,
         'edge_blur_strength': 0.3,
     }
     
@@ -729,9 +728,9 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         default_config.update(config)
     config = default_config
     
-    logger.info("🎨 开始真实性增强处理（全部反 AI 检测技术）...")
+    logger.info("🎨 开始真实性增强处理（纯净模式 - 无后处理）...")
     logger.info(f"📁 输入：{input_path}")
-    logger.info(f"🔧 当前配置：JPEG 压缩={'禁用' if config.get('jpeg_quality', 0) == 0 else '启用'}, 胶片颗粒={'禁用' if config.get('grain_iso', 50) == 0 else '启用'}, 色彩调整={'禁用' if config.get('color_warmth', 1.0) == 1.0 else '启用'}, 色差效果={'禁用' if config.get('ca_offset', 0.0) == 0.0 else '启用'}, 细微噪声={'禁用' if config.get('subtle_noise_enable', False) == False else '启用'}")
+    logger.info("ℹ️ 所有后处理已禁用，只保留原始图像")
     
     # 创建临时目录
     temp_dir = tempfile.mkdtemp()
@@ -741,78 +740,85 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     import shutil
     shutil.copy2(input_path, current_path)
     
-    # 处理流程（基础步骤 + 反 AI 检测）
-    # 原始 12 步（根据配置动态启用/禁用）
+    # 处理流程（纯净模式 - 无后处理）
+    # 所有步骤都已禁用，只保留原始图像
     steps = []
     
-    # 1️⃣ JPEG 压缩（可选）
+    # 1️⃣-12️⃣ 基础步骤（全部禁用）
     if config.get('jpeg_quality', 0) > 0:
         steps.append(('1️⃣ JPEG 压缩', lambda p: add_jpeg_compression(p, config['jpeg_quality'])))
     else:
         logger.info("ℹ️ JPEG 压缩已禁用")
     
-    # 2️⃣-12️⃣ 其他基础步骤（根据配置动态启用/禁用）
-    # 2️⃣ 高斯模糊（可选）
     if config.get('blur_radius', 0.0) > 0:
         steps.append(('2️⃣ 高斯模糊', lambda p: add_gaussian_blur(p, config['blur_radius'])))
     else:
         logger.info("ℹ️ 高斯模糊已禁用")
     
-    # 3️⃣ 锐化（可选）
     if config.get('sharp_strength', 0.0) > 0:
         steps.append(('3️⃣ 锐化', lambda p: add_sharpening(p, config['sharp_strength'])))
     else:
         logger.info("ℹ️ 锐化已禁用")
     
-    # 4️⃣ 胶片颗粒（可选）
     if config.get('grain_iso', 0) > 0:
         steps.append(('4️⃣ 胶片颗粒', lambda p: add_film_grain(p, config['grain_iso'])))
     else:
         logger.info("ℹ️ 胶片颗粒已禁用")
     
-    # 5️⃣ 暗角
-    steps.append(('5️⃣ 暗角', lambda p: add_vignette(p, config['vignette_intensity'])))
+    if config.get('vignette_intensity', 0.0) > 0:
+        steps.append(('5️⃣ 暗角', lambda p: add_vignette(p, config['vignette_intensity'])))
+    else:
+        logger.info("ℹ️ 暗角已禁用")
     
-    # 6️⃣ 色彩调整（可选）
     if config.get('color_warmth', 1.0) != 1.0:
         steps.append(('6️⃣ 色彩调整', lambda p: add_color_grading(p, config['color_warmth'])))
     else:
         logger.info("ℹ️ 色彩调整已禁用")
     
-    # 7️⃣ 色差效果（可选）
     if config.get('ca_offset', 0.0) != 0.0:
         steps.append(('7️⃣ 色差效果', lambda p: add_chromatic_aberration(p, config['ca_offset'])))
     else:
         logger.info("ℹ️ 色差效果已禁用")
     
-    # 8️⃣-12️⃣ 其他步骤
-    steps.extend([
-        ('8️⃣ 镜头畸变', lambda p: add_lens_distortion(p, config['distortion_strength'])),
-        ('9️⃣ 传感器灰尘', lambda p: add_sensor_dust(p, config['dust_density'])),
-        ('🔟 微抖动模糊', lambda p: add_micro_jitter(p, config['jitter_amplitude'])),
-        ('1️⃣1️⃣ 清除元数据', lambda p: clear_metadata(p)),
-        ('1️⃣2️⃣ 完整 EXIF', lambda p: add_complete_exif(p, config['camera_model'])),
-    ])
+    if config.get('distortion_strength', 0.0) > 0:
+        steps.append(('8️⃣ 镜头畸变', lambda p: add_lens_distortion(p, config['distortion_strength'])))
+    else:
+        logger.info("ℹ️ 镜头畸变已禁用")
     
-    # 🆕 反 AI 检测步骤（全部技术）
-    # Phase 1: 频域优化 + 对抗扰动（已修复）
-    if config.get('frequency_enable', True):
+    if config.get('dust_density', 0) > 0:
+        steps.append(('9️⃣ 传感器灰尘', lambda p: add_sensor_dust(p, config['dust_density'])))
+    else:
+        logger.info("ℹ️ 传感器灰尘已禁用")
+    
+    if config.get('jitter_amplitude', 0.0) > 0:
+        steps.append(('🔟 微抖动模糊', lambda p: add_micro_jitter(p, config['jitter_amplitude'])))
+    else:
+        logger.info("ℹ️ 微抖动模糊已禁用")
+    
+    # 1️⃣1️⃣-12️⃣ 元数据处理（保留）
+    steps.append(('1️⃣1️⃣ 清除元数据', lambda p: clear_metadata(p)))
+    steps.append(('1️⃣2️⃣ 完整 EXIF', lambda p: add_complete_exif(p, config['camera_model'])))
+    
+    # 🆕 反 AI 检测步骤（全部禁用）
+    # Phase 1: 频域优化 + 对抗扰动（禁用）
+    if config.get('frequency_enable', False):
         try:
             from frequency_optimize import frequency_domain_enhance
             steps.append(('🆕 频域优化', lambda p: frequency_domain_enhance(p, {
                 'spectral_sigma': config.get('spectral_sigma', 0.5),
-                'natural_spectrum_strength': config.get('natural_spectrum_strength', 0.03),
+                'natural_spectrum_strength': config.get('natural_spectrum_strength', 0.0),
             })))
         except ImportError as e:
             logger.warning(f"⚠️ 频域优化模块未导入：{e}")
+    else:
+        logger.info("ℹ️ 频域优化已禁用")
     
-    if config.get('adversarial_enable', True):
+    if config.get('adversarial_enable', False):
         try:
             from adversarial_noise import adversarial_enhance
-            # 只添加对抗扰动，不添加细微噪声
             steps.append(('🆕 对抗扰动', lambda p: adversarial_enhance(p, {
-                'adversarial_eps': config.get('adversarial_eps', 0.005),
-                'add_subtle_noise': False,  # 禁用细微噪声
+                'adversarial_eps': config.get('adversarial_eps', 0.0),
+                'add_subtle_noise': False,
                 'subtle_noise_intensity': 0.0,
             })))
         except ImportError as e:
@@ -820,8 +826,8 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     else:
         logger.info("ℹ️ 对抗扰动已禁用")
     
-    # Phase 2: 多尺度 + 纹理一致性（已修复）
-    if config.get('multi_scale_enable', True):
+    # Phase 2: 多尺度 + 纹理一致性（禁用）
+    if config.get('multi_scale_enable', False):
         try:
             from multi_scale import multi_scale_enhance
             steps.append(('🆕 多尺度一致性', lambda p: multi_scale_enhance(p, {
@@ -829,8 +835,10 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
             })))
         except ImportError as e:
             logger.warning(f"⚠️ 多尺度模块未导入：{e}")
+    else:
+        logger.info("ℹ️ 多尺度一致性已禁用")
     
-    if config.get('patch_texture_enable', True):
+    if config.get('patch_texture_enable', False):
         try:
             from patch_texture import patch_texture_optimization
             steps.append(('🆕 纹理一致性', lambda p: patch_texture_optimization(p, {
@@ -838,9 +846,11 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
             })))
         except ImportError as e:
             logger.warning(f"⚠️ 纹理一致性模块未导入：{e}")
+    else:
+        logger.info("ℹ️ 纹理一致性已禁用")
     
-    # Phase 3: 皮肤瑕疵 + JPEG 重压缩
-    if config.get('skin_imperfections_enable', True):
+    # Phase 3: 皮肤瑕疵 + JPEG 重压缩（禁用）
+    if config.get('skin_imperfections_enable', False):
         try:
             from skin_imperfections import add_skin_imperfections
             steps.append(('🆕 皮肤瑕疵', lambda p: add_skin_imperfections(p, {
@@ -855,12 +865,14 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
             })))
         except ImportError as e:
             logger.warning(f"⚠️ 皮肤瑕疵模块未导入：{e}")
+    else:
+        logger.info("ℹ️ 皮肤瑕疵已禁用")
     
-    if config.get('jpeg_recompress_enable', False):  # 默认禁用
+    if config.get('jpeg_recompress_enable', False):
         try:
             from jpeg_recompression import add_jpeg_recompression
             steps.append(('🆕 JPEG 重压缩', lambda p: add_jpeg_recompression(p, {
-                'compression_cycles': config.get('jpeg_recompress_cycles', 2),
+                'compression_cycles': config.get('jpeg_recompress_cycles', 0),
                 'quality_range': [75, 92],
             })))
         except ImportError as e:
@@ -868,8 +880,8 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     else:
         logger.info("ℹ️ JPEG 重压缩已禁用")
     
-    # Phase 4: 边缘自然化
-    if config.get('edge_naturalize_enable', True):
+    # Phase 4: 边缘自然化（禁用）
+    if config.get('edge_naturalize_enable', False):
         try:
             from edge_naturalization import edge_naturalize_enhance
             steps.append(('🆕 边缘自然化', lambda p: edge_naturalize_enhance(p, {
@@ -877,6 +889,8 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
             })))
         except ImportError as e:
             logger.warning(f"⚠️ 边缘自然化模块未导入：{e}")
+    else:
+        logger.info("ℹ️ 边缘自然化已禁用")
     
     # Phase 3: CLIP 特征优化（可选，默认禁用）
     if config.get('clip_optimize_enable', False):

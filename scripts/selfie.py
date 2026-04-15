@@ -50,48 +50,47 @@ MAX_INPUT_LENGTH = 500
 DEFAULT_IMAGE_SIZE = "1K"
 PROMPT_EXTEND = False   # 关闭 AI 自动优化提示词
 
-# 后处理配置（终极版 - 18 步优化 + 反 AI 检测技术）
-# 参数基于文档《🎨 小柔 AI 图片去 AI 痕迹终极教程（12 步优化）》+《AI 图片识别技术深度研究报告》
+# 后处理配置（全部禁用 - 纯净模式）
+# 所有后处理技术已禁用，只保留原始生成
 POSTPROCESS_CONFIG = {
-    # 原始 12 步配置
-    'jpeg_quality': 0,            # JPEG 压缩 (0=禁用，不添加压缩痕迹)
-    'blur_radius': 0.0,         # 模糊半径 (0.0=禁用，不添加模糊)
-    'sharp_strength': 0.0,      # 锐化强度 (0.0=禁用，不添加锐化)
-    'grain_iso': 0,             # 胶片颗粒 ISO (0=禁用，不添加颗粒)
-    'vignette_intensity': 0.05, # 暗角强度 (0.05 最轻微)
-    'color_warmth': 1.0,        # 暖色调 (1.0=禁用，不调整色彩)
-    'ca_offset': 0.0,           # 色差偏移 (0.0=禁用，不添加色差)
-    'distortion_strength': 0.02, # 镜头畸变强度 (0.02 文档推荐值)
-    'dust_density': 5,          # 传感器灰尘数量 (5 个 文档推荐值)
-    'jitter_amplitude': 0.3,    # 微抖动幅度 (0.3 文档推荐值)
+    # 原始 12 步配置 - 全部禁用
+    'jpeg_quality': 0,            # JPEG 压缩 (0=禁用)
+    'blur_radius': 0.0,           # 高斯模糊 (0.0=禁用)
+    'sharp_strength': 0.0,        # 锐化 (0.0=禁用)
+    'grain_iso': 0,               # 胶片颗粒 (0=禁用)
+    'vignette_intensity': 0.0,    # 暗角 (0.0=禁用)
+    'color_warmth': 1.0,          # 暖色调 (1.0=禁用)
+    'ca_offset': 0.0,             # 色差偏移 (0.0=禁用)
+    'distortion_strength': 0.0,   # 镜头畸变 (0.0=禁用)
+    'dust_density': 0,            # 传感器灰尘 (0=禁用)
+    'jitter_amplitude': 0.0,      # 微抖动 (0.0=禁用)
     'camera_model': 'iPhone 15 Pro',
     
-    # 🆕 Phase 1: 频域优化 + 对抗扰动
-    'frequency_enable': False,       # ❌ 禁用 1/f 频谱噪声
+    # Phase 1: 频域优化 + 对抗扰动 - 全部禁用
+    'frequency_enable': False,       # ❌ 禁用
     'spectral_sigma': 0.5,
-    'natural_spectrum_strength': 0.0,  # 完全禁用
-    'adversarial_enable': True,        # ✅ 启用对抗扰动
-    'adversarial_eps': 0.005,          # 低强度
-    'subtle_noise_enable': False,      # ❌ 禁用细微噪声
-    'subtle_noise_intensity': 0.0,     # 完全禁用
+    'natural_spectrum_strength': 0.0,
+    'adversarial_enable': False,     # ❌ 禁用
+    'adversarial_eps': 0.0,
+    'subtle_noise_enable': False,    # ❌ 禁用
+    'subtle_noise_intensity': 0.0,
     
-    # 🆕 Phase 2: 多尺度 + 纹理一致性（已修复）
-    'multi_scale_enable': True,        # ✅ 启用多尺度一致性（已修复）
+    # Phase 2: 多尺度 + 纹理一致性 - 全部禁用
+    'multi_scale_enable': False,     # ❌ 禁用
     'pyramid_levels': 4,
-    'patch_texture_enable': True,
+    'patch_texture_enable': False,   # ❌ 禁用
     'patch_size': 64,
     
-    # 🆕 Phase 3: 皮肤瑕疵 + JPEG 重压缩
-    'skin_imperfections_enable': True,  # ✅ 启用皮肤瑕疵
+    # Phase 3: 皮肤瑕疵 + JPEG 重压缩 - 全部禁用
+    'skin_imperfections_enable': False,  # ❌ 禁用
     'skin_mole_density': 0.3,
     'skin_lines_intensity': 0.1,
     'skin_pores_intensity': 0.05,
-    'jpeg_recompress_enable': False,     # ❌ 禁用 JPEG 重压缩
+    'jpeg_recompress_enable': False,     # ❌ 禁用
     'jpeg_recompress_cycles': 0,
     
-    # Phase 4: CLIP 特征优化（可选）
-    'clip_optimize_enable': False,  # 可选，计算成本高
-    'edge_naturalize_enable': True,
+    # Phase 4: 边缘自然化 - 禁用
+    'edge_naturalize_enable': False,  # ❌ 禁用
     'edge_blur_strength': 0.3,
 }
 
