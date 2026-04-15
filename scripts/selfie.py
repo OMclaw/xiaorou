@@ -38,8 +38,10 @@ from config import config, ConfigurationError, ALLOWED_IMAGE_DIRS
 # ========== 常量定义 ==========
 MAX_IMAGE_SIZE_BYTES = 20 * 1024 * 1024  # 20MB
 CHUNK_SIZE = 8192  # 下载块大小
-IMAGE_STRENGTH_DEFAULT = float(os.environ.get('XIAOROU_IMAGE_STRENGTH', '0.65'))
-DENOISING_STRENGTH_DEFAULT = float(os.environ.get('XIAOROU_DENOISING_STRENGTH', '0.75'))
+
+# 基于"如何让 AI 生成图片更真实"洞察文章优化的参数
+IMAGE_STRENGTH_DEFAULT = float(os.environ.get('XIAOROU_IMAGE_STRENGTH', '0.55'))  # 降低到 0.5-0.6 范围
+DENOISING_STRENGTH_DEFAULT = float(os.environ.get('XIAOROU_DENOISING_STRENGTH', '0.65'))  # 降低到 0.6-0.7 范围
 MAX_DOWNLOAD_SIZE_MB = 20
 MAX_IMAGE_SIZE_MB = 10
 MAX_PROMPT_LENGTH = 6000
@@ -47,6 +49,25 @@ MAX_PROMPT_LENGTH = 6000
 MAX_INPUT_LENGTH = 500
 DEFAULT_IMAGE_SIZE = "1K"
 PROMPT_EXTEND = False   # 关闭 AI 自动优化提示词
+
+# 后处理配置（终极版 - 12 步优化抹除 AI 痕迹）
+# 参数基于文档《🎨 小柔 AI 图片去 AI 痕迹终极教程（12 步优化）》推荐值
+POSTPROCESS_CONFIG = {
+    'jpeg_quality': 100,        # JPEG 质量 (100 最高质量，几乎无损)
+    'blur_radius': 0.1,         # 模糊半径 (0.1 最轻微)
+    'sharp_strength': 0.05,     # 锐化强度 (0.05 最轻微)
+    'grain_iso': 50,            # 胶片颗粒 ISO (50 几乎不可见)
+    'vignette_intensity': 0.05, # 暗角强度 (0.05 最轻微)
+    'color_warmth': 1.01,       # 暖色调 (1.01 几乎不变)
+    'ca_offset': 0.5,           # 色差偏移 (0.5 文档推荐值)
+    'distortion_strength': 0.02, # 镜头畸变强度 (0.02 文档推荐值)
+    'dust_density': 5,          # 传感器灰尘数量 (5 个 文档推荐值)
+    'jitter_amplitude': 0.3,    # 微抖动幅度 (0.3 文档推荐值)
+    'camera_model': 'iPhone 15 Pro',
+}
+
+# 是否启后处理
+ENABLE_POSTPROCESS = os.environ.get('XIAOROU_ENABLE_POSTPROCESS', 'true').lower() == 'true'
 # 超时配置(P1 修复 - 可从环境变量定制)
 API_TIMEOUT = int(os.environ.get('XIAOROU_API_TIMEOUT', '120'))
 IMAGE_DOWNLOAD_TIMEOUT = int(os.environ.get('XIAOROU_IMAGE_DOWNLOAD_TIMEOUT', '60'))   # 增加到 60 秒
@@ -245,18 +266,20 @@ def build_prompt(context: str) -> Tuple[str, str]:
 
      # 真实感增强标签 - 自然光滑,无黑点,淡粉色嘴唇,无腮红,色彩自然,正确人体结构,清淡妆容
     realistic_tags = "真实摄影,自然光滑皮肤,清透肌肤,真实光影,柔和光线,生活照风格,无 AI 感,无塑料感,无黑点,无瑕疵,无口红,裸唇,唇色自然,无妆感,嘴唇本色,无腮红,清淡底妆,底妆轻薄透明,腮红极淡,几乎无腮红,裸妆效果,妆容极淡,色彩柔和自然,低饱和度,避免过度鲜艳,正确人体结构,正常双手,无多余肢体,妆容清淡自然,脸部妆容自然,避免浓妆,色彩素雅,莫兰迪色系,极低饱和度,色彩非常淡,淡雅色调,低对比度,柔和色彩,【自然真实 - 极高优先级】动作极其自然,表情生动真实,姿态放松不僵硬,抓拍感强,生活化场景,日常自然状态,完全不做作,肢体语言流畅,神态自然有神,避免摆拍感,避免刻板姿势,避免表情呆板"
-     # 腿部质量标签 - 专门针对腿部优化
-    leg_quality_tags = "完美腿部比例,标准人体结构,腿部细节清晰,膝盖结构正确,脚踝结构正确,腿部光影自然,腿部皮肤质感真实,腿部线条优美,正常腿长比例,双腿完整,腿部无畸形"
+     # 手部质量标签 - 专门针对手部优化 (P1 修复:强化手部描述)
+    hand_quality_tags = "【手部质量 - 最高优先级】正常五指,手指修长自然,手指比例正确,无多余手指,无缺失手指,手指关节清晰,指甲自然修剪,手部皮肤光滑,手部光影自然,手部姿势优雅,手腕纤细,手臂线条流畅,手臂比例正常,无畸形手臂,无多余手臂,肘部结构正确,肩膀自然放松,【严禁】六指,【严禁】畸形手,【严禁】融合手指,【严禁】扭曲手臂"
+     # 腿部质量标签 - 专门针对腿部优化 (P1 修复:强化多腿问题)
+    leg_quality_tags = "【腿部质量 - 最高优先级】完美腿部比例,标准人体结构,腿部细节清晰,膝盖结构正确,脚踝结构正确,腿部光影自然,腿部皮肤质感真实,腿部线条优美,正常腿长比例,双腿完整,腿部无畸形,【严禁】多腿,【严禁】三条腿,【严禁】四条腿,【严禁】多余腿,【严禁】畸形腿,【严禁】融合腿,【严禁】扭曲腿,【严禁】额外肢体,【严格限制】只有两条腿,【严格限制】双腿结构,【严格限制】正常人体下半身,【严格限制】单一双腿"
 
      # 质量标签 - 强调色彩自然和正确结构
-    quality_tags = "8K 超高清,电影级布光,细节丰富,色彩自然柔和,低饱和度,真实色调,正确人体比例,妆容自然,素雅色彩,极低饱和度,完美腿部比例,腿部无畸形,腿部结构正确,无水印,无文字,无字样,无 logo,纯净画面"
+    quality_tags = "8K 超高清,电影级布光,细节丰富,色彩自然柔和,低饱和度,真实色调,正确人体比例,妆容自然,素雅色彩,极低饱和度,完美腿部比例,腿部无畸形,腿部结构正确,【严格限制】正常人体结构,【严格限制】标准四肢,【严格限制】双腿双臂,【严禁】多余肢体,【严禁】多腿,【严禁】多手臂,无水印,无文字,无字样,无 logo,纯净画面"
 
     mirror_keywords = ['穿', '衣服', '穿搭', '全身', '镜子']
     if any(kw in context_lower for kw in mirror_keywords):
-        return "mirror", f"{influencer_style},{context},全身照,对镜拍摄,网红打卡场景,自然光线,{realistic_tags},{leg_quality_tags},{quality_tags}"
+        return "mirror", f"{influencer_style},{context},全身照,对镜拍摄,网红打卡场景,自然光线,{realistic_tags},{hand_quality_tags},{leg_quality_tags},{quality_tags}"
 
      # 默认网红风格 prompt - 强调自然真实
-    return "direct", f"{influencer_style},{context},眼神直视镜头,自然微笑,真实五官,时尚造型,网红打卡背景,{realistic_tags},{leg_quality_tags},{quality_tags}"
+    return "direct", f"{influencer_style},{context},眼神直视镜头,自然微笑,真实五官,时尚造型,网红打卡背景,{realistic_tags},{hand_quality_tags},{leg_quality_tags},{quality_tags}"
 
 
 def generate_single_image(model_name: str, image_path: Path, prompt: str, api_key: str, max_retries: int = 2, reference_image_path: Optional[Path] = None) -> Tuple[str, Optional[str]]:
@@ -286,11 +309,11 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                 logger.warning(f"⚠️ Prompt 过长 ({len(prompt)} > {max_prompt_len}),已截断")
                 prompt = prompt[:max_prompt_len]
 
-             # 不同模型的尺寸参数格式不同 - 改成 3:4 竖版比例
+             # 不同模型的尺寸参数格式不同 - 改成 3:4 竖版最高分辨率
             if model_name == 'qwen-image-2.0-pro':
-                size_param = '768*1024'   # qwen-image-2.0-pro 使用 3:4 分辨率
+                size_param = '1280*1707'   # qwen-image-2.0-pro 使用 3:4 最高分辨率
             else:
-                size_param = '768*1024'   # wan2.7-image 使用 3:4 竖版
+                size_param = '1280*1707'   # wan2.7-image 使用 3:4 最高分辨率(原 768*1024)
 
              # 单图输入:只传小柔头像(图生图模式)
              # 参考图已通过 qwen3.5-plus 分析,提取为文字描述在 prompt 中
@@ -525,8 +548,8 @@ def send_feishu_image_message(image_key: str, caption: str, receive_id: str, rec
         elif receive_id.startswith('u_'):
             receive_id_type = 'user_id'
         else:
-            logger.error(f"❌ 无法识别 receive_id 类型：{receive_id[:10]}... (期望前缀：ou_/on_/ai_/u_)")
-            return False   # 拒绝处理，避免跨 app 错误
+            logger.error(f"❌ 无法识别 receive_id 类型:{receive_id[:10]}... (期望前缀:ou_/on_/ai_/u_)")
+            return False   # 拒绝处理,避免跨 app 错误
         logger.debug(f"自动识别 receive_id_type: {receive_id_type} for {receive_id[:10]}...")
 
     message_url = f"https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type={receive_id_type}"
@@ -588,7 +611,7 @@ def _download_image(image_url: str, temp_file: str) -> bool:
     try:
         response = requests.get(image_url, timeout=IMAGE_DOWNLOAD_TIMEOUT, stream=True)
         response.raise_for_status()
-        
+
          # SSRF 防护
         final_url = response.url
         allowed_domains = ['dashscope.aliyuncs.com', 'aliyuncs.com', 'volces.com']
@@ -601,24 +624,24 @@ def _download_image(image_url: str, temp_file: str) -> bool:
         if not is_allowed:
             logger.error(f"⚠️ 下载 URL 重定向到非信任域:{final_url}")
             return False
-        
+
          # 检查重定向次数
         if len(response.history) > 5:
             logger.error(f"重定向次数过多:{len(response.history)}")
             return False
-        
+
          # 检查 Content-Type
         content_type = response.headers.get('Content-Type', '')
         if not content_type.startswith('image/'):
             logger.error(f"远程资源不是图片类型:{content_type}")
             return False
-        
+
          # 检查文件大小
         content_length = response.headers.get('Content-Length')
         if content_length and int(content_length) > MAX_IMAGE_SIZE_BYTES:
             logger.error(f"图片过大 ({int(content_length) / 1024 / 1024:.1f}MB > 20MB)")
             return False
-        
+
          # 下载文件
         max_download_size = MAX_DOWNLOAD_SIZE_MB * 1024 * 1024
         downloaded = 0
@@ -629,15 +652,15 @@ def _download_image(image_url: str, temp_file: str) -> bool:
                     if downloaded > max_download_size:
                         raise ValueError(f"下载超出大小限制 ({downloaded / 1024 / 1024:.1f}MB > 20MB)")
                     f.write(chunk)
-        
+
         if os.path.getsize(temp_file) == 0:
             logger.error("下载的图片文件为空")
             os.remove(temp_file)
             return False
-        
+
         return True
     except Exception as e:
-        logger.error(f"下载图片失败：{e}")
+        logger.error(f"下载图片失败:{e}")
         return False
 
 
@@ -665,33 +688,50 @@ def _save_to_output_dir(temp_file: str, user_id: str) -> Optional[str]:
 
 
 def send_to_channel(image_url: str, caption: str, channel: str, model_name: str, target: Optional[str] = None) -> bool:
-    """发送图片到频道，飞书使用原生图片格式，其他平台使用文件"""
+    """发送图片到频道,飞书使用原生图片格式,其他平台使用文件"""
     try:
         logger.info(f"📤 发送到:{channel} (model: {model_name})")
-        
+
          # 准备 caption
         model_display = get_model_display(model_name)
         full_caption = f"{model_display} {caption}"
-        
+
          # 准备临时文件路径
         timestamp = int(time.time())
         safe_model_name = model_name.replace('.', '_').replace('-', '_')[:50]
         temp_dir = config.get_temp_dir()
         temp_file = f'{temp_dir}/selfie_{safe_model_name}_{timestamp}.jpg'
         os.makedirs(str(temp_dir), mode=0o700, exist_ok=True)
-        
+
          # 下载图片
         if not _download_image(image_url, temp_file):
             return False
-        
+
+        logger.info(f"✅ 图片下载完成:{temp_file}")
+
+         # 【新增】真实性增强后处理(基于洞察文章优化)
+        if ENABLE_POSTPROCESS:
+            try:
+                from postprocess import enhance_realism
+                logger.info("🎨 开始真实性增强处理...")
+                enhanced_file = temp_file.rsplit('.', 1)[0] + '_enhanced.jpg'
+                enhance_realism(temp_file, enhanced_file, POSTPROCESS_CONFIG)
+
+                # 替换为增强后的文件
+                if os.path.exists(enhanced_file):
+                    temp_file = enhanced_file
+                    logger.info("✨ 真实性增强完成")
+            except Exception as e:
+                logger.warning(f"⚠️ 后处理失败:{e},使用原始图片")
+
          # 保存到输出目录
         user_id = target or 'default'
         user_id = re.sub(r'[^a-zA-Z0-9_\-]', '_', str(user_id))[:32]
         output_path = _save_to_output_dir(temp_file, user_id)
-        
+
          # 发送到频道
         success = _send_to_channel_impl(temp_file, full_caption, channel, target)
-        
+
         return success
     except Exception as e:
         logger.error(f"发送异常:{e}")
@@ -705,12 +745,12 @@ def _send_to_channel_impl(temp_file: str, full_caption: str, channel: str, targe
         send_target = target or os.environ.get('AEVIA_TARGET', '')
         if not send_target:
             send_target = config.get_feishu_target()
-        
+
         if not send_target:
-            logger.error("未配置飞书目标用户（target），请设置 AEVIA_TARGET 环境变量或配置文件")
+            logger.error("未配置飞书目标用户(target),请设置 AEVIA_TARGET 环境变量或配置文件")
             return False
-        
-        logger.info(f"📤 飞书目标用户：{send_target[:10]}...")
+
+        logger.info(f"📤 飞书目标用户:{send_target[:10]}...")
         image_key = upload_feishu_image(temp_file)
         if image_key:
             if send_feishu_image_message(image_key, full_caption, send_target):
@@ -722,7 +762,7 @@ def _send_to_channel_impl(temp_file: str, full_caption: str, channel: str, targe
         else:
             logger.error("上传飞书图片失败")
             return False
-    
+
      # 其他平台使用 openclaw message send 命令
     else:
         send_target = target or os.environ.get('AEVIA_TARGET', '')
@@ -934,26 +974,26 @@ if __name__ == "__main__":
     LOCK_FILE = str(config.get_temp_dir() / "selfie_task.lock")
     os.makedirs(os.path.dirname(LOCK_FILE), exist_ok=True)
 
-     # P0-5 修复：检查锁文件是否过期（防止进程异常退出后残留）
-     # P0-6 优化：超时时间 300 秒 → 30 秒，支持高频并发测试
+     # P0-5 修复:检查锁文件是否过期(防止进程异常退出后残留)
+     # P0-6 优化:超时时间 300 秒 → 30 秒,支持高频并发测试
     if not is_lock_expired(LOCK_FILE, timeout_seconds=30):
         print("Task is already running. Skipping to prevent spam.")
         sys.exit(0)
-    
+
      # 清理过期锁文件
     if os.path.exists(LOCK_FILE):
         try:
             os.remove(LOCK_FILE)
         except:
             pass
-    
+
     lock_fd = None
     try:
         lock_fd = open(LOCK_FILE, 'w')
         fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         lock_fd.write(str(os.getpid()))
     except IOError:
-         # 如果无法获取锁，说明已有任务在运行，直接退出防止刷屏
+         # 如果无法获取锁,说明已有任务在运行,直接退出防止刷屏
         print("Task is already running. Skipping to prevent spam.")
         sys.exit(0)
 
