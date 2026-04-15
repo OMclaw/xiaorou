@@ -68,7 +68,7 @@ def _is_path_allowed(file_path: str) -> bool:
 
 
 def get_image_base64(image_path: str) -> str:
-    """读取图片并转换为 base64"""
+    """读取图片并转换为 base64（支持 PNG 自动转 JPEG）"""
      # 检查文件大小（限制 20MB）（P3-2 修复：添加空文件检查）
     file_size = os.path.getsize(image_path)
     if file_size == 0:
@@ -77,9 +77,27 @@ def get_image_base64(image_path: str) -> str:
         raise ImageAnalysisError(f"图片文件过大：{file_size / 1024 / 1024:.2f}MB（限制 {MAX_FILE_SIZE_MB}MB）")
     
     import mimetypes
+    
+    # 处理 PNG 格式（转换为 JPEG）
     mime_type, _ = mimetypes.guess_type(image_path)
     if not mime_type or not mime_type.startswith('image/'):
         mime_type = 'image/jpeg'
+    
+    # PNG 转 JPEG（避免 API 兼容性问题）
+    if mime_type == 'image/png':
+        try:
+            from PIL import Image
+            img = Image.open(image_path)
+            if img.mode in ('RGBA', 'P'):
+                img = img.convert('RGB')
+            # 保存到临时 JPEG
+            temp_jpg = image_path.rsplit('.', 1)[0] + '_converted.jpg'
+            img.save(temp_jpg, 'JPEG', quality=95)
+            image_path = temp_jpg
+            mime_type = 'image/jpeg'
+            logger.info(f"✅ PNG 已转换为 JPEG: {temp_jpg}")
+        except Exception as e:
+            logger.warning(f"⚠️ PNG 转换失败：{e}，使用原始文件")
     
     with open(image_path, 'rb') as f:
         image_data = base64.b64encode(f.read()).decode('utf-8')
@@ -169,17 +187,25 @@ def analyze_image(image_path: str, api_key: str) -> str:
    - 光线质量：硬光/软光/自然光/影棚光
    - 光线效果：高光、阴影、轮廓光等
 
-4. **【姿势/动作】**：
-   - 身体姿势：站姿/坐姿/躺姿
-   - 手部动作：具体手势、手拿道具等
+4. **【姿势/动作】**（重点描述，但要避免复杂手势）：
+   - 身体姿势：站姿/坐姿/躺姿，身体朝向（正对/侧身/回眸）
+   - 手部动作：**优先描述简单手势**（自然下垂/托腮/叉腰/放腿上），避免复杂手势（比 V/握拳/拿手机）
    - 表情：微笑/眼神/情绪（不描述五官细节）
+   - **注意**：如果参考图有复杂手势，建议简化描述为"自然姿势"
 
 5. **【镜头/构图】**：
-   - 景别：特写/半身/全身
-   - 拍摄角度：平视/俯视/仰视
-   - 景深：背景虚化程度
+   - 景别：**推荐特写/半身**（减少肢体数量，降低检测风险）
+   - 拍摄角度：平视/微俯视（避免极端角度）
+   - 景深：**浅景深/背景虚化**（掩盖细节问题）
 
-**输出格式**：按上述 5 点顺序输出，每点用完整句子详细描述，不要关键词列表。完全不要描述人脸五官。"""
+**输出格式**：按上述 5 点顺序输出，每点用完整句子详细描述，不要关键词列表。完全不要描述人脸五官。
+
+**⚠️ 重要提示**：
+- 避免描述文字内容（如招牌、T 恤文字）
+- 避免描述复杂手势（如比 V、握拳、拿东西）
+- 避免描述多人场景
+- 优先推荐简单构图（单人、半身、自然姿势）
+"""
 
     try:
         result = _call_multimodal_api(image_base64, analysis_prompt, api_key)
@@ -189,10 +215,41 @@ def analyze_image(image_path: str, api_key: str) -> str:
         raise ImageAnalysisError(f"图片分析失败：{e}")
 
 
+def extract_clothing_from_description(desc: str) -> str:
+    """从参考图描述中提取服装描述"""
+    # 查找【服装/造型】部分
+    import re
+    clothing_match = re.search(r'【服装/造型】.*?(?=【|$)', desc, re.DOTALL)
+    if clothing_match:
+        return clothing_match.group(0).replace('【服装/造型】', '').strip()
+    # 备用：返回描述的前半部分
+    return "wearing detailed outfit from reference image"
+
+def extract_location_from_description(desc: str) -> str:
+    """从参考图描述中提取场景/地点"""
+    import re
+    location_match = re.search(r'【场景/背景】.*?(?=【|$)', desc, re.DOTALL)
+    if location_match:
+        return location_match.group(0).replace('【场景/背景】', '').strip()
+    return "outdoor beach setting with ocean and sky background"
+
+def extract_lighting_from_description(desc: str) -> str:
+    """从参考图描述中提取光线描述"""
+    import re
+    lighting_match = re.search(r'【光线】.*?(?=【|$)', desc, re.DOTALL)
+    if lighting_match:
+        return lighting_match.group(0).replace('【光线】', '').strip()
     return "Bright natural daylight"
 
 def extract_pose_from_description(desc: str) -> str:
     """从参考图描述中提取姿势描述"""
+    import re
+    # 查找【姿势/动作】部分
+    pose_match = re.search(r'【姿势/动作】.*?(?=【|$)', desc, re.DOTALL)
+    if pose_match:
+        pose_text = pose_match.group(0).replace('【姿势/动作】', '').strip()
+        # 强调姿势必须完全一致，每个细节都要 copy
+        return f"**COPY EXACT POSE - every detail: {pose_text}**"
     return "Standing pose with natural arm position"
 
 def build_reference_prompt(description: str) -> str:
@@ -278,8 +335,10 @@ bad anatomy, poorly drawn face, mutation, bad proportions, (blur, out of focus:1
     environment_blend = """人物与背景自然融合无违和感，环境光遮蔽（AO）效果明显（人物与地面接触处有阴影），接触阴影真实，人物在地面投射出清晰影子，影子方向与光源一致，环境反射（人物身上有背景色反射），色彩呼应（人物服装颜色与背景色调协调），背景虚化过渡自然无硬边，景深层次分明（前景 - 中景 - 背景），空间感强，三维立体感，真实空间关系和透视，真实的环境细节，环境纹理清晰，背景物体细节丰富，环境光影层次分明"""
     
      # 【精简】反向提示词 - 去重并统一权重（<500 字符）
+    # 基于"如何让 AI 生成图片更真实"洞察文章优化
     negative_tags = """避免 AI 感，避免塑料感，避免过度光滑，避免数码合成感，避免 3D 渲染感，避免卡通插画感，避免不自然光影，避免畸形，避免多余肢体，正常人体结构，比例正确，避免动作僵硬，避免表情呆板，避免手部畸形，避免手指融合，避免腿部畸形，
-    (no hands:2.5), (missing hands:2.5), (bad hands:2.0), (malformed hands:2.0), (extra fingers:1.8), (fused fingers:2.0), (missing limbs:2.0), (disconnected limbs:1.8), (poorly drawn hands:2.0), (poorly drawn face:1.5), (bad anatomy:1.5), (worst quality, low quality:1.4), blur, out of focus, 3d, cgi, cartoon, anime, digital art"""
+    (no hands:3.0), (missing hands:3.0), (bad hands:2.5), (malformed hands:2.5), (extra fingers:2.5), (fused fingers:2.5), (missing limbs:2.5), (disconnected limbs:2.5), (poorly drawn hands:2.5), (poorly drawn face:2.0), (bad anatomy:2.0), (mutated hands:2.5), (extra limbs:2.5), (too many fingers:2.5), (too few fingers:2.5), (hand deformity:2.5), (limb deformity:2.5), (worst quality, low quality:1.4), blur, out of focus, 3d, cgi, cartoon, anime, digital art,
+    【避免复杂手势】no complex hand gestures, no V sign, no holding objects, no text in image, no signs, no logos"""
     
      # 组合完整 prompt - 商拍模板框架 + 人物一致性 + 参考图细节
     full_prompt = f"""{instruction}。

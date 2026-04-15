@@ -50,9 +50,10 @@ MAX_INPUT_LENGTH = 500
 DEFAULT_IMAGE_SIZE = "1K"
 PROMPT_EXTEND = False   # 关闭 AI 自动优化提示词
 
-# 后处理配置（终极版 - 12 步优化抹除 AI 痕迹）
-# 参数基于文档《🎨 小柔 AI 图片去 AI 痕迹终极教程（12 步优化）》推荐值
+# 后处理配置（终极版 - 18 步优化 + 反 AI 检测技术）
+# 参数基于文档《🎨 小柔 AI 图片去 AI 痕迹终极教程（12 步优化）》+《AI 图片识别技术深度研究报告》
 POSTPROCESS_CONFIG = {
+    # 原始 12 步配置
     'jpeg_quality': 100,        # JPEG 质量 (100 最高质量，几乎无损)
     'blur_radius': 0.1,         # 模糊半径 (0.1 最轻微)
     'sharp_strength': 0.05,     # 锐化强度 (0.05 最轻微)
@@ -64,6 +65,24 @@ POSTPROCESS_CONFIG = {
     'dust_density': 5,          # 传感器灰尘数量 (5 个 文档推荐值)
     'jitter_amplitude': 0.3,    # 微抖动幅度 (0.3 文档推荐值)
     'camera_model': 'iPhone 15 Pro',
+    
+    # 🆕 Phase 1: 频域优化 + 对抗扰动 (最高优先级)
+    'frequency_enable': True,
+    'spectral_sigma': 0.5,
+    'natural_spectrum_strength': 0.15,
+    'adversarial_enable': True,
+    'adversarial_eps': 0.02,
+    
+    # 🆕 Phase 2: 多尺度 + 纹理一致性
+    'multi_scale_enable': True,
+    'pyramid_levels': 4,
+    'patch_texture_enable': True,
+    'patch_size': 64,
+    
+    # 🆕 Phase 3: 边缘自然化 + CLIP 特征优化
+    'edge_naturalize_enable': True,
+    'edge_blur_strength': 0.3,
+    'clip_optimize_enable': False,  # 可选，计算成本高
 }
 
 # 是否启后处理
