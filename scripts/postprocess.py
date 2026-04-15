@@ -688,8 +688,8 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         'sharp_strength': 0.05,
         'grain_iso': 50,
         'vignette_intensity': 0.05,
-        'color_warmth': 1.01,
-        'ca_offset': 0.5,
+        'color_warmth': 1.0,        # 暖色调 (1.0=禁用，不调整色彩)
+        'ca_offset': 0.0,           # 色差偏移 (0.0=禁用，不添加色差)
         'distortion_strength': 0.02,
         'dust_density': 5,
         'jitter_amplitude': 0.3,
