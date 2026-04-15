@@ -686,7 +686,7 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         'jpeg_quality': 0,            # JPEG 压缩 (0=禁用，不添加压缩痕迹)
         'blur_radius': 0.1,
         'sharp_strength': 0.05,
-        'grain_iso': 50,
+        'grain_iso': 0,             # 胶片颗粒 ISO (0=禁用，不添加颗粒)
         'vignette_intensity': 0.05,
         'color_warmth': 1.0,        # 暖色调 (1.0=禁用，不调整色彩)
         'ca_offset': 0.0,           # 色差偏移 (0.0=禁用，不添加色差)
@@ -731,7 +731,7 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     
     logger.info("🎨 开始真实性增强处理（全部反 AI 检测技术）...")
     logger.info(f"📁 输入：{input_path}")
-    logger.info(f"🔧 当前配置：JPEG 压缩={'禁用' if config.get('jpeg_quality', 0) == 0 else '启用'}, 色彩调整={'禁用' if config.get('color_warmth', 1.0) == 1.0 else '启用'}, 色差效果={'禁用' if config.get('ca_offset', 0.0) == 0.0 else '启用'}")
+    logger.info(f"🔧 当前配置：JPEG 压缩={'禁用' if config.get('jpeg_quality', 0) == 0 else '启用'}, 胶片颗粒={'禁用' if config.get('grain_iso', 50) == 0 else '启用'}, 色彩调整={'禁用' if config.get('color_warmth', 1.0) == 1.0 else '启用'}, 色差效果={'禁用' if config.get('ca_offset', 0.0) == 0.0 else '启用'}")
     
     # 创建临时目录
     temp_dir = tempfile.mkdtemp()
@@ -751,14 +751,36 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     else:
         logger.info("ℹ️ JPEG 压缩已禁用")
     
-    # 2️⃣-12️⃣ 其他基础步骤
+    # 2️⃣-12️⃣ 其他基础步骤（根据配置动态启用/禁用）
+    # 2️⃣ 高斯模糊
+    steps.append(('2️⃣ 高斯模糊', lambda p: add_gaussian_blur(p, config['blur_radius'])))
+    
+    # 3️⃣ 锐化
+    steps.append(('3️⃣ 锐化', lambda p: add_sharpening(p, config['sharp_strength'])))
+    
+    # 4️⃣ 胶片颗粒（可选）
+    if config.get('grain_iso', 0) > 0:
+        steps.append(('4️⃣ 胶片颗粒', lambda p: add_film_grain(p, config['grain_iso'])))
+    else:
+        logger.info("ℹ️ 胶片颗粒已禁用")
+    
+    # 5️⃣ 暗角
+    steps.append(('5️⃣ 暗角', lambda p: add_vignette(p, config['vignette_intensity'])))
+    
+    # 6️⃣ 色彩调整（可选）
+    if config.get('color_warmth', 1.0) != 1.0:
+        steps.append(('6️⃣ 色彩调整', lambda p: add_color_grading(p, config['color_warmth'])))
+    else:
+        logger.info("ℹ️ 色彩调整已禁用")
+    
+    # 7️⃣ 色差效果（可选）
+    if config.get('ca_offset', 0.0) != 0.0:
+        steps.append(('7️⃣ 色差效果', lambda p: add_chromatic_aberration(p, config['ca_offset'])))
+    else:
+        logger.info("ℹ️ 色差效果已禁用")
+    
+    # 8️⃣-12️⃣ 其他步骤
     steps.extend([
-        ('2️⃣ 高斯模糊', lambda p: add_gaussian_blur(p, config['blur_radius'])),
-        ('3️⃣ 锐化', lambda p: add_sharpening(p, config['sharp_strength'])),
-        ('4️⃣ 胶片颗粒', lambda p: add_film_grain(p, config['grain_iso'])),
-        ('5️⃣ 暗角', lambda p: add_vignette(p, config['vignette_intensity'])),
-        ('6️⃣ 色彩调整', lambda p: add_color_grading(p, config['color_warmth'])),
-        ('7️⃣ 色差效果', lambda p: add_chromatic_aberration(p, config['ca_offset'])),
         ('8️⃣ 镜头畸变', lambda p: add_lens_distortion(p, config['distortion_strength'])),
         ('9️⃣ 传感器灰尘', lambda p: add_sensor_dust(p, config['dust_density'])),
         ('🔟 微抖动模糊', lambda p: add_micro_jitter(p, config['jitter_amplitude'])),
