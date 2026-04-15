@@ -246,11 +246,21 @@ def validate_config() -> str:
 
 
 def validate_character_image() -> Path:
-    """验证小柔头像文件是否存在"""
+    """验证小柔头像文件是否存在（优先使用新生成的头像）"""
     script_dir = Path(__file__).resolve().parent
-    character_path = script_dir.parent / 'assets/default-character.png'
+    assets_dir = script_dir.parent / 'assets'
+    
+    # 优先使用新生成的 xiaorou_avatar.png（Z-image 生成）
+    character_path = assets_dir / 'xiaorou_avatar.png'
+    if character_path.exists():
+        logger.info("✅ 使用小柔新头像 (xiaorou_avatar.png)")
+        return character_path
+    
+    # 回退到默认头像
+    character_path = assets_dir / 'default-character.png'
     if not character_path.exists():
         raise FileNotFoundError(f"头像文件不存在:{character_path}")
+    logger.info("✅ 使用默认头像 (default-character.png)")
     return character_path
 
 
@@ -363,6 +373,9 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                      # 真实感增强参数
                     'image_strength': IMAGE_STRENGTH_DEFAULT,   # 参考图影响力(0.5-0.7 平衡真实度和还原度)
                     'denoising_strength': DENOISING_STRENGTH_DEFAULT,   # 去噪强度(0.6-0.8 增加细节变化)
+                     # 小柔面部一致性优化
+                    'face_consistency': True,  # 启用人脸一致性保护
+                    'face_weight': 0.8,        # 人脸权重（保持 80% 原脸特征）
                 }
             }
 
