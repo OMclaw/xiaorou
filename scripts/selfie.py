@@ -352,14 +352,19 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                 size_param = '1280*1707'   # qwen-image-2.0-pro 使用 3:4 最高分辨率
             else:
                 size_param = '1280*1707'   # wan2.7-image 使用 3:4 最高分辨率(原 768*1024)
-
-             # 单图输入:只传小柔头像(图生图模式)
-             # 参考图已通过 qwen3.5-plus 分析,提取为文字描述在 prompt 中
+            # 双图输入：小柔头像 (图 1) + 参考图 (图 2)
             content = [
-                {'image': input_image_base64},   # 小柔头像(图生图的 base image)
-                {'text': '保持这张脸的面部特征不变，' + prompt}                  # prompt 包含从参考图提取的场景/穿搭/光影等细节
+                {"image": input_image_base64},   # 图 1: 小柔头像
+                {"text": "保持这张脸的面部特征不变，参考第二张图的服装、场景、姿势"}
             ]
-            logger.info(f"🖼️ 图生图模式:小柔头像 + 文字 prompt(强调保持小柔面部特征)")
+            
+            # 如果有参考图，添加到 content 中作为图 2
+            if reference_image_path and reference_image_path.exists():
+                ref_image_base64 = get_image_base64(reference_image_path)
+                content.insert(1, {"image": ref_image_base64})  # 图 2: 参考图
+                logger.info("🖼️ 双图输入模式：图 1=小柔头像，图 2=参考图")
+            else:
+                logger.info("🖼️ 单图输入模式：图 1=小柔头像 + 文字 prompt")
 
             payload = {
                 'model': model_name,
