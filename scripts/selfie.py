@@ -72,8 +72,8 @@ POSTPROCESS_CONFIG = {
     'natural_spectrum_strength': 0.0,  # 完全禁用
     'adversarial_enable': True,        # ✅ 启用对抗扰动
     'adversarial_eps': 0.005,          # 低强度
-    'subtle_noise_enable': True,       # ✅ 启用细微噪声
-    'subtle_noise_intensity': 0.01,    # 低强度
+    'subtle_noise_enable': False,      # ❌ 禁用细微噪声
+    'subtle_noise_intensity': 0.0,     # 完全禁用
     
     # 🆕 Phase 2: 多尺度 + 纹理一致性（已修复）
     'multi_scale_enable': True,        # ✅ 启用多尺度一致性（已修复）

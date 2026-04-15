@@ -701,8 +701,8 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         'natural_spectrum_strength': 0.0,  # 完全禁用
         'adversarial_enable': True,        # ✅ 启用对抗扰动
         'adversarial_eps': 0.005,          # 低强度
-        'subtle_noise_enable': True,       # ✅ 启用细微噪声
-        'subtle_noise_intensity': 0.01,    # 低强度
+        'subtle_noise_enable': False,      # ❌ 禁用细微噪声
+        'subtle_noise_intensity': 0.0,     # 完全禁用
         
         # 🆕 Phase 2: 多尺度 + 纹理一致性（已修复）
         'multi_scale_enable': True,        # ✅ 启用多尺度一致性（已修复）
@@ -731,7 +731,7 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     
     logger.info("🎨 开始真实性增强处理（全部反 AI 检测技术）...")
     logger.info(f"📁 输入：{input_path}")
-    logger.info(f"🔧 当前配置：JPEG 压缩={'禁用' if config.get('jpeg_quality', 0) == 0 else '启用'}, 胶片颗粒={'禁用' if config.get('grain_iso', 50) == 0 else '启用'}, 色彩调整={'禁用' if config.get('color_warmth', 1.0) == 1.0 else '启用'}, 色差效果={'禁用' if config.get('ca_offset', 0.0) == 0.0 else '启用'}")
+    logger.info(f"🔧 当前配置：JPEG 压缩={'禁用' if config.get('jpeg_quality', 0) == 0 else '启用'}, 胶片颗粒={'禁用' if config.get('grain_iso', 50) == 0 else '启用'}, 色彩调整={'禁用' if config.get('color_warmth', 1.0) == 1.0 else '启用'}, 色差效果={'禁用' if config.get('ca_offset', 0.0) == 0.0 else '启用'}, 细微噪声={'禁用' if config.get('subtle_noise_enable', False) == False else '启用'}")
     
     # 创建临时目录
     temp_dir = tempfile.mkdtemp()
@@ -803,11 +803,16 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     if config.get('adversarial_enable', True):
         try:
             from adversarial_noise import adversarial_enhance
+            # 只添加对抗扰动，不添加细微噪声
             steps.append(('🆕 对抗扰动', lambda p: adversarial_enhance(p, {
                 'adversarial_eps': config.get('adversarial_eps', 0.005),
+                'add_subtle_noise': False,  # 禁用细微噪声
+                'subtle_noise_intensity': 0.0,
             })))
         except ImportError as e:
             logger.warning(f"⚠️ 对抗扰动模块未导入：{e}")
+    else:
+        logger.info("ℹ️ 对抗扰动已禁用")
     
     # Phase 2: 多尺度 + 纹理一致性（已修复）
     if config.get('multi_scale_enable', True):
