@@ -46,7 +46,7 @@ def get_api_key() -> str:
 
 def generate_avatar(
     prompt: str,
-    size: str = "1024*1024",
+    size: str = "1536*1536",
     output_dir: Optional[str] = None,
     seed: Optional[int] = None
 ) -> Tuple[str, str]:
@@ -100,7 +100,7 @@ def generate_avatar(
     
     logger.info(f"🎨 开始生成头像...")
     logger.info(f"📝 提示词：{prompt[:100]}...")
-    logger.info(f"📐 分辨率：{size}")
+    logger.info(f"📐 分辨率：{size}（默认 1536*1536）")
     
     # 发送请求
     start_time = time.time()
@@ -229,7 +229,7 @@ def generate_xiaorou_avatar(
     
     return generate_avatar(
         prompt=prompt.strip(),
-        size="1024*1024",
+        size="1536*1536",
         output_dir=output_dir
     )
 
