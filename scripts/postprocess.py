@@ -680,7 +680,7 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     Returns:
         最终输出图片路径
     """
-    # 默认配置（基于洞察文章推荐值 + 反 AI 检测技术）
+    # 默认配置（全部反 AI 检测技术）
     default_config = {
         # 原始 12 步配置
         'jpeg_quality': 100,
@@ -695,23 +695,30 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         'jitter_amplitude': 0.3,
         'camera_model': 'iPhone 15 Pro',
         
-        # 🆕 反 AI 检测配置（Phase 1-3）
-        # Phase 1: 频域优化 + 对抗扰动（禁用 1/f 频谱噪声，保留对抗扰动 + 细微噪声）
-        'frequency_enable': False,       # ❌ 禁用 1/f 频谱噪声
+        # 🆕 Phase 1: 频域优化 + 对抗扰动（已修复）
+        'frequency_enable': True,        # ✅ 启用频域优化（已修复）
         'spectral_sigma': 0.5,
-        'natural_spectrum_strength': 0.0,  # 完全禁用
+        'natural_spectrum_strength': 0.03,  # 修复后的低强度
         'adversarial_enable': True,        # ✅ 启用对抗扰动
-        'adversarial_eps': 0.005,          # 低强度（几乎不可见）
+        'adversarial_eps': 0.005,          # 低强度
         'subtle_noise_enable': True,       # ✅ 启用细微噪声
-        'subtle_noise_intensity': 0.005,   # 低强度（几乎不可见）
+        'subtle_noise_intensity': 0.01,    # 低强度
         
-        # Phase 2: 多尺度 + 纹理一致性
-        'multi_scale_enable': True,
+        # 🆕 Phase 2: 多尺度 + 纹理一致性（已修复）
+        'multi_scale_enable': True,        # ✅ 启用多尺度一致性（已修复）
         'pyramid_levels': 4,
         'patch_texture_enable': True,
         'patch_size': 64,
         
-        # Phase 3: CLIP 特征 + 边缘自然化
+        # 🆕 Phase 3: 皮肤瑕疵 + JPEG 重压缩
+        'skin_imperfections_enable': True,  # ✅ 启用皮肤瑕疵
+        'skin_mole_density': 0.3,
+        'skin_lines_intensity': 0.1,
+        'skin_pores_intensity': 0.05,
+        'jpeg_recompress_enable': True,     # ✅ 启用 JPEG 重压缩
+        'jpeg_recompress_cycles': 2,
+        
+        # Phase 4: CLIP 特征 + 边缘自然化
         'clip_optimize_enable': False,  # 可选，计算成本高
         'edge_naturalize_enable': True,
         'edge_blur_strength': 0.3,
@@ -722,7 +729,7 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         default_config.update(config)
     config = default_config
     
-    logger.info("🎨 开始真实性增强处理（18 步终极优化 + 反 AI 检测）...")
+    logger.info("🎨 开始真实性增强处理（全部反 AI 检测技术）...")
     logger.info(f"📁 输入：{input_path}")
     
     # 创建临时目录
@@ -750,14 +757,14 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         ('1️⃣2️⃣ 完整 EXIF', lambda p: add_complete_exif(p, config['camera_model'])),
     ]
     
-    # 🆕 反 AI 检测步骤（Phase 1-3）
-    # Phase 1: 频域优化 + 对抗扰动
+    # 🆕 反 AI 检测步骤（全部技术）
+    # Phase 1: 频域优化 + 对抗扰动（已修复）
     if config.get('frequency_enable', True):
         try:
             from frequency_optimize import frequency_domain_enhance
             steps.append(('🆕 频域优化', lambda p: frequency_domain_enhance(p, {
                 'spectral_sigma': config.get('spectral_sigma', 0.5),
-                'natural_spectrum_strength': config.get('natural_spectrum_strength', 0.15),
+                'natural_spectrum_strength': config.get('natural_spectrum_strength', 0.03),
             })))
         except ImportError as e:
             logger.warning(f"⚠️ 频域优化模块未导入：{e}")
@@ -766,12 +773,12 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         try:
             from adversarial_noise import adversarial_enhance
             steps.append(('🆕 对抗扰动', lambda p: adversarial_enhance(p, {
-                'adversarial_eps': config.get('adversarial_eps', 0.02),
+                'adversarial_eps': config.get('adversarial_eps', 0.005),
             })))
         except ImportError as e:
             logger.warning(f"⚠️ 对抗扰动模块未导入：{e}")
     
-    # Phase 2: 多尺度 + 纹理一致性
+    # Phase 2: 多尺度 + 纹理一致性（已修复）
     if config.get('multi_scale_enable', True):
         try:
             from multi_scale import multi_scale_enhance
@@ -790,7 +797,34 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         except ImportError as e:
             logger.warning(f"⚠️ 纹理一致性模块未导入：{e}")
     
-    # Phase 3: 边缘自然化
+    # Phase 3: 皮肤瑕疵 + JPEG 重压缩
+    if config.get('skin_imperfections_enable', True):
+        try:
+            from skin_imperfections import add_skin_imperfections
+            steps.append(('🆕 皮肤瑕疵', lambda p: add_skin_imperfections(p, {
+                'add_moles': True,
+                'mole_density': config.get('skin_mole_density', 0.3),
+                'add_fine_lines': True,
+                'lines_intensity': config.get('skin_lines_intensity', 0.1),
+                'add_pores': True,
+                'pores_intensity': config.get('skin_pores_intensity', 0.05),
+                'add_tone_variation': True,
+                'tone_intensity': 0.03,
+            })))
+        except ImportError as e:
+            logger.warning(f"⚠️ 皮肤瑕疵模块未导入：{e}")
+    
+    if config.get('jpeg_recompress_enable', True):
+        try:
+            from jpeg_recompression import add_jpeg_recompression
+            steps.append(('🆕 JPEG 重压缩', lambda p: add_jpeg_recompression(p, {
+                'compression_cycles': config.get('jpeg_recompress_cycles', 2),
+                'quality_range': [75, 92],
+            })))
+        except ImportError as e:
+            logger.warning(f"⚠️ JPEG 重压缩模块未导入：{e}")
+    
+    # Phase 4: 边缘自然化
     if config.get('edge_naturalize_enable', True):
         try:
             from edge_naturalization import edge_naturalize_enhance

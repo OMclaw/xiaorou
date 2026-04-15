@@ -177,10 +177,12 @@ def apply_multi_scale_consistency(image_path: str, config: Optional[Dict] = None
         for i, layer in enumerate(laplacian):
             # 对细节层应用边缘保持平滑
             if i < levels - 1:  # 不是最底层
-                # 双边滤波保持边缘
+                # 使用引导滤波替代双边滤波（scipy 兼容性更好）
                 try:
-                    # scipy 的 bilateral_filter 可能需要较新版本
-                    optimized = bilateral_filter(layer, sigma_color=0.1, sigma_spatial=2.0)
+                    # 尝试使用 cv2 的引导滤波
+                    import cv2
+                    guide = (layer * 255).astype(np.uint8)
+                    optimized = cv2.ximgproc.guidedFilter(guide, guide, radius=5, eps=0.1) / 255.0
                 except:
                     # fallback: 简单高斯滤波
                     optimized = gaussian_filter(layer, sigma=0.5)

@@ -66,26 +66,33 @@ POSTPROCESS_CONFIG = {
     'jitter_amplitude': 0.3,    # 微抖动幅度 (0.3 文档推荐值)
     'camera_model': 'iPhone 15 Pro',
     
-    # 🆕 Phase 1: 频域优化 + 对抗扰动
-    # 禁用 1/f 频谱噪声，保留对抗扰动 + 细微噪声
-    'frequency_enable': False,       # ❌ 禁用 1/f 频谱噪声
+    # 🆕 Phase 1: 频域优化 + 对抗扰动（已修复）
+    'frequency_enable': True,        # ✅ 启用频域优化（已修复）
     'spectral_sigma': 0.5,
-    'natural_spectrum_strength': 0.0,  # 完全禁用
+    'natural_spectrum_strength': 0.03,  # 修复后的低强度
     'adversarial_enable': True,        # ✅ 启用对抗扰动
     'adversarial_eps': 0.005,          # 低强度（几乎不可见）
     'subtle_noise_enable': True,       # ✅ 启用细微噪声
-    'subtle_noise_intensity': 0.005,   # 低强度（几乎不可见）
+    'subtle_noise_intensity': 0.01,    # 低强度
     
-    # 🆕 Phase 2: 多尺度 + 纹理一致性
-    'multi_scale_enable': True,
+    # 🆕 Phase 2: 多尺度 + 纹理一致性（已修复）
+    'multi_scale_enable': True,        # ✅ 启用多尺度一致性（已修复）
     'pyramid_levels': 4,
     'patch_texture_enable': True,
     'patch_size': 64,
     
-    # 🆕 Phase 3: 边缘自然化 + CLIP 特征优化
+    # 🆕 Phase 3: 皮肤瑕疵 + JPEG 重压缩
+    'skin_imperfections_enable': True,  # ✅ 启用皮肤瑕疵
+    'skin_mole_density': 0.3,
+    'skin_lines_intensity': 0.1,
+    'skin_pores_intensity': 0.05,
+    'jpeg_recompress_enable': True,     # ✅ 启用 JPEG 重压缩
+    'jpeg_recompress_cycles': 2,
+    
+    # Phase 4: CLIP 特征优化（可选）
+    'clip_optimize_enable': False,  # 可选，计算成本高
     'edge_naturalize_enable': True,
     'edge_blur_strength': 0.3,
-    'clip_optimize_enable': False,  # 可选，计算成本高
 }
 
 # 是否启后处理

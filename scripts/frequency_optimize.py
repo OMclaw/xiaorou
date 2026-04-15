@@ -182,12 +182,13 @@ def add_natural_spectrum(image_path: str, strength: float = 0.15) -> str:
         # 生成随机相位
         random_phase = np.exp(1j * 2 * np.pi * np.random.random((h, w)))
         
-        # 合成 1/f 噪声（修复：使用均值而非最大值，避免噪声过强）
-        spectrum_mean = np.mean(np.abs(spectrum_shifted))
-        noise_spectrum = natural_spectrum * random_phase * strength * spectrum_mean
+        # 合成 1/f 噪声（修复版：使用更合理的强度计算）
+        # 使用频谱的 RMS 值而非最大值，避免噪声过强
+        spectrum_rms = np.sqrt(np.mean(np.abs(spectrum_shifted) ** 2))
+        noise_spectrum = natural_spectrum * random_phase * strength * spectrum_rms * 0.1
         
-        # 添加到原频谱（使用更温和的加法）
-        combined_spectrum = spectrum_shifted * (1 - strength) + noise_spectrum
+        # 添加到原频谱（使用更温和的混合方式）
+        combined_spectrum = spectrum_shifted * (1 - strength * 0.5) + noise_spectrum
         
         # 逆 FFT
         combined_spectrum_unshifted = ifftshift(combined_spectrum)
