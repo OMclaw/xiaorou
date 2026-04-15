@@ -696,10 +696,10 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         'camera_model': 'iPhone 15 Pro',
         
         # 🆕 反 AI 检测配置（Phase 1-3）
-        # Phase 1: 频域优化 + 对抗扰动（启用 1/f 频谱噪声 + 对抗扰动 + 细微噪声，参数已修复）
-        'frequency_enable': True,        # ✅ 启用频域优化
+        # Phase 1: 频域优化 + 对抗扰动（禁用 1/f 频谱噪声，保留对抗扰动 + 细微噪声）
+        'frequency_enable': False,       # ❌ 禁用 1/f 频谱噪声
         'spectral_sigma': 0.5,
-        'natural_spectrum_strength': 0.08,  # 修复后可用更高强度（几乎不可见）
+        'natural_spectrum_strength': 0.0,  # 完全禁用
         'adversarial_enable': True,        # ✅ 启用对抗扰动
         'adversarial_eps': 0.005,          # 低强度（几乎不可见）
         'subtle_noise_enable': True,       # ✅ 启用细微噪声
