@@ -684,7 +684,7 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     default_config = {
         # 原始 12 步配置
         'jpeg_quality': 0,            # JPEG 压缩 (0=禁用，不添加压缩痕迹)
-        'blur_radius': 0.1,
+        'blur_radius': 0.0,         # 模糊半径 (0.0=禁用，不添加模糊)
         'sharp_strength': 0.0,      # 锐化强度 (0.0=禁用，不添加锐化)
         'grain_iso': 0,             # 胶片颗粒 ISO (0=禁用，不添加颗粒)
         'vignette_intensity': 0.05,
@@ -752,8 +752,11 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         logger.info("ℹ️ JPEG 压缩已禁用")
     
     # 2️⃣-12️⃣ 其他基础步骤（根据配置动态启用/禁用）
-    # 2️⃣ 高斯模糊
-    steps.append(('2️⃣ 高斯模糊', lambda p: add_gaussian_blur(p, config['blur_radius'])))
+    # 2️⃣ 高斯模糊（可选）
+    if config.get('blur_radius', 0.0) > 0:
+        steps.append(('2️⃣ 高斯模糊', lambda p: add_gaussian_blur(p, config['blur_radius'])))
+    else:
+        logger.info("ℹ️ 高斯模糊已禁用")
     
     # 3️⃣ 锐化（可选）
     if config.get('sharp_strength', 0.0) > 0:
