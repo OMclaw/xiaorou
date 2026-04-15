@@ -715,8 +715,8 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         'skin_mole_density': 0.3,
         'skin_lines_intensity': 0.1,
         'skin_pores_intensity': 0.05,
-        'jpeg_recompress_enable': True,     # ✅ 启用 JPEG 重压缩
-        'jpeg_recompress_cycles': 2,
+        'jpeg_recompress_enable': False,     # ❌ 禁用 JPEG 重压缩
+        'jpeg_recompress_cycles': 0,
         
         # Phase 4: CLIP 特征 + 边缘自然化
         'clip_optimize_enable': False,  # 可选，计算成本高
@@ -823,7 +823,7 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         except ImportError as e:
             logger.warning(f"⚠️ 皮肤瑕疵模块未导入：{e}")
     
-    if config.get('jpeg_recompress_enable', True):
+    if config.get('jpeg_recompress_enable', False):  # 默认禁用
         try:
             from jpeg_recompression import add_jpeg_recompression
             steps.append(('🆕 JPEG 重压缩', lambda p: add_jpeg_recompression(p, {
@@ -832,6 +832,8 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
             })))
         except ImportError as e:
             logger.warning(f"⚠️ JPEG 重压缩模块未导入：{e}")
+    else:
+        logger.info("ℹ️ JPEG 重压缩已禁用")
     
     # Phase 4: 边缘自然化
     if config.get('edge_naturalize_enable', True):

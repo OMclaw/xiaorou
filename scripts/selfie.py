@@ -86,8 +86,8 @@ POSTPROCESS_CONFIG = {
     'skin_mole_density': 0.3,
     'skin_lines_intensity': 0.1,
     'skin_pores_intensity': 0.05,
-    'jpeg_recompress_enable': True,     # ✅ 启用 JPEG 重压缩
-    'jpeg_recompress_cycles': 2,
+    'jpeg_recompress_enable': False,     # ❌ 禁用 JPEG 重压缩
+    'jpeg_recompress_cycles': 0,
     
     # Phase 4: CLIP 特征优化（可选）
     'clip_optimize_enable': False,  # 可选，计算成本高
