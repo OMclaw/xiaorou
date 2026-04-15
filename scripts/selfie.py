@@ -56,7 +56,7 @@ POSTPROCESS_CONFIG = {
     # 原始 12 步配置
     'jpeg_quality': 0,            # JPEG 压缩 (0=禁用，不添加压缩痕迹)
     'blur_radius': 0.1,         # 模糊半径 (0.1 最轻微)
-    'sharp_strength': 0.05,     # 锐化强度 (0.05 最轻微)
+    'sharp_strength': 0.0,      # 锐化强度 (0.0=禁用，不添加锐化)
     'grain_iso': 0,             # 胶片颗粒 ISO (0=禁用，不添加颗粒)
     'vignette_intensity': 0.05, # 暗角强度 (0.05 最轻微)
     'color_warmth': 1.0,        # 暖色调 (1.0=禁用，不调整色彩)

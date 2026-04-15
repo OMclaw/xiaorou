@@ -685,7 +685,7 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
         # 原始 12 步配置
         'jpeg_quality': 0,            # JPEG 压缩 (0=禁用，不添加压缩痕迹)
         'blur_radius': 0.1,
-        'sharp_strength': 0.05,
+        'sharp_strength': 0.0,      # 锐化强度 (0.0=禁用，不添加锐化)
         'grain_iso': 0,             # 胶片颗粒 ISO (0=禁用，不添加颗粒)
         'vignette_intensity': 0.05,
         'color_warmth': 1.0,        # 暖色调 (1.0=禁用，不调整色彩)
@@ -755,8 +755,11 @@ def enhance_realism(input_path: str, output_path: Optional[str] = None,
     # 2️⃣ 高斯模糊
     steps.append(('2️⃣ 高斯模糊', lambda p: add_gaussian_blur(p, config['blur_radius'])))
     
-    # 3️⃣ 锐化
-    steps.append(('3️⃣ 锐化', lambda p: add_sharpening(p, config['sharp_strength'])))
+    # 3️⃣ 锐化（可选）
+    if config.get('sharp_strength', 0.0) > 0:
+        steps.append(('3️⃣ 锐化', lambda p: add_sharpening(p, config['sharp_strength'])))
+    else:
+        logger.info("ℹ️ 锐化已禁用")
     
     # 4️⃣ 胶片颗粒（可选）
     if config.get('grain_iso', 0) > 0:
