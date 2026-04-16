@@ -355,16 +355,9 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
             # 双图输入:小柔头像 (图 1) + 参考图 (图 2)
             content = [
                 {"image": input_image_base64},   # 图 1: 小柔头像
-                {"text": "【重要】图 1 是小柔的脸,必须完全保持不变,只参考图 2 的服装、场景、姿势"}
+                {"text": prompt}
             ]
-
-            # 如果有参考图,添加到 content 中作为图 2
-            if reference_image_path and reference_image_path.exists():
-                ref_image_base64 = get_image_base64(reference_image_path)
-                content.insert(1, {"image": ref_image_base64})  # 图 2: 参考图
-                logger.info("🖼️ 双图输入模式:图 1=小柔头像,图 2=参考图")
-            else:
-                logger.info("🖼️ 单图输入模式:图 1=小柔头像 + 文字 prompt")
+            logger.info("🖼️ 单图输入模式：小柔头像 + 文字 prompt(参考图细节已通过 prompt 传递)")
 
             payload = {
                 'model': model_name,
