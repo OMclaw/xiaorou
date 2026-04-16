@@ -320,7 +320,7 @@ def build_prompt(context: str) -> Tuple[str, str]:
     return "direct", f"{influencer_style},{context},眼神直视镜头,自然微笑,真实五官,时尚造型,网红打卡背景,{realistic_tags},{hand_quality_tags},{leg_quality_tags},{quality_tags}"
 
 
-def generate_single_image(model_name: str, image_path: Path, prompt: str, api_key: str, max_retries: int = 2, reference_image_path: Optional[Path] = None) -> Tuple[str, Optional[str]]:
+def generate_single_image(model_name: str, image_path: Path, prompt: str, api_key: str, max_retries: int = 2) -> Tuple[str, Optional[str]]:
     """
     使用指定模型生成单张图片(带重试机制)
 
@@ -435,7 +435,7 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
 
 
 
-def generate_images_single_model(image_path: Path, prompt: str, api_key: str, reference_image_path: Optional[Path] = None) -> List[Tuple[str, str]]:
+def generate_images_single_model(image_path: Path, prompt: str, api_key: str) -> List[Tuple[str, str]]:
     """
     使用 1 个模型生成图片(场景生图模式)- 只用 wan2.7-image
 
@@ -452,12 +452,9 @@ def generate_images_single_model(image_path: Path, prompt: str, api_key: str, re
     model_name = 'wan2.7-image'
     results = []
 
-    if reference_image_path:
-        logger.info(f"  使用模型:{model_name}(双图输入)")
-    else:
-        logger.info(f"  使用模型:{model_name}")
+    logger.info(f"  使用模型:{model_name}")
 
-    model_result = generate_single_image(model_name, image_path, prompt, api_key, reference_image_path=reference_image_path)
+    model_result = generate_single_image(model_name, image_path, prompt, api_key)
     if model_result[1]:
         results.append(model_result)
         logger.info(f"✅ {model_name} 生成成功")
@@ -980,7 +977,7 @@ def generate_from_reference(reference_image_path: str, caption: str = "这是模
 
          # 4. 单模型生成(wan2.7-image)- 双图输入:小柔头像 + 参考图
         logger.info("🚀 wan2.7-image 生成中(双图输入:头像 + 参考图)...")
-        results = generate_images_single_model(image_path, prompt, api_key, reference_image_path=ref_path)
+        results = generate_images_single_model(image_path, prompt, api_key)
 
         if not results:
             logger.error("❌ 所有模型都生成失败")
