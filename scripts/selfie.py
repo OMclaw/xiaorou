@@ -50,8 +50,8 @@ MAX_INPUT_LENGTH = 500
 DEFAULT_IMAGE_SIZE = "1K"
 PROMPT_EXTEND = False   # 关闭 AI 自动优化提示词
 
-# 后处理配置（全部禁用 - 纯净模式）
-# 所有后处理技术已禁用，只保留原始生成
+# 后处理配置(全部禁用 - 纯净模式)
+# 所有后处理技术已禁用,只保留原始生成
 POSTPROCESS_CONFIG = {
     # 原始 12 步配置 - 全部禁用
     'jpeg_quality': 0,            # JPEG 压缩 (0=禁用)
@@ -65,7 +65,7 @@ POSTPROCESS_CONFIG = {
     'dust_density': 0,            # 传感器灰尘 (0=禁用)
     'jitter_amplitude': 0.0,      # 微抖动 (0.0=禁用)
     'camera_model': 'iPhone 15 Pro',
-    
+
     # Phase 1: 频域优化 + 对抗扰动 - 全部禁用
     'frequency_enable': False,       # ❌ 禁用
     'spectral_sigma': 0.5,
@@ -74,13 +74,13 @@ POSTPROCESS_CONFIG = {
     'adversarial_eps': 0.0,
     'subtle_noise_enable': False,    # ❌ 禁用
     'subtle_noise_intensity': 0.0,
-    
+
     # Phase 2: 多尺度 + 纹理一致性 - 全部禁用
     'multi_scale_enable': False,     # ❌ 禁用
     'pyramid_levels': 4,
     'patch_texture_enable': False,   # ❌ 禁用
     'patch_size': 64,
-    
+
     # Phase 3: 皮肤瑕疵 + JPEG 重压缩 - 全部禁用
     'skin_imperfections_enable': False,  # ❌ 禁用
     'skin_mole_density': 0.3,
@@ -88,7 +88,7 @@ POSTPROCESS_CONFIG = {
     'skin_pores_intensity': 0.05,
     'jpeg_recompress_enable': False,     # ❌ 禁用
     'jpeg_recompress_cycles': 0,
-    
+
     # Phase 4: 边缘自然化 - 禁用
     'edge_naturalize_enable': False,  # ❌ 禁用
     'edge_blur_strength': 0.3,
@@ -246,16 +246,16 @@ def validate_config() -> str:
 
 
 def validate_character_image() -> Path:
-    """验证小柔头像文件是否存在（优先使用新生成的头像）"""
+    """验证小柔头像文件是否存在(优先使用新生成的头像)"""
     script_dir = Path(__file__).resolve().parent
     assets_dir = script_dir.parent / 'assets'
-    
-    # 优先使用新生成的 xiaorou_avatar.png（Z-image 生成）
+
+    # 优先使用新生成的 xiaorou_avatar.png(Z-image 生成)
     character_path = assets_dir / 'xiaorou_avatar.png'
     if character_path.exists():
         logger.info("✅ 使用小柔新头像 (xiaorou_avatar.png)")
         return character_path
-    
+
     # 回退到默认头像
     character_path = assets_dir / 'default-character.png'
     if not character_path.exists():
@@ -310,7 +310,7 @@ def build_prompt(context: str) -> Tuple[str, str]:
     leg_quality_tags = "【腿部质量 - 最高优先级】完美腿部比例,标准人体结构,腿部细节清晰,膝盖结构正确,脚踝结构正确,腿部光影自然,腿部皮肤质感真实,腿部线条优美,正常腿长比例,双腿完整,腿部无畸形,【严禁】多腿,【严禁】三条腿,【严禁】四条腿,【严禁】多余腿,【严禁】畸形腿,【严禁】融合腿,【严禁】扭曲腿,【严禁】额外肢体,【严格限制】只有两条腿,【严格限制】双腿结构,【严格限制】正常人体下半身,【严格限制】单一双腿"
 
      # 质量标签 - 强调色彩自然和正确结构
-    quality_tags = "8K 超高清,电影级布光,细节丰富,色彩自然柔和,低饱和度,真实色调,正确人体比例,妆容自然,素雅色彩,极低饱和度,完美腿部比例,腿部无畸形,腿部结构正确,【严格限制】正常人体结构,【严格限制】标准四肢,【严格限制】双腿双臂,【严禁】多余肢体,【严禁】多腿,【严禁】多手臂,无水印,无文字,无字样,无 logo,纯净画面"
+    quality_tags = "8K 超高清，电影级布光，细节丰富，色彩自然柔和，低饱和度，真实色调，正确人体比例，妆容自然，素雅色彩，极低饱和度，完美腿部比例，腿部无畸形，腿部结构正确，【严格限制】正常人体结构，【严格限制】标准四肢，【严格限制】双腿双臂，【严禁】多余肢体，【严禁】多腿，【严禁】多手臂，【无水印 - 最高优先级】无水印，无文字，无字样，无 logo，无品牌标识，无 tag，无标记，纯净画面"
 
     mirror_keywords = ['穿', '衣服', '穿搭', '全身', '镜子']
     if any(kw in context_lower for kw in mirror_keywords):
@@ -352,19 +352,19 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                 size_param = '1280*1707'   # qwen-image-2.0-pro 使用 3:4 最高分辨率
             else:
                 size_param = '1280*1707'   # wan2.7-image 使用 3:4 最高分辨率(原 768*1024)
-            # 双图输入：小柔头像 (图 1) + 参考图 (图 2)
+            # 双图输入:小柔头像 (图 1) + 参考图 (图 2)
             content = [
                 {"image": input_image_base64},   # 图 1: 小柔头像
-                {"text": "【重要】图 1 是小柔的脸，必须完全保持不变，只参考图 2 的服装、场景、姿势"}
+                {"text": "【重要】图 1 是小柔的脸,必须完全保持不变,只参考图 2 的服装、场景、姿势"}
             ]
-            
-            # 如果有参考图，添加到 content 中作为图 2
+
+            # 如果有参考图,添加到 content 中作为图 2
             if reference_image_path and reference_image_path.exists():
                 ref_image_base64 = get_image_base64(reference_image_path)
                 content.insert(1, {"image": ref_image_base64})  # 图 2: 参考图
-                logger.info("🖼️ 双图输入模式：图 1=小柔头像，图 2=参考图")
+                logger.info("🖼️ 双图输入模式:图 1=小柔头像,图 2=参考图")
             else:
-                logger.info("🖼️ 单图输入模式：图 1=小柔头像 + 文字 prompt")
+                logger.info("🖼️ 单图输入模式:图 1=小柔头像 + 文字 prompt")
 
             payload = {
                 'model': model_name,
@@ -380,7 +380,7 @@ def generate_single_image(model_name: str, image_path: Path, prompt: str, api_ke
                     'denoising_strength': DENOISING_STRENGTH_DEFAULT,   # 去噪强度(0.6-0.8 增加细节变化)
                      # 小柔面部一致性优化
                     'face_consistency': True,  # 启用人脸一致性保护
-                    'face_weight': 0.8,        # 人脸权重（保持 80% 原脸特征）
+                    'face_weight': 0.8,        # 人脸权重(保持 80% 原脸特征)
                 }
             }
 
