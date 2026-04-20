@@ -39,7 +39,31 @@ class ImageAnalysisError(Exception):
 # Prompt 标签常量（P3-3 修复：集中管理）
 PROMPT_CRITICAL_FACE_WARNING = "**EXTREMELY CRITICAL: Use ONLY the face from input image (小柔), NEVER use face from reference photo!**\n**STRICTLY same person as input image, 100% identical face, ABSOLUTELY NO face swap!**"
 PROMPT_FACE_WARNING2 = "**IDENTICAL face to input image, same person, no transformation, no morphing!**"
-PROMPT_BASE_TEMPLATE = "An East Asian female model (小柔 - MUST use input image face, DO NOT blend or mix with reference face), mid-20s, professional commercial photography shot. {extract_clothing_from_description(description)}. Shot in {extract_location_from_description(description)}. {extract_lighting_from_description(description)} lighting. {extract_pose_from_description(description)}. Captured with iPhone 15 Pro Max, natural skin folds and wrinkles, subtle shadow layers, realistic environmental details. Magazine editorial quality, ultra-detailed skin texture, natural color grading, Kodak Portra 400 film emulation. {PROMPT_FACE_WARNING2}"
+PROMPT_BASE_TEMPLATE = """【任务说明】
+**参考图 2 生成图 1 人脸在这个场景下的图片**
+**生成目标 = 小柔的脸（图 1）+ 参考图的场景/服装/光影/姿势/表情（图 2）**
+
+【人物一致性 - 绝对禁止改变】
+- 必须 100% 使用输入图片（小柔头像）的脸部
+- 禁止使用参考图的脸部
+- 禁止混合两张图片的脸部特征
+
+【允许改变的内容 - 从参考图提取并融入 prompt】
+- 全身穿搭、姿势、背景与场景、光线、色调、氛围、拍摄角度
+
+【参考图细节】{extract_full_description(description)}
+
+【基础风格】网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，无腮红，性感妩媚
+【真实感】超高写实，面部清晰自然，光影统一，细节真实
+【画质】8K 超高清，电影级布光，自然摄影，真实照片，无 AI 感，无塑料感
+【动作自然】动作自然，姿势舒展，表情生动，生活化姿态
+【腿部质量】完美腿部比例，标准人体结构，腿部细节清晰
+【手部完整】双手完整可见，五指清晰，手指数量正确
+【反向提示词】避免 AI 感，避免塑料感，避免畸形，避免多手多腿，避免肢体扭曲，
+(no hands:2.5), (missing hands:2.5), (missing fingers:2.5), (bad hands:2.0),
+(worst quality, low quality:1.4), (deformed, distorted, disfigured:1.3)
+
+【小柔脸部 - 绝对锁定】100% 使用输入图片中小柔的脸，完全保留小柔的五官特征，不要混合参考图的脸，不要改变小柔的脸型、眼睛、鼻子、嘴巴，保持小柔面部识别度，只使用小柔的脸！"""
 PROMPT_REFERENCE_LABEL = "【参考图细节 - 中文补充】"
 PROMPT_BASE_STYLE_LABEL = "【基础风格】"
 PROMPT_REALISTIC_LABEL = "【真实感】"
@@ -166,45 +190,44 @@ def analyze_image(image_path: str, api_key: str) -> str:
     except Exception as e:
         raise ImageAnalysisError(f"读取图片失败：{e}")
     
-     # 构建分析 prompt - 参考商拍模板结构提取（完全忽略人脸）
-    analysis_prompt = """请对这张参考图进行特征提取，**完全忽略人脸、五官、面部特征、发型**，按照商拍模板结构提取以下内容：
+     # 构建分析 prompt - 详细提取参考图的服装/场景/光线/姿势/镜头
+    analysis_prompt = """请对这张参考图进行详细特征提取，**完全忽略人脸、五官、面部特征、发型**，按照以下结构提取所有内容：
 
-**【商拍模板结构 - 必须按此顺序输出】**
+**【分析结构 - 必须按此顺序输出】**
 
 1. **【服装/造型】**（最高优先级，需详细描述）：
-   - 上衣/连衣裙：款式、颜色、图案、材质、细节（如"黄色比基尼挂脖设计，胸前褶皱装饰，侧边系带"）
-   - 下装：类型、颜色、款式细节
+   - 上衣/连衣裙：款式、颜色、图案、材质、细节（如"米白色短袖紧身 T 恤，领口袖口浅灰蓝色包边，胸前粉紫色 ALNEAIRE 字母及爱心图案"）
+   - 下装：类型、颜色、款式细节（如"高腰粉色短裤，侧边白色竖条纹装饰"）
    - 配饰：项链/耳环/墨镜/帽子/包包/发饰等
    - 鞋子：类型、颜色、款式
 
 2. **【场景/背景】**：
-   - 地点：海滩/咖啡厅/室内/街道等
-   - 背景元素：建筑、植物、道具等
-   - 整体色调：冷/暖/中性
+   - 地点：户外泳池畔/海滩/咖啡厅/室内/街道等
+   - 背景元素：清澈碧蓝的无边泳池、远处朦胧山峦与天空云层、热带绿植（如棕榈叶与灌木）、天然岩石等
+   - 整体色调：蓝绿色系为主，搭配粉白暖色
 
 3. **【光线】**：
-   - 光源方向：顺光/侧光/逆光/顶光
-   - 光线质量：硬光/软光/自然光/影棚光
-   - 光线效果：高光、阴影、轮廓光等
+   - 光源方向：人物右前方偏高角度
+   - 光线质量：明亮自然日光，柔和均匀的正面补光
+   - 光线效果：面部与身体受光充分，阴影过渡细腻，水面反射增强环境亮度
 
-4. **【姿势/动作】**（重点描述，但要避免复杂手势）：
-   - 身体姿势：站姿/坐姿/躺姿，身体朝向（正对/侧身/回眸）
-   - 手部动作：**优先描述简单手势**（自然下垂/托腮/叉腰/放腿上），避免复杂手势（比 V/握拳/拿手机）
-   - 表情：微笑/眼神/情绪（不描述五官细节）
-   - **注意**：如果参考图有复杂手势，建议简化描述为"自然姿势"
+4. **【姿势/动作】**（重点描述）：
+   - 身体姿势：站立姿态，身体微侧向镜头，头部略微倾斜
+   - 手部动作：左手轻托左脸颊，右手自然垂放于身侧
+   - 整体状态：轻松慵懒的度假状态
 
 5. **【镜头/构图】**：
-   - 景别：**推荐特写/半身**（减少肢体数量，降低检测风险）
-   - 拍摄角度：平视/微俯视（避免极端角度）
-   - 景深：**浅景深/背景虚化**（掩盖细节问题）
+   - 景别：中近景人像构图，聚焦人物上半身至大腿中部
+   - 拍摄角度：平视略俯
+   - 景深：背景虚化处理适度保留环境信息但突出主体
 
-**输出格式**：按上述 5 点顺序输出，每点用完整句子详细描述，不要关键词列表。完全不要描述人脸五官。
+**输出格式**：按上述 5 点顺序输出，每点用完整句子详细描述，不要关键词列表。完全不要描述人脸五官发型。
 
 **⚠️ 重要提示**：
 - 避免描述文字内容（如招牌、T 恤文字）
-- 避免描述复杂手势（如比 V、握拳、拿东西）
+- 避免描述复杂手势
 - 避免描述多人场景
-- 优先推荐简单构图（单人、半身、自然姿势）
+- 优先推荐简单构图（单人、自然姿势）
 """
 
     try:
@@ -213,6 +236,11 @@ def analyze_image(image_path: str, api_key: str) -> str:
         return result
     except Exception as e:
         raise ImageAnalysisError(f"图片分析失败：{e}")
+
+
+def extract_full_description(desc: str) -> str:
+    """返回完整的参考图描述（不做任何提取，直接使用全部描述）"""
+    return desc.strip()
 
 
 def extract_clothing_from_description(desc: str) -> str:
