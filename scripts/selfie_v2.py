@@ -187,10 +187,19 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 - **发型完全不变**：小柔的发型、刘海、发长、发丝细节、发色完全保留，禁止使用参考图的发型
 - **肤色完全一致**：小柔的脸部肤色、颈部肤色、全身肤色必须与输入图 2 完全一致，禁止使用参考图的肤色
 - **脸部特征锁定**：眼睛、鼻子、嘴巴、眉毛、耳朵、脸型、下巴轮廓、颧骨完全不变
+- **脸部角度匹配**：小柔的脸部角度（正脸/侧脸/低头/抬头）必须与参考图完全一致
+- **头部姿态匹配**：头部的偏航角 (yaw)、俯仰角 (pitch)、翻滚角 (roll) 必须匹配参考图
 - 禁止使用参考图的脸部特征、发型、肤色
 - 禁止混合两张图片的脸部、发型、肤色
 - 人物身份必须是小柔，不能变成参考图里的人
 - **肤色统一性**：脸部、颈部、手臂、腿部等所有暴露皮肤的肤色必须与小柔头像一致，不能出现色差
+- **忽略图 1 的人脸**：图 1(参考图) 的人脸完全忽略，不影响生成结果，仅作为场景/服装/姿势参考
+- **光源一致性**：小柔的脸部必须接受参考图的光源方向（顺光/侧光/逆光/顶光），明暗分布与参考图一致
+- **阴影融合**：小柔的脸部阴影（鼻影、眼窝、下巴阴影）必须与参考图的光照方向和强度匹配
+- **高光一致**：小柔脸部的高光位置（额头、鼻梁、颧骨）必须与参考图的光源位置一致
+- **环境光遮蔽**：小柔与背景的接触处必须有正确的环境光遮蔽（AO），实现自然融合
+- **肤色光影协调**：小柔的肤色保持自身特征，但要根据参考图的光线调整明暗，实现自然融合
+- **全局光照统一**：小柔的整体光影必须与参考图的全局光照环境一致，不能出现光源冲突
 
 【保持参考图内容 - 完全不变】
 - 服装穿搭：上衣、下装、连衣裙、配饰、鞋子 (完全保持参考图)
@@ -216,6 +225,9 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 - 人物与背景自然融合，光影统一
 - 手部完整，手指数量正确
 - 腿部比例正常，结构正确
+- **头身比例协调：头部大小与身体比例正确，头身比 1:7-1:8**
+- **头部自然：头部大小正常，不过大不过小，与身体协调**
+- **人体结构正确：头颈肩比例自然，身体各部分比例协调**
 - 8K 超高清，专业人像摄影"""
 
     # 基础风格
@@ -227,22 +239,19 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
 自然光滑皮肤，清透肌肤，真实光影，生活照风格，无 AI 感"""
 
-    # 质量标签 - 强调无水印 (极限权重 5.0)
-    quality_tags = "8K 超高清，电影级布光，细节丰富，色彩自然，正确人体比例，(无水印：5.0)，(无文字：5.0)，(无 logo:5.0)，(无字样：5.0)，(无品牌标识：5.0)，(无平台水印：5.0)，(无小红书水印：5.0)，(无抖音水印：5.0)，(无微博水印：5.0)，(无 Instagram 水印：5.0)，(无 TikTok 水印：5.0)，(纯净画面：4.0)，(干净背景：4.0)，(remastered quality:3.0)，(clean image:3.0)，(no watermark:5.0)，(no text:5.0)，(no logo:5.0)"
+    # 质量标签 - 精简版 (避免截断)
+    quality_tags = "8K 超高清，正确人体比例，头身比 1:7-1:8，(无水印：5.0)，(无文字：5.0)，(无 logo:5.0)，(纯净画面：4.0)，(no watermark:5.0)，(no text:5.0)"
 
-    # 反向提示词 - 强调无水印 (极限权重 5.0)
-    negative_tags = """避免 AI 感，避免塑料感，避免过度光滑，避免数码合成感，
-避免畸形，避免多余肢体，正常人体结构，比例正确，
-避免动作僵硬，避免表情呆板，避免手部畸形，避免手指融合，
-避免肤色不一致，避免脸部颈部色差，避免发型改变，
-避免水印，避免 logo，避免文字，避免品牌标识，避免平台水印，
-(watermark:5.0), (watermarks:5.0), (no watermark:5.0),
-(logo:5.0), (logos:5.0), (no logo:5.0),
-(text:5.0), (texts:5.0), (no text:5.0), (text overlay:5.0), (text in image:5.0),
-(signature:5.0), (signatures:5.0), (username:5.0), (usernames:5.0),
-(brand:4.5), (branding:4.5), (username watermark:5.0), (platform watermark:5.0),
-(xiaohongshu watermark:5.0), (douyin watermark:5.0), (weibo watermark:5.0), (tiktok watermark:5.0), (instagram watermark:5.0),
-(numbers in corner:5.0), (corner watermark:5.0), (bottom right watermark:5.0), (bottom left watermark:5.0),
+    # 反向提示词 - 精简版 (避免截断)
+    negative_tags = """避免 AI 感，避免畸形，正常人体结构，比例正确，
+避免头身比例失调，避免头部过大过小，避免马赛克烟雾遮挡，
+避免脸部角度错误，避免正脸侧脸不匹配，
+(watermark:5.0), (no watermark:5.0), (logo:5.0), (no logo:5.0),
+(text:5.0), (no text:5.0), (mosaic:5.0), (no mosaic:5.0),
+(smoke:5.0), (fog:5.0), (blur:5.0),
+(big head:5.0), (small head:5.0), (head body mismatch:5.0),
+(wrong head size:5.0), (head proportion:5.0), (body proportion:5.0),
+(wrong face angle:5.0), (face angle mismatch:5.0), (wrong head pose:5.0),
 (worst quality, low quality:1.4), (deformed, distorted:1.3), bad anatomy"""
 
     full_prompt = f"""{instruction}。
@@ -257,13 +266,15 @@ Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
 
 【反向提示词】{negative_tags}。
 
-【EXTREMELY CRITICAL - 无水印最高优先级】
+【EXTREMELY CRITICAL - 精简版】
 **(无水印：5.0) - ABSOLUTELY NO WATERMARK**
-**(无文字：5.0) - ABSOLUTELY NO TEXT**
-**(无 logo:5.0) - ABSOLUTELY NO LOGO**
-**(忽略参考图水印：5.0) - IGNORE reference image watermark**
-**(过滤参考图水印：5.0) - FILTER OUT reference watermark**
-Keep EVERYTHING from reference image (outfit, pose, scene, lighting, composition), ONLY swap the person to 小柔 (input image 2). 100% identical face, hairstyle, hair color, skin tone to input image 2. ABSOLUTELY NO face blend, NO hair change, NO skin tone change. (NO watermark:5.0), (NO logo:5.0), (NO text:5.0), (NO brand:5.0), (REMOVE ALL watermarks:5.0), (CLEAN image:5.0), (IGNORE reference watermark:5.0), (FILTER reference watermark:5.0). Same person, same features, same color. Perfectly clean image without ANY watermark, text, logo, signature, username, or platform mark. If reference has watermark, MUST REMOVE it completely, MUST NOT copy it. (中文：绝对不能有水印，必须完全去除所有水印；参考图的水印必须忽略，不能继承到生成图)"""
+**(头身比例协调：5.0) - CORRECT HEAD-BODY PROPORTION (1:7-1:8)**
+**(头部大小正常：5.0) - NORMAL HEAD SIZE**
+**(光源一致性：5.0) - CONSISTENT LIGHTING**
+**(脸部角度匹配：5.0) - MATCH FACE ANGLE (正脸/侧脸/低头/抬头)**
+**(忽略图 1 人脸：5.0) - IGNORE reference face**
+**(100% 使用图 2 脸：5.0) - 100% USE 小柔 face**
+Keep EVERYTHING from reference image (outfit, pose, scene, lighting, face angle), ONLY swap person to 小柔 (input image 2). 100% identical face, hairstyle, skin tone, face angle. (NO watermark:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (MATCH face angle:5.0), (IGNORE reference face:5.0). Same person, CORRECT PROPORTIONS, CONSISTENT LIGHTING, MATCHING FACE ANGLE. 小柔's face must match reference face angle (yaw/pitch/roll), blend with reference lighting: same light direction, shadows, highlights. Head size 1:7-1:8 ratio. (中文：无水印；头身比例 1:7-1:8；忽略图 1 人脸，100% 用小柔脸；光源一致；**脸部角度匹配参考图**）"""
 
     return full_prompt
 
@@ -320,6 +331,7 @@ def generate_role_swap_image(reference_image_path: Path, character_image_path: P
                 headers={
                     'Authorization': f'Bearer {api_key}',
                     'Content-Type': 'application/json',
+                    'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}',
                 },
                 json=payload,
                 timeout=API_TIMEOUT
