@@ -181,9 +181,9 @@ run_video() {
   if [ -n "$image_path" ]; then
     info "📸 步骤 1: 先生成小柔参考图..."
     
-    # 调用 selfie.py 生成小柔照片（参考用户图片）
+    # 调用 selfie_v2.py --role-swap 生成小柔照片（真正的双图输入）
     local selfie_output
-    selfie_output=$(python3 "$SCRIPT_DIR/selfie.py" --reference "$image_path" "$AEVIA_CHANNEL" "准备生成视频～" "$target" 2>&1)
+    selfie_output=$(python3 "$SCRIPT_DIR/selfie_v2.py" --role-swap "$image_path" "$AEVIA_CHANNEL" "准备生成视频～" "$target" 2>&1)
     
     # 等待 1 秒让图片发送完成
     sleep 1
@@ -233,6 +233,7 @@ run_selfie_scene() {
   local caption="给你看看我现在的样子~"
   
   info "  场景：$context"
+  # 场景生图使用 selfie.py（纯文字描述生成）
   python3 "$SCRIPT_DIR/selfie.py" "$context" "$AEVIA_CHANNEL" "$caption" "$target"
 }
 
@@ -246,8 +247,8 @@ run_selfie_reference() {
   local caption="给你看看我现在的样子~"
   
   if [ -n "$image_path" ]; then
-    info "  参考图：$image_path"
-    python3 "$SCRIPT_DIR/selfie.py" --reference "$image_path" "$AEVIA_CHANNEL" "$caption" "$target"
+    info "  参考图：$image_path（双图输入）"
+    python3 "$SCRIPT_DIR/selfie_v2.py" --role-swap "$image_path" "$AEVIA_CHANNEL" "$caption" "$target"
   else
     warn "⚠️ 参考生图需要提供图片"
     return 1
