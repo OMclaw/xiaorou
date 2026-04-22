@@ -207,7 +207,12 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 - 人物身份必须是小柔，不能变成参考图里的人
 - **肤色统一性**：脸部、颈部、手臂、腿部等所有暴露皮肤的肤色必须与小柔头像一致，不能出现色差
 - **忽略图 2 的人脸**：图 2(参考图) 的人脸完全忽略，不影响生成结果，仅作为场景/服装/姿势参考
-- **光源一致性**：图 1 的脸部必须接受图 2 的光源方向（顺光/侧光/逆光/顶光）
+- **光源一致性 - 最高优先级**：图 1 的脸部必须完美匹配图 2 的光源特征
+  - **光源方向**：顺光/侧光/逆光/顶光必须与参考图完全一致
+  - **光线强度**：强光/柔光/弱光必须与参考图完全一致
+  - **光线色温**：暖光/冷光/自然光必须与参考图完全一致
+  - **阴影方向**：鼻影、眼窝、下巴阴影必须与参考图光照方向匹配
+  - **高光位置**：额头、鼻梁、颧骨高光必须与参考图光源位置一致
 - **肤色融合**：图 1 的脸部肤色要与图 2 的环境光协调，不能有色差
 - **阴影融合**：鼻影、眼窝、下巴阴影必须与图 2 的光照方向匹配
 - **高光一致**：额头、鼻梁、颧骨的高光位置必须与图 2 的光源位置一致
@@ -287,7 +292,10 @@ Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
 **(无水印：5.0) - ABSOLUTELY NO WATERMARK - MUST REMOVE ALL WATERMARKS**
 **(头身比例协调：5.0) - CORRECT HEAD-BODY PROPORTION (1:7-1:8)**
 **(头部大小正常：5.0) - NORMAL HEAD SIZE**
-**(光源一致性：5.0) - CONSISTENT LIGHTING**
+**(光源一致性：5.0) - CONSISTENT LIGHTING - MATCH REFERENCE LIGHT SOURCE**
+**(色温统一：5.0) - MATCH COLOR TEMPERATURE (warm/cool/natural)**
+**(阴影一致：5.0) - MATCH SHADOW DIRECTION**
+**(高光一致：5.0) - MATCH HIGHLIGHT POSITION**
 **(肤色协调：5.0) - SKIN TONE BLENDING: face/neck/arm color unified**
 **(无马赛克：5.0) - NO MOSAIC/BLUR/FOG/PIXELATED**
 **(无云雾：5.0) - NO HAZE/CLOUDY/MIST/SMOKE**
@@ -298,7 +306,7 @@ Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
 **(忽略图 2 人脸：5.0) - IGNORE image-2 face**
 **(100% 使用图 1 脸：5.0) - 100% USE image-1 face**
 **(人脸锁定：5.0) - FACE LOCK: image-1 features 100% preserved**
-Keep EVERYTHING from **image-2** (outfit/pose/scene/lighting/face angle), ONLY swap face to **image-1**. 100% identical face, hairstyle, skin tone, face angle from **image-1**. (ABSOLUTELY NO WATERMARK:5.0), (MUST REMOVE ALL WATERMARKS:5.0), (NO mosaic/blur/fog/pixelated:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (SKIN TONE BLENDING:5.0), (MATCH face angle:5.0), (IGNORE image-2 face:5.0), (100% USE image-1 face:5.0), (FACE LOCK:5.0). **image-1**'s face must match **image-2** face angle (yaw/pitch/roll), blend with **image-2** lighting: same light direction, shadows, highlights, color temperature. Face/neck/arm skin tone must be unified. NO mosaic, NO blur, NO fog, NO pixelated, NO haze, NO cloudy, NO mist, NO smoke. Clear and sharp image. Small face, delicate face, correct head-body ratio 1:8. Head size 1:8-1:9 ratio. **WATERMARK MUST BE COMPLETELY REMOVED - NO WATERMARK IN OUTPUT IMAGE**. **图 1（小柔）的五官特征 100% 保留，不受图 2 任何影响。图 2（参考图）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 1（小柔）的特征。**水印必须完全去除 - 生成图不能有任何水印。**禁止马赛克/模糊/雾化/打码/云雾/朦胧感。画面必须清晰锐利。肤色必须协调统一。小脸精致，头身比 1:8。** (中文：**绝对无水印**；无马赛克；无云雾；画面清晰；小脸精致；头身比 1:8；**忽略图 2 人脸，100% 用图 1 脸**；光源一致；肤色协调；脸部角度匹配图 2；人脸锁定；**水印完全过滤**）"""
+Keep EVERYTHING from **image-2** (outfit/pose/scene/lighting/face angle), ONLY swap face to **image-1**. 100% identical face, hairstyle, skin tone, face angle from **image-1**. (ABSOLUTELY NO WATERMARK:5.0), (MUST REMOVE ALL WATERMARKS:5.0), (NO mosaic/blur/fog/pixelated:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (SKIN TONE BLENDING:5.0), (MATCH face angle:5.0), (IGNORE image-2 face:5.0), (100% USE image-1 face:5.0), (FACE LOCK:5.0). **image-1**'s face must match **image-2** face angle (yaw/pitch/roll), blend with **image-2** lighting: same light direction, shadows, highlights, color temperature. Face/neck/arm skin tone must be unified. Small face, delicate face, correct head-body ratio 1:8. Head size 1:8-1:9 ratio. **WATERMARK MUST BE COMPLETELY REMOVED - NO WATERMARK IN OUTPUT IMAGE**. **图 1（小柔）的五官特征 100% 保留，不受图 2 任何影响。图 2（参考图）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 1（小柔）的特征。**水印必须完全去除 - 生成图不能有任何水印。**禁止马赛克/模糊/雾化/打码/云雾/朦胧感。画面必须清晰锐利。肤色必须协调统一。**光源必须完全匹配参考图 - 光源方向/强度/色温/阴影/高光必须与参考图完全一致。**小脸精致，头身比 1:8。** (中文：**绝对无水印**；无马赛克；无云雾；画面清晰；小脸精致；头身比 1:8；**忽略图 2 人脸，100% 用图 1 脸**；**光源完全匹配参考图**；肤色协调；脸部角度匹配图 2；人脸锁定；**水印完全过滤**）"""
 
     return full_prompt
 
