@@ -162,20 +162,20 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
     Returns:
         完整的角色替换 prompt
     """
-    # 核心指令：角色替换
+    # 核心指令：角色替换（图 1=小柔，图 2=参考图）
     instruction = """【角色替换指令 - 最高优先级】
 这是一张"角色替换"生成任务：
-- **图 1（参考图）**：提供场景、服装、姿势、光影、构图 → **人脸完全忽略**
-- **图 2（小柔头像）**：提供人物身份、脸部特征 → **100% 使用这张脸**
-- 生成目标：保持**图 1**的一切内容（场景/服装/姿势/光影/构图/色调），**仅将人物替换为图 2 的小柔**
+- **图 1（小柔头像）**：提供人物身份、脸部特征 → **100% 使用这张脸**
+- **图 2（参考图）**：提供场景、服装、姿势、光影、构图 → **人脸完全忽略**
+- 生成目标：保持**图 2**的一切内容（场景/服装/姿势/光影/构图/色调），**仅将人物替换为图 1 的小柔**
 
 【人脸锁定 - 最高优先级 - 权重 5.0】
-- **图 2（小柔）的五官特征 100% 保留，不受图 1 任何影响**
-- **图 1（参考图）的人脸完全忽略，只参考姿势/角度**
-- **眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 2（小柔）的特征**
-- **禁止混合图 1 的脸部特征**
-- **禁止图 1 人脸影响生成结果**
-- **图 2 的脸部特征完全覆盖图 1 人脸区域**
+- **图 1（小柔）的五官特征 100% 保留，不受图 2 任何影响**
+- **图 2（参考图）的人脸完全忽略，只参考姿势/角度**
+- **眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 1（小柔）的特征**
+- **禁止混合图 2 的脸部特征**
+- **禁止图 2 人脸影响生成结果**
+- **图 1 的脸部特征完全覆盖图 2 人脸区域**
 - **禁止任何马赛克/模糊/雾化/打码效果**
 - **脸部必须清晰，无烟雾遮挡，无像素化**
 
@@ -203,13 +203,13 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 - 禁止混合两张图片的脸部、发型、肤色
 - 人物身份必须是小柔，不能变成参考图里的人
 - **肤色统一性**：脸部、颈部、手臂、腿部等所有暴露皮肤的肤色必须与小柔头像一致，不能出现色差
-- **忽略图 1 的人脸**：图 1(参考图) 的人脸完全忽略，不影响生成结果，仅作为场景/服装/姿势参考
-- **光源一致性**：图 2 的脸部必须接受图 1 的光源方向（顺光/侧光/逆光/顶光）
-- **肤色融合**：图 2 的脸部肤色要与图 1 的环境光协调，不能有色差
-- **阴影融合**：鼻影、眼窝、下巴阴影必须与图 1 的光照方向匹配
-- **高光一致**：额头、鼻梁、颧骨的高光位置必须与图 1 的光源位置一致
-- **环境光遮蔽**：图 2 与背景的接触处必须有正确的环境光遮蔽（AO）
-- **色温统一**：图 2 的脸部色温必须与图 1 的整体色温一致（暖光/冷光）
+- **忽略图 2 的人脸**：图 2(参考图) 的人脸完全忽略，不影响生成结果，仅作为场景/服装/姿势参考
+- **光源一致性**：图 1 的脸部必须接受图 2 的光源方向（顺光/侧光/逆光/顶光）
+- **肤色融合**：图 1 的脸部肤色要与图 2 的环境光协调，不能有色差
+- **阴影融合**：鼻影、眼窝、下巴阴影必须与图 2 的光照方向匹配
+- **高光一致**：额头、鼻梁、颧骨的高光位置必须与图 2 的光源位置一致
+- **环境光遮蔽**：图 1 与背景的接触处必须有正确的环境光遮蔽（AO）
+- **色温统一**：图 1 的脸部色温必须与图 2 的整体色温一致（暖光/冷光）
 - **肤色协调**：脸部、颈部、手臂等暴露皮肤的色调必须统一，不能有色差
 
 【保持参考图内容 - 完全不变】
@@ -287,10 +287,10 @@ Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
 **(肤色协调：5.0) - SKIN TONE BLENDING: face/neck/arm color unified**
 **(无马赛克：5.0) - NO MOSAIC/BLUR/FOG/PIXELATED**
 **(脸部角度匹配：5.0) - MATCH FACE ANGLE (正脸/侧脸/低头/抬头)**
-**(忽略图 1 人脸：5.0) - IGNORE image-1 face**
-**(100% 使用图 2 脸：5.0) - 100% USE image-2 face**
-**(人脸锁定：5.0) - FACE LOCK: image-2 features 100% preserved**
-Keep EVERYTHING from **image-1** (outfit/pose/scene/lighting/face angle), ONLY swap face to **image-2**. 100% identical face, hairstyle, skin tone, face angle from **image-2**. (NO watermark:5.0), (NO mosaic/blur/fog/pixelated:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (SKIN TONE BLENDING:5.0), (MATCH face angle:5.0), (IGNORE image-1 face:5.0), (100% USE image-2 face:5.0), (FACE LOCK:5.0). **image-2**'s face must match **image-1** face angle (yaw/pitch/roll), blend with **image-1** lighting: same light direction, shadows, highlights, color temperature. Face/neck/arm skin tone must be unified. NO mosaic, NO blur, NO fog, NO pixelated. Head size 1:7-1:8 ratio. **图 2（小柔）的五官特征 100% 保留，不受图 1 任何影响。图 1（参考图）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 2（小柔）的特征。禁止马赛克/模糊/雾化/打码。肤色必须协调统一。** (中文：无水印；无马赛克；头身比例 1:7-1:8；**忽略图 1 人脸，100% 用图 2 脸**；光源一致；肤色协调；脸部角度匹配图 1；人脸锁定）"""
+**(忽略图 2 人脸：5.0) - IGNORE image-2 face**
+**(100% 使用图 1 脸：5.0) - 100% USE image-1 face**
+**(人脸锁定：5.0) - FACE LOCK: image-1 features 100% preserved**
+Keep EVERYTHING from **image-2** (outfit/pose/scene/lighting/face angle), ONLY swap face to **image-1**. 100% identical face, hairstyle, skin tone, face angle from **image-1**. (NO watermark:5.0), (NO mosaic/blur/fog/pixelated:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (SKIN TONE BLENDING:5.0), (MATCH face angle:5.0), (IGNORE image-2 face:5.0), (100% USE image-1 face:5.0), (FACE LOCK:5.0). **image-1**'s face must match **image-2** face angle (yaw/pitch/roll), blend with **image-2** lighting: same light direction, shadows, highlights, color temperature. Face/neck/arm skin tone must be unified. NO mosaic, NO blur, NO fog, NO pixelated. Head size 1:7-1:8 ratio. **图 1（小柔）的五官特征 100% 保留，不受图 2 任何影响。图 2（参考图）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 1（小柔）的特征。禁止马赛克/模糊/雾化/打码。肤色必须协调统一。** (中文：无水印；无马赛克；头身比例 1:7-1:8；**忽略图 2 人脸，100% 用图 1 脸**；光源一致；肤色协调；脸部角度匹配图 2；人脸锁定）"""
 
     return full_prompt
 
@@ -322,13 +322,14 @@ def generate_role_swap_image(reference_image_path: Path, character_image_path: P
                 logger.warning(f"⚠️ Prompt 过长 ({len(prompt)} > {MAX_PROMPT_LENGTH}),已截断")
                 prompt = prompt[:MAX_PROMPT_LENGTH]
 
-            # 双图输入：参考图 + 小柔头像
+            # 双图输入：小柔头像 (图 1) + 参考图 (图 2)
+            # 优化：小柔头像放图 1，AI 更自然地保持图 1 人脸，参考图 2 风格
             content = [
-                {'image': reference_base64},      # 参考图 (场景/服装/姿势)
-                {'image': character_base64},      # 小柔头像 (人物身份)
+                {'image': character_base64},      # 图 1: 小柔头像 (人物身份 - 主要参考)
+                {'image': reference_base64},      # 图 2: 参考图 (场景/服装/姿势)
                 {'text': prompt}                   # 角色替换提示词
             ]
-            logger.info(f"🖼️ 双图输入：图 1(参考) + 图 2(小柔) + 文字 prompt")
+            logger.info(f"🖼️ 双图输入：图 1(小柔) + 图 2(参考) + 文字 prompt")
 
             payload = {
                 'model': model_name,
