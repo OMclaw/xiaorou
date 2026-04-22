@@ -154,7 +154,7 @@ def get_image_base64(image_path: Path) -> str:
 
 def build_role_swap_prompt(reference_description: str = "") -> str:
     """
-    构建角色替换 prompt - 强调保持参考图内容，只换人物
+    构建角色替换 prompt - 双图输入精简版
     
     Args:
         reference_description: 参考图的额外描述 (可选)
@@ -162,119 +162,35 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
     Returns:
         完整的角色替换 prompt
     """
-    # 核心指令：角色替换
-    instruction = """【角色替换指令 - 最高优先级】
-这是一张"角色替换"生成任务：
-- 输入图 1：参考图 (提供场景、服装、姿势、光影、构图)
-- 输入图 2：小柔头像 (提供人物身份、脸部特征)
-- 生成目标：保持参考图的**一切内容**(场景/服装/姿势/光影/构图/色调),**仅将人物替换为小柔**
+    # 核心指令：角色替换（双图输入 - AI 直接看参考图）
+    instruction = """【角色替换 - 双图输入】
+输入图 1：参考图（AI 直接看）| 输入图 2：小柔头像（人物身份）
+目标：保持参考图一切内容（服装/姿势/场景/光影），只换人脸为小柔
 
-【无水印 - 绝对禁止 - 最高权重 5.0】
-- **(无水印：5.0)** - 绝对禁止任何形式的水印
-- **(无文字：5.0)** - 绝对禁止任何文字、数字、字母
-- **(无 logo:5.0)** - 绝对禁止任何 logo、品牌标识
-- **(无签名：5.0)** - 绝对禁止签名、用户名、ID 号
-- **(无平台标记：5.0)** - 禁止小红书/抖音/微博/Instagram/TikTok 等所有平台水印
-- **(忽略参考图水印：5.0)** - **参考图的水印必须完全忽略，不能复制到生成图中**
-- **(去除参考图水印：5.0)** - 如果参考图有水印，生成时必须完全去除，不能保留
-- **(参考图水印不继承：5.0)** - **参考图的水印不会继承到生成图，必须过滤掉**
-- **(纯净画面：4.0)** - 画面必须干净，无任何文字元素
-- **(角落无水印：5.0)** - 禁止右下角、左下角、任何角落的水印
-- **(无文字叠加：5.0)** - 禁止任何形式的文字叠加、覆盖
+【核心要求 - 权重 5.0】
+- **(无水印：5.0)** - 禁止任何水印/文字/logo/签名
+- **(100% 小柔脸：5.0)** - 完全使用图 2 的脸/发型/肤色
+- **(脸部角度匹配：5.0)** - 正脸/侧脸/低头/抬头与参考图一致
+- **(光源一致性：5.0)** - 光影/阴影/高光与参考图统一
+- **(头身比例：5.0)** - 头身比 1:7-1:8，头部大小正常
 
-【人物身份 - 绝对使用小柔 - 终极权重】
-- **必须 100% 使用输入图 2(小柔头像) 的脸部、五官、脸型、神态、发型、发色、发量**
-- **发型完全不变**：小柔的发型、刘海、发长、发丝细节、发色完全保留，禁止使用参考图的发型
-- **肤色完全一致**：小柔的脸部肤色、颈部肤色、全身肤色必须与输入图 2 完全一致，禁止使用参考图的肤色
-- **脸部特征锁定**：眼睛、鼻子、嘴巴、眉毛、耳朵、脸型、下巴轮廓、颧骨完全不变
-- **脸部角度匹配**：小柔的脸部角度（正脸/侧脸/低头/抬头）必须与参考图完全一致
-- **头部姿态匹配**：头部的偏航角 (yaw)、俯仰角 (pitch)、翻滚角 (roll) 必须匹配参考图
-- 禁止使用参考图的脸部特征、发型、肤色
-- 禁止混合两张图片的脸部、发型、肤色
-- 人物身份必须是小柔，不能变成参考图里的人
-- **肤色统一性**：脸部、颈部、手臂、腿部等所有暴露皮肤的肤色必须与小柔头像一致，不能出现色差
-- **忽略图 1 的人脸**：图 1(参考图) 的人脸完全忽略，不影响生成结果，仅作为场景/服装/姿势参考
-- **光源一致性**：小柔的脸部必须接受参考图的光源方向（顺光/侧光/逆光/顶光），明暗分布与参考图一致
-- **阴影融合**：小柔的脸部阴影（鼻影、眼窝、下巴阴影）必须与参考图的光照方向和强度匹配
-- **高光一致**：小柔脸部的高光位置（额头、鼻梁、颧骨）必须与参考图的光源位置一致
-- **环境光遮蔽**：小柔与背景的接触处必须有正确的环境光遮蔽（AO），实现自然融合
-- **肤色光影协调**：小柔的肤色保持自身特征，但要根据参考图的光线调整明暗，实现自然融合
-- **全局光照统一**：小柔的整体光影必须与参考图的全局光照环境一致，不能出现光源冲突
+【禁止】
+- 使用参考图的脸/发型/肤色
+- 继承参考图的水印/文字
+- 头部过大过小/比例失调
+- AI 感/塑料感/畸形
+"""
 
-【保持参考图内容 - 完全不变】
-- 服装穿搭：上衣、下装、连衣裙、配饰、鞋子 (完全保持参考图)
-- 姿势动作：站姿/坐姿、手部动作、身体角度 (完全保持参考图)
-- 场景背景：地点、背景元素、道具 (完全保持参考图)
-- 光线色调：光源方向、光线质量、整体色调 (完全保持参考图)
-- 构图镜头：景别、拍摄角度、景深效果 (完全保持参考图)
-- 表情神态：微笑/眼神/情绪表达 (保持参考图，但用小柔的脸)
-- **唯一例外：参考图的水印必须忽略，不能保留**
+    # 质量标签
+    quality_tags = "8K, (无水印：5.0), (头身比 1:7-1:8:5.0)"
 
-【无水印要求 - 最高优先级 - 必须遵守】
-- 禁止任何形式的水印、logo、文字、品牌标识、签名
-- 禁止平台水印（小红书、抖音、微博、Instagram、TikTok 等）
-- 禁止角落水印、右下角水印、用户名水印、数字 ID 水印
-- 禁止文字叠加、文字覆盖、任何位置的文字
-- 画面必须干净纯净，无任何文字元素
-- **如参考图有水印，生成时必须完全去除，不能保留**
-- **参考图的水印不会继承到生成图，必须过滤掉**
-- **忽略参考图水印，只保留参考图的场景/服装/姿势**
+    # 反向提示词
+    negative_tags = "(worst quality, low quality:1.4), (watermark,text,logo:5.0), (big head:5.0), (deformed:1.3)"
 
-【质量要求】
-- 真实摄影质感，无 AI 感，无塑料感
-- 人物与背景自然融合，光影统一
-- 手部完整，手指数量正确
-- 腿部比例正常，结构正确
-- **头身比例协调：头部大小与身体比例正确，头身比 1:7-1:8**
-- **头部自然：头部大小正常，不过大不过小，与身体协调**
-- **人体结构正确：头颈肩比例自然，身体各部分比例协调**
-- 8K 超高清，专业人像摄影"""
-
-    # 基础风格
-    base_style = "网红风格，时尚穿搭，专业摄影，清淡妆容，裸妆，自然真实"
-
-    # 真实感标签
-    realistic_tags = """真实摄影，自然皮肤纹理，可见毛孔，轻微皮肤瑕疵，
-真实相机噪点，ISO 400 胶片颗粒，自然光线，柔和阴影，
-Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
-自然光滑皮肤，清透肌肤，真实光影，生活照风格，无 AI 感"""
-
-    # 质量标签 - 精简版 (避免截断)
-    quality_tags = "8K 超高清，正确人体比例，头身比 1:7-1:8，(无水印：5.0)，(无文字：5.0)，(无 logo:5.0)，(纯净画面：4.0)，(no watermark:5.0)，(no text:5.0)"
-
-    # 反向提示词 - 精简版 (避免截断)
-    negative_tags = """避免 AI 感，避免畸形，正常人体结构，比例正确，
-避免头身比例失调，避免头部过大过小，避免马赛克烟雾遮挡，
-避免脸部角度错误，避免正脸侧脸不匹配，
-(watermark:5.0), (no watermark:5.0), (logo:5.0), (no logo:5.0),
-(text:5.0), (no text:5.0), (mosaic:5.0), (no mosaic:5.0),
-(smoke:5.0), (fog:5.0), (blur:5.0),
-(big head:5.0), (small head:5.0), (head body mismatch:5.0),
-(wrong head size:5.0), (head proportion:5.0), (body proportion:5.0),
-(wrong face angle:5.0), (face angle mismatch:5.0), (wrong head pose:5.0),
-(worst quality, low quality:1.4), (deformed, distorted:1.3), bad anatomy"""
-
-    full_prompt = f"""{instruction}。
-
-【参考图额外描述】{reference_description if reference_description else "无额外描述"}。
-
-【基础风格】{base_style}。
-
-【真实感】{realistic_tags}。
-
-【画质】{quality_tags}。
-
-【反向提示词】{negative_tags}。
-
-【EXTREMELY CRITICAL - 精简版】
-**(无水印：5.0) - ABSOLUTELY NO WATERMARK**
-**(头身比例协调：5.0) - CORRECT HEAD-BODY PROPORTION (1:7-1:8)**
-**(头部大小正常：5.0) - NORMAL HEAD SIZE**
-**(光源一致性：5.0) - CONSISTENT LIGHTING**
-**(脸部角度匹配：5.0) - MATCH FACE ANGLE (正脸/侧脸/低头/抬头)**
-**(忽略图 1 人脸：5.0) - IGNORE reference face**
-**(100% 使用图 2 脸：5.0) - 100% USE 小柔 face**
-Keep EVERYTHING from reference image (outfit, pose, scene, lighting, face angle), ONLY swap person to 小柔 (input image 2). 100% identical face, hairstyle, skin tone, face angle. (NO watermark:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (MATCH face angle:5.0), (IGNORE reference face:5.0). Same person, CORRECT PROPORTIONS, CONSISTENT LIGHTING, MATCHING FACE ANGLE. 小柔's face must match reference face angle (yaw/pitch/roll), blend with reference lighting: same light direction, shadows, highlights. Head size 1:7-1:8 ratio. (中文：无水印；头身比例 1:7-1:8；忽略图 1 人脸，100% 用小柔脸；光源一致；**脸部角度匹配参考图**）"""
+    full_prompt = f"""{instruction}
+{quality_tags}
+{negative_tags}
+Keep EVERYTHING from reference (outfit/pose/scene/lighting/face angle), ONLY swap face to 小柔 (图 2). Match yaw/pitch/roll, blend lighting (shadows/highlights). NO watermark. Head-body ratio 1:7-1:8."""
 
     return full_prompt
 
