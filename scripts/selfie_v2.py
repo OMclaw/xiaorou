@@ -238,7 +238,8 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 - 人物与背景自然融合，光影统一
 - 手部完整，手指数量正确
 - 腿部比例正常，结构正确
-- **头身比例协调：头部大小与身体比例正确，头身比 1:7-1:8**
+- **头身比例协调：头部大小与身体比例正确，头身比 1:8-1:9**
+- **小脸效果：脸部小巧精致，不过大，瓜子脸**
 - **头部自然：头部大小正常，不过大不过小，与身体协调**
 - **人体结构正确：头颈肩比例自然，身体各部分比例协调**
 - 8K 超高清，专业人像摄影"""
@@ -257,14 +258,13 @@ Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
 
     # 反向提示词 - 精简版 (避免截断)
     negative_tags = """避免 AI 感，避免畸形，正常人体结构，比例正确，
-避免头身比例失调，避免头部过大过小，
-避免马赛克、模糊、雾化、打码、烟雾遮挡、像素化、云雾、朦胧感，
+避免头身比例失调，避免头部过大过小，避免大脸，避免脸大，
 避免脸部角度错误，避免正脸侧脸不匹配，
 避免肤色不均，避免脸部颈部色差，避免光源冲突，
 (watermark:5.0), (no watermark:5.0), (logo:5.0), (no logo:5.0),
 (text:5.0), (no text:5.0), (mosaic:5.0), (no mosaic:5.0),
 (smoke:5.0), (fog:5.0), (blur:5.0), (pixelated:5.0), (haze:5.0), (cloudy:5.0), (mist:5.0),
-(big head:5.0), (small head:5.0), (head body mismatch:5.0),
+(big head:5.0), (small head:5.0), (head body mismatch:5.0), (big face:5.0), (large face:5.0),
 (wrong head size:5.0), (head proportion:5.0), (body proportion:5.0),
 (wrong face angle:5.0), (face angle mismatch:5.0), (wrong head pose:5.0),
 (worst quality, low quality:1.4), (deformed, distorted:1.3), bad anatomy"""
@@ -290,11 +290,13 @@ Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
 **(无马赛克：5.0) - NO MOSAIC/BLUR/FOG/PIXELATED**
 **(无云雾：5.0) - NO HAZE/CLOUDY/MIST/SMOKE**
 **(画面清晰：5.0) - CLEAR AND SHARP IMAGE**
+**(小脸精致：5.0) - SMALL FACE, DELICATE FACE**
+**(头身比 1:8:5.0) - CORRECT HEAD-BODY RATIO 1:8**
 **(脸部角度匹配：5.0) - MATCH FACE ANGLE (正脸/侧脸/低头/抬头)**
 **(忽略图 2 人脸：5.0) - IGNORE image-2 face**
 **(100% 使用图 1 脸：5.0) - 100% USE image-1 face**
 **(人脸锁定：5.0) - FACE LOCK: image-1 features 100% preserved**
-Keep EVERYTHING from **image-2** (outfit/pose/scene/lighting/face angle), ONLY swap face to **image-1**. 100% identical face, hairstyle, skin tone, face angle from **image-1**. (NO watermark:5.0), (NO mosaic/blur/fog/pixelated:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (SKIN TONE BLENDING:5.0), (MATCH face angle:5.0), (IGNORE image-2 face:5.0), (100% USE image-1 face:5.0), (FACE LOCK:5.0). **image-1**'s face must match **image-2** face angle (yaw/pitch/roll), blend with **image-2** lighting: same light direction, shadows, highlights, color temperature. Face/neck/arm skin tone must be unified. NO mosaic, NO blur, NO fog, NO pixelated, NO haze, NO cloudy, NO mist, NO smoke. Clear and sharp image. Head size 1:7-1:8 ratio. **图 1（小柔）的五官特征 100% 保留，不受图 2 任何影响。图 2（参考图）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 1（小柔）的特征。禁止马赛克/模糊/雾化/打码/云雾/朦胧感。画面必须清晰锐利。肤色必须协调统一。** (中文：无水印；无马赛克；无云雾；画面清晰；头身比例 1:7-1:8；**忽略图 2 人脸，100% 用图 1 脸**；光源一致；肤色协调；脸部角度匹配图 2；人脸锁定）"""
+Keep EVERYTHING from **image-2** (outfit/pose/scene/lighting/face angle), ONLY swap face to **image-1**. 100% identical face, hairstyle, skin tone, face angle from **image-1**. (NO watermark:5.0), (NO mosaic/blur/fog/pixelated:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (SKIN TONE BLENDING:5.0), (MATCH face angle:5.0), (IGNORE image-2 face:5.0), (100% USE image-1 face:5.0), (FACE LOCK:5.0). **image-1**'s face must match **image-2** face angle (yaw/pitch/roll), blend with **image-2** lighting: same light direction, shadows, highlights, color temperature. Face/neck/arm skin tone must be unified. NO mosaic, NO blur, NO fog, NO pixelated, NO haze, NO cloudy, NO mist, NO smoke. Clear and sharp image. Small face, delicate face, correct head-body ratio 1:8. Head size 1:8-1:9 ratio. **图 1（小柔）的五官特征 100% 保留，不受图 2 任何影响。图 2（参考图）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 1（小柔）的特征。禁止马赛克/模糊/雾化/打码/云雾/朦胧感。画面必须清晰锐利。肤色必须协调统一。小脸精致，头身比 1:8。** (中文：无水印；无马赛克；无云雾；画面清晰；小脸精致；头身比 1:8；**忽略图 2 人脸，100% 用图 1 脸**；光源一致；肤色协调；脸部角度匹配图 2；人脸锁定）"""
 
     return full_prompt
 
@@ -345,8 +347,8 @@ def generate_role_swap_image(reference_image_path: Path, character_image_path: P
                     'enable_interleave': False,
                     'size': '1536*2048',  # 3:4 竖版高清
                     # 关键参数：增强图 1(小柔) 的影响力
-                    'image_strength': 0.8,  # 0.8 = 80% 保留图 1 特征 (小柔脸)
-                    'denoising_strength': 0.4,  # 0.4 = 较低的去噪强度，保持原图特征
+                    'image_strength': 0.85,  # 0.85 = 85% 保留图 1 特征 (小柔脸)
+                    'denoising_strength': 0.35,  # 0.35 = 较低的去噪强度，保持原图特征
                 }
             }
 
