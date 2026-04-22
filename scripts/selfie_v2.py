@@ -169,6 +169,14 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 - 输入图 2：小柔头像 (提供人物身份、脸部特征)
 - 生成目标：保持参考图的**一切内容**(场景/服装/姿势/光影/构图/色调),**仅将人物替换为小柔**
 
+【人脸锁定 - 最高优先级 - 权重 5.0】
+- **小柔（图 2）的五官特征 100% 保留，不受参考图任何影响**
+- **参考图（图 1）的人脸完全忽略，只参考姿势/角度**
+- **眼睛/鼻子/嘴巴/眉毛/脸型完全使用小柔（图 2）的特征**
+- **禁止混合参考图的脸部特征**
+- **禁止参考图人脸影响生成结果**
+- **小柔的脸部特征完全覆盖参考图人脸区域**
+
 【无水印 - 绝对禁止 - 最高权重 5.0】
 - **(无水印：5.0)** - 绝对禁止任何形式的水印
 - **(无文字：5.0)** - 绝对禁止任何文字、数字、字母
@@ -274,7 +282,8 @@ Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
 **(脸部角度匹配：5.0) - MATCH FACE ANGLE (正脸/侧脸/低头/抬头)**
 **(忽略图 1 人脸：5.0) - IGNORE reference face**
 **(100% 使用图 2 脸：5.0) - 100% USE 小柔 face**
-Keep EVERYTHING from reference image (outfit, pose, scene, lighting, face angle), ONLY swap person to 小柔 (input image 2). 100% identical face, hairstyle, skin tone, face angle. (NO watermark:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (MATCH face angle:5.0), (IGNORE reference face:5.0). Same person, CORRECT PROPORTIONS, CONSISTENT LIGHTING, MATCHING FACE ANGLE. 小柔's face must match reference face angle (yaw/pitch/roll), blend with reference lighting: same light direction, shadows, highlights. Head size 1:7-1:8 ratio. (中文：无水印；头身比例 1:7-1:8；忽略图 1 人脸，100% 用小柔脸；光源一致；**脸部角度匹配参考图**）"""
+**(人脸锁定：5.0) - FACE LOCK: 小柔 features 100% preserved**
+Keep EVERYTHING from reference image (outfit, pose, scene, lighting, face angle), ONLY swap person to 小柔 (input image 2). 100% identical face, hairstyle, skin tone, face angle. (NO watermark:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (MATCH face angle:5.0), (IGNORE reference face:5.0), (FACE LOCK:5.0). Same person, CORRECT PROPORTIONS, CONSISTENT LIGHTING, MATCHING FACE ANGLE. 小柔's face must match reference face angle (yaw/pitch/roll), blend with reference lighting: same light direction, shadows, highlights. Head size 1:7-1:8 ratio. **小柔（图 2）的五官特征 100% 保留，不受参考图任何影响。参考图（图 1）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用小柔（图 2）的特征。** (中文：无水印；头身比例 1:7-1:8；忽略图 1 人脸，100% 用小柔脸；光源一致；**脸部角度匹配参考图**；**人脸锁定**）"""
 
     return full_prompt
 
