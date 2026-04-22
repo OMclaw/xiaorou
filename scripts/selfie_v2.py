@@ -165,17 +165,17 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
     # 核心指令：角色替换
     instruction = """【角色替换指令 - 最高优先级】
 这是一张"角色替换"生成任务：
-- 输入图 1：参考图 (提供场景、服装、姿势、光影、构图)
-- 输入图 2：小柔头像 (提供人物身份、脸部特征)
-- 生成目标：保持参考图的**一切内容**(场景/服装/姿势/光影/构图/色调),**仅将人物替换为小柔**
+- **图 1（参考图）**：提供场景、服装、姿势、光影、构图 → **人脸完全忽略**
+- **图 2（小柔头像）**：提供人物身份、脸部特征 → **100% 使用这张脸**
+- 生成目标：保持**图 1**的一切内容（场景/服装/姿势/光影/构图/色调），**仅将人物替换为图 2 的小柔**
 
 【人脸锁定 - 最高优先级 - 权重 5.0】
-- **小柔（图 2）的五官特征 100% 保留，不受参考图任何影响**
-- **参考图（图 1）的人脸完全忽略，只参考姿势/角度**
-- **眼睛/鼻子/嘴巴/眉毛/脸型完全使用小柔（图 2）的特征**
-- **禁止混合参考图的脸部特征**
-- **禁止参考图人脸影响生成结果**
-- **小柔的脸部特征完全覆盖参考图人脸区域**
+- **图 2（小柔）的五官特征 100% 保留，不受图 1 任何影响**
+- **图 1（参考图）的人脸完全忽略，只参考姿势/角度**
+- **眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 2（小柔）的特征**
+- **禁止混合图 1 的脸部特征**
+- **禁止图 1 人脸影响生成结果**
+- **图 2 的脸部特征完全覆盖图 1 人脸区域**
 
 【无水印 - 绝对禁止 - 最高权重 5.0】
 - **(无水印：5.0)** - 绝对禁止任何形式的水印
@@ -280,10 +280,10 @@ Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
 **(头部大小正常：5.0) - NORMAL HEAD SIZE**
 **(光源一致性：5.0) - CONSISTENT LIGHTING**
 **(脸部角度匹配：5.0) - MATCH FACE ANGLE (正脸/侧脸/低头/抬头)**
-**(忽略图 1 人脸：5.0) - IGNORE reference face**
-**(100% 使用图 2 脸：5.0) - 100% USE 小柔 face**
-**(人脸锁定：5.0) - FACE LOCK: 小柔 features 100% preserved**
-Keep EVERYTHING from reference image (outfit, pose, scene, lighting, face angle), ONLY swap person to 小柔 (input image 2). 100% identical face, hairstyle, skin tone, face angle. (NO watermark:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (MATCH face angle:5.0), (IGNORE reference face:5.0), (FACE LOCK:5.0). Same person, CORRECT PROPORTIONS, CONSISTENT LIGHTING, MATCHING FACE ANGLE. 小柔's face must match reference face angle (yaw/pitch/roll), blend with reference lighting: same light direction, shadows, highlights. Head size 1:7-1:8 ratio. **小柔（图 2）的五官特征 100% 保留，不受参考图任何影响。参考图（图 1）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用小柔（图 2）的特征。** (中文：无水印；头身比例 1:7-1:8；忽略图 1 人脸，100% 用小柔脸；光源一致；**脸部角度匹配参考图**；**人脸锁定**）"""
+**(忽略图 1 人脸：5.0) - IGNORE image-1 face**
+**(100% 使用图 2 脸：5.0) - 100% USE image-2 face**
+**(人脸锁定：5.0) - FACE LOCK: image-2 features 100% preserved**
+Keep EVERYTHING from **image-1** (outfit/pose/scene/lighting/face angle), ONLY swap face to **image-2**. 100% identical face, hairstyle, skin tone, face angle from **image-2**. (NO watermark:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (MATCH face angle:5.0), (IGNORE image-1 face:5.0), (100% USE image-2 face:5.0), (FACE LOCK:5.0). **image-2**'s face must match **image-1** face angle (yaw/pitch/roll), blend with **image-1** lighting: same light direction, shadows, highlights. Head size 1:7-1:8 ratio. **图 2（小柔）的五官特征 100% 保留，不受图 1 任何影响。图 1（参考图）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 2（小柔）的特征。** (中文：无水印；头身比例 1:7-1:8；**忽略图 1 人脸，100% 用图 2 脸**；光源一致；脸部角度匹配图 1；人脸锁定）"""
 
     return full_prompt
 
