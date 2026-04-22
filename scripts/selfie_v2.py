@@ -176,6 +176,8 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 - **禁止混合图 1 的脸部特征**
 - **禁止图 1 人脸影响生成结果**
 - **图 2 的脸部特征完全覆盖图 1 人脸区域**
+- **禁止任何马赛克/模糊/雾化/打码效果**
+- **脸部必须清晰，无烟雾遮挡，无像素化**
 
 【无水印 - 绝对禁止 - 最高权重 5.0】
 - **(无水印：5.0)** - 绝对禁止任何形式的水印
@@ -202,12 +204,13 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 - 人物身份必须是小柔，不能变成参考图里的人
 - **肤色统一性**：脸部、颈部、手臂、腿部等所有暴露皮肤的肤色必须与小柔头像一致，不能出现色差
 - **忽略图 1 的人脸**：图 1(参考图) 的人脸完全忽略，不影响生成结果，仅作为场景/服装/姿势参考
-- **光源一致性**：小柔的脸部必须接受参考图的光源方向（顺光/侧光/逆光/顶光），明暗分布与参考图一致
-- **阴影融合**：小柔的脸部阴影（鼻影、眼窝、下巴阴影）必须与参考图的光照方向和强度匹配
-- **高光一致**：小柔脸部的高光位置（额头、鼻梁、颧骨）必须与参考图的光源位置一致
-- **环境光遮蔽**：小柔与背景的接触处必须有正确的环境光遮蔽（AO），实现自然融合
-- **肤色光影协调**：小柔的肤色保持自身特征，但要根据参考图的光线调整明暗，实现自然融合
-- **全局光照统一**：小柔的整体光影必须与参考图的全局光照环境一致，不能出现光源冲突
+- **光源一致性**：图 2 的脸部必须接受图 1 的光源方向（顺光/侧光/逆光/顶光）
+- **肤色融合**：图 2 的脸部肤色要与图 1 的环境光协调，不能有色差
+- **阴影融合**：鼻影、眼窝、下巴阴影必须与图 1 的光照方向匹配
+- **高光一致**：额头、鼻梁、颧骨的高光位置必须与图 1 的光源位置一致
+- **环境光遮蔽**：图 2 与背景的接触处必须有正确的环境光遮蔽（AO）
+- **色温统一**：图 2 的脸部色温必须与图 1 的整体色温一致（暖光/冷光）
+- **肤色协调**：脸部、颈部、手臂等暴露皮肤的色调必须统一，不能有色差
 
 【保持参考图内容 - 完全不变】
 - 服装穿搭：上衣、下装、连衣裙、配饰、鞋子 (完全保持参考图)
@@ -252,11 +255,13 @@ Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
 
     # 反向提示词 - 精简版 (避免截断)
     negative_tags = """避免 AI 感，避免畸形，正常人体结构，比例正确，
-避免头身比例失调，避免头部过大过小，避免马赛克烟雾遮挡，
+避免头身比例失调，避免头部过大过小，
+避免马赛克、模糊、雾化、打码、烟雾遮挡、像素化，
 避免脸部角度错误，避免正脸侧脸不匹配，
+避免肤色不均，避免脸部颈部色差，避免光源冲突，
 (watermark:5.0), (no watermark:5.0), (logo:5.0), (no logo:5.0),
 (text:5.0), (no text:5.0), (mosaic:5.0), (no mosaic:5.0),
-(smoke:5.0), (fog:5.0), (blur:5.0),
+(smoke:5.0), (fog:5.0), (blur:5.0), (pixelated:5.0),
 (big head:5.0), (small head:5.0), (head body mismatch:5.0),
 (wrong head size:5.0), (head proportion:5.0), (body proportion:5.0),
 (wrong face angle:5.0), (face angle mismatch:5.0), (wrong head pose:5.0),
@@ -279,11 +284,13 @@ Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
 **(头身比例协调：5.0) - CORRECT HEAD-BODY PROPORTION (1:7-1:8)**
 **(头部大小正常：5.0) - NORMAL HEAD SIZE**
 **(光源一致性：5.0) - CONSISTENT LIGHTING**
+**(肤色协调：5.0) - SKIN TONE BLENDING: face/neck/arm color unified**
+**(无马赛克：5.0) - NO MOSAIC/BLUR/FOG/PIXELATED**
 **(脸部角度匹配：5.0) - MATCH FACE ANGLE (正脸/侧脸/低头/抬头)**
 **(忽略图 1 人脸：5.0) - IGNORE image-1 face**
 **(100% 使用图 2 脸：5.0) - 100% USE image-2 face**
 **(人脸锁定：5.0) - FACE LOCK: image-2 features 100% preserved**
-Keep EVERYTHING from **image-1** (outfit/pose/scene/lighting/face angle), ONLY swap face to **image-2**. 100% identical face, hairstyle, skin tone, face angle from **image-2**. (NO watermark:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (MATCH face angle:5.0), (IGNORE image-1 face:5.0), (100% USE image-2 face:5.0), (FACE LOCK:5.0). **image-2**'s face must match **image-1** face angle (yaw/pitch/roll), blend with **image-1** lighting: same light direction, shadows, highlights. Head size 1:7-1:8 ratio. **图 2（小柔）的五官特征 100% 保留，不受图 1 任何影响。图 1（参考图）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 2（小柔）的特征。** (中文：无水印；头身比例 1:7-1:8；**忽略图 1 人脸，100% 用图 2 脸**；光源一致；脸部角度匹配图 1；人脸锁定）"""
+Keep EVERYTHING from **image-1** (outfit/pose/scene/lighting/face angle), ONLY swap face to **image-2**. 100% identical face, hairstyle, skin tone, face angle from **image-2**. (NO watermark:5.0), (NO mosaic/blur/fog/pixelated:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (SKIN TONE BLENDING:5.0), (MATCH face angle:5.0), (IGNORE image-1 face:5.0), (100% USE image-2 face:5.0), (FACE LOCK:5.0). **image-2**'s face must match **image-1** face angle (yaw/pitch/roll), blend with **image-1** lighting: same light direction, shadows, highlights, color temperature. Face/neck/arm skin tone must be unified. NO mosaic, NO blur, NO fog, NO pixelated. Head size 1:7-1:8 ratio. **图 2（小柔）的五官特征 100% 保留，不受图 1 任何影响。图 1（参考图）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 2（小柔）的特征。禁止马赛克/模糊/雾化/打码。肤色必须协调统一。** (中文：无水印；无马赛克；头身比例 1:7-1:8；**忽略图 1 人脸，100% 用图 2 脸**；光源一致；肤色协调；脸部角度匹配图 1；人脸锁定）"""
 
     return full_prompt
 
