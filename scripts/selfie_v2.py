@@ -344,6 +344,9 @@ def generate_role_swap_image(reference_image_path: Path, character_image_path: P
                     'n': 1,
                     'enable_interleave': False,
                     'size': '1536*2048',  # 3:4 竖版高清
+                    # 关键参数：增强图 1(小柔) 的影响力
+                    'image_strength': 0.8,  # 0.8 = 80% 保留图 1 特征 (小柔脸)
+                    'denoising_strength': 0.4,  # 0.4 = 较低的去噪强度，保持原图特征
                 }
             }
 
