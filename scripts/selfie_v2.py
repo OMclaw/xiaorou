@@ -168,7 +168,8 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 目标：保持参考图一切内容（服装/姿势/场景/光影），只换人脸为小柔
 
 【核心要求 - 权重 5.0】
-- **(无水印：5.0)** - 禁止任何水印/文字/logo/签名
+- **(无水印：5.0)** - 绝对禁止任何水印/文字/logo/签名/平台标记
+- **(忽略参考图水印：5.0)** - 参考图的水印必须完全过滤，不能继承
 - **(100% 小柔脸：5.0)** - 完全使用图 2 的脸/发型/肤色
 - **(脸部角度匹配：5.0)** - 正脸/侧脸/低头/抬头与参考图一致
 - **(光源一致性：5.0)** - 光影/阴影/高光与参考图统一
@@ -176,7 +177,7 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 
 【禁止】
 - 使用参考图的脸/发型/肤色
-- 继承参考图的水印/文字
+- 继承参考图的水印/文字/logo/签名
 - 头部过大过小/比例失调
 - AI 感/塑料感/畸形
 """
@@ -185,12 +186,12 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
     quality_tags = "8K, (无水印：5.0), (头身比 1:7-1:8:5.0)"
 
     # 反向提示词
-    negative_tags = "(worst quality, low quality:1.4), (watermark,text,logo:5.0), (big head:5.0), (deformed:1.3)"
+    negative_tags = "(worst quality, low quality:1.4), (watermark,text,logo,signature:5.0), (big head:5.0), (deformed:1.3)"
 
     full_prompt = f"""{instruction}
 {quality_tags}
 {negative_tags}
-Keep EVERYTHING from reference (outfit/pose/scene/lighting/face angle), ONLY swap face to 小柔 (图 2). Match yaw/pitch/roll, blend lighting (shadows/highlights). NO watermark. Head-body ratio 1:7-1:8."""
+Keep EVERYTHING from reference (outfit/pose/scene/lighting/face angle), ONLY swap face to 小柔 (图 2). Match yaw/pitch/roll, blend lighting (shadows/highlights). ABSOLUTELY NO watermark/text/logo/signature. Filter out ANY watermark from reference image. Head-body ratio 1:7-1:8."""
 
     return full_prompt
 
