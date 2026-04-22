@@ -172,6 +172,9 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 【人脸锁定 - 最高优先级 - 权重 5.0】
 - **图 1（小柔）的五官特征 100% 保留，不受图 2 任何影响**
 - **图 2（参考图）的人脸完全忽略，只参考姿势/角度**
+- **绝对禁止使用图 2 的脸部特征**
+- **绝对禁止混合图 2 的脸部特征**
+- **图 2 的人脸对生成结果零影响**
 - **眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 1（小柔）的特征**
 - **禁止混合图 2 的脸部特征**
 - **禁止图 2 人脸影响生成结果**
@@ -196,9 +199,10 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 - **(水印完全过滤：5.0)** - **参考图的所有水印必须完全过滤，生成图不能有任何水印痕迹**
 
 【人物身份 - 绝对使用小柔 - 终极权重】
-- **必须 100% 使用输入图 2(小柔头像) 的脸部、五官、脸型、神态、发型、发色、发量**
+- **必须 100% 使用输入图 1(小柔头像) 的脸部、五官、脸型、神态、发型、发色、发量**
+- **绝对禁止使用图 2 的脸部特征**
 - **发型完全不变**：小柔的发型、刘海、发长、发丝细节、发色完全保留，禁止使用参考图的发型
-- **肤色完全一致**：小柔的脸部肤色、颈部肤色、全身肤色必须与输入图 2 完全一致，禁止使用参考图的肤色
+- **肤色完全一致**：小柔的脸部肤色、颈部肤色、全身肤色必须与输入图 1 完全一致，禁止使用参考图的肤色
 - **脸部特征锁定**：眼睛、鼻子、嘴巴、眉毛、耳朵、脸型、下巴轮廓、颧骨完全不变
 - **脸部角度匹配**：小柔的脸部角度（正脸/侧脸/低头/抬头）必须与参考图完全一致
 - **头部姿态匹配**：头部的偏航角 (yaw)、俯仰角 (pitch)、翻滚角 (roll) 必须匹配参考图
@@ -207,6 +211,7 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 - 人物身份必须是小柔，不能变成参考图里的人
 - **肤色统一性**：脸部、颈部、手臂、腿部等所有暴露皮肤的肤色必须与小柔头像一致，不能出现色差
 - **忽略图 2 的人脸**：图 2(参考图) 的人脸完全忽略，不影响生成结果，仅作为场景/服装/姿势参考
+- **图 2 人脸零影响**：图 2 的人脸特征对生成结果没有任何影响，完全使用图 1 的脸
 - **光源一致性 - 最高优先级**：图 1 的脸部必须完美匹配图 2 的光源特征
   - **光源方向**：顺光/侧光/逆光/顶光必须与参考图完全一致
   - **光线强度**：强光/柔光/弱光必须与参考图完全一致
@@ -303,10 +308,11 @@ Canon EOS R5 拍摄，85mm f/1.8 镜头，Kodak Portra 400 胶片，
 **(小脸精致：5.0) - SMALL FACE, DELICATE FACE**
 **(头身比 1:8:5.0) - CORRECT HEAD-BODY RATIO 1:8**
 **(脸部角度匹配：5.0) - MATCH FACE ANGLE (正脸/侧脸/低头/抬头)**
-**(忽略图 2 人脸：5.0) - IGNORE image-2 face**
-**(100% 使用图 1 脸：5.0) - 100% USE image-1 face**
+**(忽略图 2 人脸：5.0) - IGNORE image-2 face COMPLETELY**
+**(100% 使用图 1 脸：5.0) - 100% USE image-1 face ONLY**
 **(人脸锁定：5.0) - FACE LOCK: image-1 features 100% preserved**
-Keep EVERYTHING from **image-2** (outfit/pose/scene/lighting/face angle), ONLY swap face to **image-1**. 100% identical face, hairstyle, skin tone, face angle from **image-1**. (ABSOLUTELY NO WATERMARK:5.0), (MUST REMOVE ALL WATERMARKS:5.0), (NO mosaic/blur/fog/pixelated:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (SKIN TONE BLENDING:5.0), (MATCH face angle:5.0), (IGNORE image-2 face:5.0), (100% USE image-1 face:5.0), (FACE LOCK:5.0). **image-1**'s face must match **image-2** face angle (yaw/pitch/roll), blend with **image-2** lighting: same light direction, shadows, highlights, color temperature. Face/neck/arm skin tone must be unified. Small face, delicate face, correct head-body ratio 1:8. Head size 1:8-1:9 ratio. **WATERMARK MUST BE COMPLETELY REMOVED - NO WATERMARK IN OUTPUT IMAGE**. **图 1（小柔）的五官特征 100% 保留，不受图 2 任何影响。图 2（参考图）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 1（小柔）的特征。**水印必须完全去除 - 生成图不能有任何水印。**禁止马赛克/模糊/雾化/打码/云雾/朦胧感。画面必须清晰锐利。肤色必须协调统一。**光源必须完全匹配参考图 - 光源方向/强度/色温/阴影/高光必须与参考图完全一致。**小脸精致，头身比 1:8。** (中文：**绝对无水印**；无马赛克；无云雾；画面清晰；小脸精致；头身比 1:8；**忽略图 2 人脸，100% 用图 1 脸**；**光源完全匹配参考图**；肤色协调；脸部角度匹配图 2；人脸锁定；**水印完全过滤**）"""
+**(禁止图 2 脸：5.0) - NEVER USE image-2 face**
+Keep EVERYTHING from **image-2** (outfit/pose/scene/lighting/face angle), ONLY swap face to **image-1**. 100% identical face, hairstyle, skin tone, face angle from **image-1**. (ABSOLUTELY NO WATERMARK:5.0), (MUST REMOVE ALL WATERMARKS:5.0), (NO mosaic/blur/fog/pixelated:5.0), (CORRECT head-body proportion:5.0), (NORMAL head size:5.0), (CONSISTENT lighting:5.0), (SKIN TONE BLENDING:5.0), (MATCH face angle:5.0), (IGNORE image-2 face COMPLETELY:5.0), (100% USE image-1 face ONLY:5.0), (FACE LOCK:5.0), (NEVER USE image-2 face:5.0). **image-1**'s face must match **image-2** face angle (yaw/pitch/roll), blend with **image-2** lighting: same light direction, shadows, highlights, color temperature. Face/neck/arm skin tone must be unified. Small face, delicate face, correct head-body ratio 1:8. Head size 1:8-1:9 ratio. **WATERMARK MUST BE COMPLETELY REMOVED - NO WATERMARK IN OUTPUT IMAGE**. **图 1（小柔）的五官特征 100% 保留，不受图 2 任何影响。图 2（参考图）的人脸完全忽略，只参考姿势/角度。眼睛/鼻子/嘴巴/眉毛/脸型完全使用图 1（小柔）的特征。绝对禁止使用图 2 的脸。水印必须完全去除 - 生成图不能有任何水印。**禁止马赛克/模糊/雾化/打码/云雾/朦胧感。画面必须清晰锐利。肤色必须协调统一。**光源必须完全匹配参考图 - 光源方向/强度/色温/阴影/高光必须与参考图完全一致。**小脸精致，头身比 1:8。** (中文：**绝对无水印**；无马赛克；无云雾；画面清晰；小脸精致；头身比 1:8；**完全忽略图 2 人脸，100% 用图 1 脸，绝对不使用图 2 脸**；**光源完全匹配参考图**；肤色协调；脸部角度匹配图 2；人脸锁定；**水印完全过滤**）"""
 
     return full_prompt
 
