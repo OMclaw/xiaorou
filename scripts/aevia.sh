@@ -190,8 +190,8 @@ run_video() {
     
     info "✅ 小柔照片生成完成"
     
-    # 使用最新生成的小柔照片（固定路径，与 selfie.py 保持一致）
-    # selfie.py 写入: config.get_temp_dir() / f'selfie_latest_{user_id}.jpg'
+    # 使用最新生成的小柔照片（固定路径，与 selfie_v2.py 保持一致）
+    # selfie_v2.py 写入: config.get_temp_dir() / f'selfie_latest_{user_id}.jpg'
     # 默认: /tmp/xiaorou/selfie_latest_default.jpg
     local latest_selfie="/tmp/xiaorou/selfie_latest_${target:-default}.jpg"
     
@@ -233,8 +233,8 @@ run_selfie_scene() {
   local caption="给你看看我现在的样子~"
   
   info "  场景：$context"
-  # 场景生图使用 selfie.py（纯文字描述生成）
-  python3 "$SCRIPT_DIR/selfie.py" "$context" "$AEVIA_CHANNEL" "$caption" "$target"
+  # 场景生图使用 selfie_v2.py（纯文字描述生成）
+  python3 "$SCRIPT_DIR/selfie_v2.py" --scene "$context" "$AEVIA_CHANNEL" "$caption" "$target"
 }
 
 run_selfie_reference() {
