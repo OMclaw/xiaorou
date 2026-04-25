@@ -111,7 +111,10 @@ def _call_multimodal_api(image_base64: str, analysis_prompt: str, api_key: str, 
         model=model,
         messages=messages,
         api_key=api_key,
-        timeout=API_TIMEOUT   # P1-2 修复：传入超时参数
+        timeout=API_TIMEOUT,   # P1-2 修复：传入超时参数
+        headers={
+            'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}',
+        }
     )
     
     if response.status_code == 200 and response.output:
