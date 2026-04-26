@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600">
+  <defs>
+    <linearGradient id="humanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="agentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ef4444;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="960" height="600" fill="#f8fafc"/>
+  
+  <!-- 标题 -->
+  <text x="480" y="50" text-anchor="middle" font-size="24" font-weight="bold" fill="#1e293b">人用 Infra vs Agent 用 Infra</text>
+  
+  <!-- 左侧：人用 Infra -->
+  <rect x="60" y="80" width="360" height="480" rx="12" fill="white" stroke="#3b82f6" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="60" y="80" width="360" height="50" rx="12" fill="url(#humanGrad)"/>
+  <text x="240" y="112" text-anchor="middle" font-size="18" font-weight="bold" fill="white">人用 Infra</text>
+  
+  <!-- 人用 Infra 内容 -->
+  <g transform="translate(80, 150)">
+    <rect x="0" y="0" width="320" height="50" rx="6" fill="#eff6ff" stroke="#3b82f6"/>
+    <text x="160" y="30" text-anchor="middle" font-size="14" fill="#1e40af">单次请求 - 响应</text>
+    
+    <rect x="0" y="70" width="320" height="50" rx="6" fill="#eff6ff" stroke="#3b82f6"/>
+    <text x="160" y="100" text-anchor="middle" font-size="14" fill="#1e40af">人类节奏 (秒级)</text>
+    
+    <rect x="0" y="140" width="320" height="50" rx="6" fill="#eff6ff" stroke="#3b82f6"/>
+    <text x="160" y="170" text-anchor="middle" font-size="14" fill="#1e40af">无状态设计</text>
+    
+    <rect x="0" y="210" width="320" height="50" rx="6" fill="#eff6ff" stroke="#3b82f6"/>
+    <text x="160" y="240" text-anchor="middle" font-size="14" fill="#1e40af">延迟容忍 2 秒</text>
+    
+    <rect x="0" y="280" width="320" height="50" rx="6" fill="#eff6ff" stroke="#3b82f6"/>
+    <text x="160" y="310" text-anchor="middle" font-size="14" fill="#1e40af">成本线性增长</text>
+  </g>
+  
+  <!-- 右侧：Agent 用 Infra -->
+  <rect x="540" y="80" width="360" height="480" rx="12" fill="white" stroke="#f59e0b" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="540" y="80" width="360" height="50" rx="12" fill="url(#agentGrad)"/>
+  <text x="720" y="112" text-anchor="middle" font-size="18" font-weight="bold" fill="white">Agent 用 Infra</text>
+  
+  <!-- Agent 用 Infra 内容 -->
+  <g transform="translate(560, 150)">
+    <rect x="0" y="0" width="320" height="50" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="160" y="30" text-anchor="middle" font-size="14" fill="#92400e">循环执行 (10-500 次)</text>
+    
+    <rect x="0" y="70" width="320" height="50" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="160" y="100" text-anchor="middle" font-size="14" fill="#92400e">机器节奏 (毫秒级)</text>
+    
+    <rect x="0" y="140" width="320" height="50" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="160" y="170" text-anchor="middle" font-size="14" fill="#92400e">持久化内存</text>
+    
+    <rect x="0" y="210" width="320" height="50" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="160" y="240" text-anchor="middle" font-size="14" fill="#92400e">延迟 &lt;10ms</text>
+    
+    <rect x="0" y="280" width="320" height="50" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="160" y="310" text-anchor="middle" font-size="14" fill="#92400e">成本 20-30x</text>
+  </g>
+  
+  <!-- VS 标志 -->
+  <circle cx="480" cy="340" r="35" fill="#ef4444"/>
+  <text x="480" y="348" text-anchor="middle" font-size="20" font-weight="bold" fill="white">VS</text>
+</svg>
