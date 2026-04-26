@@ -190,6 +190,8 @@ def generate_inpaint_image(
                 headers={
                     'Authorization': f'Bearer {api_key}',
                     'Content-Type': 'application/json',
+                    'X-DashScope-DataInspection': '{\"input\":\"disable\",\"output\":\"disable\"}',
+                    'X-DashScope-Log': 'disable',
                     'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'
                 },
                 json=payload, timeout=API_TIMEOUT

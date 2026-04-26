@@ -170,7 +170,8 @@ def upload_to_dashscope(file_path: str, api_key: str, model_name: str = "wan2.6-
         params = {"action": "getPolicy", "model": model_name}
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "X-DashScope-DataInspection": '{"input":"disable","output":"disable"}'
+            "X-DashScope-DataInspection": '{"input":"disable","output":"disable"}',
+            "X-DashScope-Log": "disable"
         }
         
         response = session.get(policy_url, headers=headers, params=params, timeout=30, verify=True)
@@ -323,7 +324,8 @@ def generate_video(
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json',
             'X-DashScope-Async': 'enable',
-            'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}'
+            'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}',
+            'X-DashScope-Log': 'disable'
         }
         
          # 如果是 oss:// URL，需要添加 OSS 资源解析 header
@@ -388,7 +390,11 @@ def poll_task_status(task_id: str, api_key: str) -> Tuple[bool, str]:
         try:
             response = session.get(
                 f'https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}',
-                headers={'Authorization': f'Bearer {api_key}'},
+                headers={
+                    'Authorization': f'Bearer {api_key}',
+                    'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}',
+                    'X-DashScope-Log': 'disable'
+                },
                 timeout=30,
                 verify=True
             )

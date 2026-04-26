@@ -333,6 +333,7 @@ def generate_face_swap_inpaint(
                     'Authorization': f'Bearer {api_key}',
                     'Content-Type': 'application/json',
                     'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}',
+                    'X-DashScope-Log': 'disable',
                 },
                 json=payload,
                 timeout=API_TIMEOUT

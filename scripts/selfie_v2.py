@@ -310,7 +310,10 @@ def generate_role_swap_image(reference_image_path: Path, character_image_path: P
                 headers={
                     'Authorization': f'Bearer {api_key}',
                     'Content-Type': 'application/json',
+                    'X-DashScope-DataInspection': '{\"input\":\"disable\",\"output\":\"disable\"}',
+                    'X-DashScope-Log': 'disable',
                     'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}',
+                    'X-DashScope-Log': 'disable',
                 },
                 json=payload,
                 timeout=API_TIMEOUT
@@ -409,7 +412,10 @@ def generate_role_swap_image_three(reference_image_path: Path, character1_path: 
                 headers={
                     'Authorization': f'Bearer {api_key}',
                     'Content-Type': 'application/json',
+                    'X-DashScope-DataInspection': '{\"input\":\"disable\",\"output\":\"disable\"}',
+                    'X-DashScope-Log': 'disable',
                     'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}',
+                    'X-DashScope-Log': 'disable',
                 },
                 json=payload,
                 timeout=API_TIMEOUT
@@ -702,7 +708,10 @@ def generate_edit_image_with_instruction(source_image_path: Path, prompt: str, a
                 headers={
                     'Authorization': f'Bearer {api_key}',
                     'Content-Type': 'application/json',
+                    'X-DashScope-DataInspection': '{\"input\":\"disable\",\"output\":\"disable\"}',
+                    'X-DashScope-Log': 'disable',
                     'X-DashScope-DataInspection': '{"input":"disable","output":"disable"}',
+                    'X-DashScope-Log': 'disable',
                 },
                 json=payload,
                 timeout=API_TIMEOUT
