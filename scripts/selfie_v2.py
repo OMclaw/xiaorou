@@ -275,8 +275,8 @@ def generate_role_swap_image(reference_image_path: Path, character_image_path: P
     for attempt in range(max_retries + 1):
         try:
             reference_base64 = get_image_base64(reference_image_path)
-            source_base64 = get_image_base64(source_image_path)
-            logger.info(f"🖼️ 双图输入模式:参考图 + 图二 (尝试 {attempt + 1}/{max_retries + 1})")
+            character_base64 = get_image_base64(character_image_path)
+            logger.info(f"🖼️ 双图输入模式：参考图 + 图二 (尝试 {attempt + 1}/{max_retries + 1})")
 
             # Prompt 长度校验
             if len(prompt) > MAX_PROMPT_LENGTH:
@@ -678,12 +678,12 @@ def generate_edit_image_with_instruction(source_image_path: Path, prompt: str, a
                 logger.warning(f"⚠️ Prompt 过长 ({len(prompt)} > {MAX_PROMPT_LENGTH}),已截断")
                 prompt = prompt[:MAX_PROMPT_LENGTH]
 
-            # 单图输入：原图 + 用户指令（简单直接）
+            # 单图输入:原图 + 用户指令(简单直接)
             content = [
                 {'image': source_base64},      # 原图
                 {'text': prompt}                 # 用户原始指令
             ]
-            logger.info(f"🖼️ 单图输入：原图 + 用户指令")
+            logger.info(f"🖼️ 单图输入:原图 + 用户指令")
 
             payload = {
                 'model': model_name,
