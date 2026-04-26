@@ -1,5 +1,6 @@
 #!/bin/bash
-# aevia.sh - 小柔统一入口（聊天 + 自拍 + 语音 + 视频）
+# aevia.sh - 小柔统一入口（聊天 + 参考生图 + 修图 + 视频 + 语音）
+# 版本：v2.0 重构版 - 2026-04-26
 
 set -euo pipefail
 
@@ -30,79 +31,74 @@ load_api_key() {
 
 sanitize_input() {
   local input="$1"
-  # 严格长度限制（可配置）
   [ ${#input} -gt "$AEVIA_MAX_INPUT_LENGTH" ] && input="${input:0:$AEVIA_MAX_INPUT_LENGTH}"
-  # P0-4 修复：只保留安全的可见字符（中文、英文、数字、常见标点、空格、/）
-  # 避免使用 \x00-\x1f 范围（部分 shell 环境不生效）
   printf '%s' "$input" | tr -cd '[:alnum:][:space:]/,.!?，。！？、：；（）《》-'
 }
 
 error() { 
-  # P1-7 修复：使用 printf 避免 $* 展开，更严格的净化
   local msg
   msg=$(printf '%s' "$*" | tr -cd '[:alnum:][:space:][:punct:]-_')
   printf '%s\n' "❌ 错误：$msg" >&2
   exit 1
 }
+
 warn() { 
-  # P1-7 修复：使用 printf 避免 $* 展开
   local msg
   msg=$(printf '%s' "$*" | tr -cd '[:alnum:][:space:][:punct:]-_')
   printf '%s\n' "⚠️ 警告：$msg" >&2
 }
+
 info() { 
-  # P1-7 修复：使用 printf 避免 $* 展开
   local msg
   msg=$(printf '%s' "$*" | tr -cd '[:alnum:][:space:][:punct:]-_')
   printf '%s\n' "ℹ️  $msg"
 }
 
 # ============ 模式检测 ============
-# 三种生图模式：
-# 1. 场景生图 - 根据场景描述用小柔头像生成
-# 2. 参考生图 - 基于参考图识别后用小柔头像生成
+# 五种能力模式（按优先级排序）：
+# 1. 语音模式 - 发语音、语音消息、用语音说
+# 2. 视频模式 - 生成视频、图生视频、动起来
+# 3. 修图模式 - 修图、编辑、修改、把衣服换成（需要图片）
+# 4. 参考生图模式 - 生图、参考、模仿、类似的（需要图片）
+# 5. 聊天模式 - 默认
 
 detect_mode() {
   local input="$1"
   local has_image="${AEVIA_IMAGE_PATH:-}"
   
-  # 语音模式（最高优先级）
-  if printf '%s' "$input" | grep -qiE "发语音|语音消息|说句话|tts"; then
+  # ========== 1. 语音模式（最高优先级） ==========
+  if printf '%s' "$input" | grep -qiE "发语音 | 语音消息 | 用语音说 | 说句话|tts"; then
     echo "voice"
     return
   fi
   
-  # 视频模式（第二优先级，检查完整关键词 + 截断保护）
-  if printf '%s' "$input" | grep -qiE "生成视频|做视频|图生视频|视频生成"; then
+  # ========== 2. 视频模式（第二优先级） ==========
+  if printf '%s' "$input" | grep -qiE "生视频 | 做视频 | 图生视频 | 视频生成 | 动起来"; then
     echo "video"
     return
   fi
   
-  # ========== 参考生图模式 ==========
-  # 关键词：参考、模仿、照[著着]、学这张、生成一张类似的、同样的场景
-  # 条件：必须有图片 + 参考类关键词
+  # ========== 3. 修图模式（第三优先级） ==========
+  # 关键词：修图、编辑、修改、把衣服换成、换个、改成、换成、调整一下
+  # 条件：必须有图片 + 修图类关键词
   if [ -n "$has_image" ]; then
-    if printf '%s' "$input" | grep -qiE "参考|模仿|照[著着]|学这张|类似的|同样的|照这个|按这个|生成一张|来一张"; then
+    if printf '%s' "$input" | grep -qiE "修图 | 编辑 | 修改 | 把衣服换成 | 换个 | 改成 | 换成 | 调整一下"; then
+      echo "inpaint"
+      return
+    fi
+  fi
+  
+  # ========== 4. 参考生图模式（第四优先级） ==========
+  # 关键词：生图、参考、模仿、照着、学这张、类似的、同样的、生成一张、来一张
+  # 条件：必须有图片 + 生图/参考类关键词
+  if [ -n "$has_image" ]; then
+    if printf '%s' "$input" | grep -qiE "生图 | 参考 | 模仿 | 照 [著着]|学这张 | 类似的 | 同样的 | 照这个 | 按这个 | 生成一张 | 来一张"; then
       echo "selfie-reference"
       return
     fi
   fi
   
-  # ========== 场景生图模式 ==========
-  # 关键词：照片、图片、自拍、发张、看看你、穿、穿搭、生成、来一张、想要、场景、在...里/前/下
-  # 条件：有场景描述（可以是纯文字，也可以有图片但没参考关键词）
-  if printf '%s' "$input" | grep -qiE "照片|图片|自拍|发张|看看你|穿|穿搭|生成|来一张|想要|场景|在.*里|在.*前|在.*下"; then
-    if [ -n "$has_image" ]; then
-      # 有图片但没参考关键词 → 使用图片作为场景参考（参考生图的简化版）
-      echo "selfie-reference"
-    else
-      # 纯文字场景描述 → 场景生图
-      echo "selfie-scene"
-    fi
-    return
-  fi
-  
-  # 默认：聊天模式
+  # ========== 5. 聊天模式（默认） ==========
   echo "chat"
 }
 
@@ -114,54 +110,34 @@ run_voice() {
   
   info "🎙️ 语音模式"
   local speech_text
-  speech_text=$(printf '%s' "$input" | sed -E 's#^(发语音 [:：]?|语音消息 [:：]?)##i' | xargs)
+  speech_text=$(printf '%s' "$input" | sed -E 's#^(发语音 [:：]?|语音消息 [:：]?|用语音说 [:：]?)##i' | xargs)
   [ -z "$speech_text" ] && speech_text="你好呀，我是小柔～"
   
-  # 根据平台选择音频格式
   local audio_ext
   case "$AEVIA_CHANNEL" in
-    feishu)
-      audio_ext="opus"  # 飞书支持 OPUS
-      ;;
-    telegram)
-      audio_ext="mp3"   # Telegram 推荐 MP3
-      ;;
-    discord)
-      audio_ext="mp3"   # Discord 推荐 MP3
-      ;;
-    whatsapp)
-      audio_ext="opus"  # WhatsApp 支持 OPUS
-      ;;
-    *)
-      audio_ext="mp3"   # 默认 MP3
-      ;;
+    feishu) audio_ext="opus" ;;
+    telegram|discord|whatsapp) audio_ext="mp3" ;;
+    *) audio_ext="mp3" ;;
   esac
   
-  # 使用用户隔离的临时目录，避免权限冲突
   local temp_dir="/tmp/openclaw_$(id -u)"
   mkdir -p "$temp_dir" 2>/dev/null || true
-  chmod 700 "$temp_dir" 2>/dev/null || true
   
-  # P1-4 修复：始终使用 mktemp 创建临时文件，失败则报错（不使用不安全的 fallback）
   local temp_audio
   temp_audio=$(mktemp "$temp_dir/xiaorou_voice_XXXXXX.$audio_ext" 2>/dev/null) || {
-    # 尝试系统临时目录
     temp_audio=$(mktemp -t "xiaorou_voice_XXXXXXXXXX.$audio_ext" 2>/dev/null) || {
-      error "无法创建安全的临时文件，请检查 /tmp 目录权限"
+      error "无法创建安全的临时文件"
     }
   }
-  # 设置严格的文件权限
   chmod 600 "$temp_audio" 2>/dev/null || true
   
-  info "正在生成语音：$speech_text (格式：$audio_ext, 平台：$AEVIA_CHANNEL)"
+  info "正在生成语音：$speech_text"
   if python3 "$SCRIPT_DIR/tts.py" "$speech_text" "$temp_audio" 2>&1; then
     info "✓ 语音生成成功"
     openclaw message send --channel "$AEVIA_CHANNEL" --target "$target" --message "小柔的语音消息 💕" --media "$temp_audio"
-    # 清理临时音频文件
     rm -f "$temp_audio" 2>/dev/null || true
   else
     error "语音生成失败"
-    # 清理失败的临时文件
     rm -f "$temp_audio" 2>/dev/null || true
   fi
 }
@@ -171,44 +147,28 @@ run_video() {
   local target="$2"
   local image_path="${AEVIA_IMAGE_PATH:-}"
   
-  info "🎬 视频模式（自动流程：参考图 → 小柔自拍 → 视频）"
+  info "🎬 视频模式"
   
-  # 提取 prompt
   local prompt
-  prompt=$(printf '%s' "$input" | sed -E 's#^(生成视频|做视频|图生视频)[:：]?##i' | xargs)
+  prompt=$(printf '%s' "$input" | sed -E 's#^(小柔生视频 | 生成视频 | 做视频 | 图生视频)[:：]?##i' | xargs)
   [ -z "$prompt" ] && prompt="一个美丽的女孩自然微笑，动作自然舒展"
   
   if [ -n "$image_path" ]; then
     info "📸 步骤 1: 先生成小柔参考图..."
-    
-    # 调用 selfie_v2.py --role-swap 生成小柔照片（真正的双图输入）
     local selfie_output
     selfie_output=$(python3 "$SCRIPT_DIR/selfie_v2.py" --role-swap "$image_path" "$AEVIA_CHANNEL" "准备生成视频～" "$target" 2>&1)
-    
-    # 等待 1 秒让图片发送完成
     sleep 1
     
-    info "✅ 小柔照片生成完成"
-    
-    # 使用最新生成的小柔照片（固定路径，与 selfie_v2.py 保持一致）
-    # selfie_v2.py 写入: config.get_temp_dir() / f'selfie_latest_{user_id}.jpg'
-    # 默认: /tmp/xiaorou/selfie_latest_default.jpg
     local latest_selfie="/tmp/xiaorou/selfie_latest_${target:-default}.jpg"
-    
     if [ -f "$latest_selfie" ]; then
-      info "🎬 步骤 2: 使用刚生成的小柔照片生成视频..."
-      info "  图片：$latest_selfie"
-      
-      # 优化 prompt，强调动作自然
+      info "🎬 步骤 2: 使用小柔照片生成视频..."
       local video_prompt="$prompt，动作自然舒展，表情生动，真实摄影感"
-      
       python3 "$SCRIPT_DIR/generate_video.py" \
         --image "$latest_selfie" \
         --prompt "$video_prompt" \
         --model "wan2.6-i2v" \
         --duration 5 \
         --target "$target"
-      
       info "✅ 视频生成完成"
     else
       warn "⚠️ 未找到小柔照片，使用原图生成视频"
@@ -219,22 +179,28 @@ run_video() {
   fi
 }
 
-run_selfie_scene() {
+run_inpaint() {
   local input="$1"
   local target="$2"
+  local image_path="${AEVIA_IMAGE_PATH:-}"
   
-  info "🏞️ 场景生图模式"
+  info "✏️ 修图模式（服饰局部重绘）"
   
-  # 提取场景描述
-  local context
-  context=$(printf '%s' "$input" | sed -E 's#^(自拍|照片|图片|发张|生成|来一张|想要)[:：]?##i' | xargs)
-  [ -z "$context" ] && context="时尚穿搭，自然微笑"
-  
-  local caption="给你看看我现在的样子~"
-  
-  info "  场景：$context"
-  # 场景生图使用 selfie_v2.py（纯文字描述生成）
-  python3 "$SCRIPT_DIR/selfie_v2.py" --scene "$context" "$AEVIA_CHANNEL" "$caption" "$target"
+  if [ -n "$image_path" ]; then
+    # 提取修图指令
+    local instruction
+    instruction=$(printf '%s' "$input" | sed -E 's#^(小柔修图 | 修图 | 帮我修图)[:：]?##i' | xargs)
+    [ -z "$instruction" ] && instruction="修改一下服装"
+    
+    info "  原图：$image_path"
+    info "  指令：$instruction"
+    
+    # 调用 selfie_inpaint.py 进行局部重绘
+    python3 "$SCRIPT_DIR/selfie_inpaint.py" "$image_path" "$instruction" "$AEVIA_CHANNEL" "$target"
+    info "✅ 修图完成"
+  else
+    error "修图需要提供图片"
+  fi
 }
 
 run_selfie_reference() {
@@ -255,28 +221,24 @@ run_selfie_reference() {
   fi
 }
 
-
 run_chat() {
   local input="$1"
   local target="$2"
   
-  # target 空值保护
   if [ -z "$target" ]; then
     error "未指定目标用户（target）"
   fi
   
   info "💬 聊天模式"
   
-  # L-4 修复：先检查 jq，再创建临时文件
   if ! command -v jq &>/dev/null; then
-    error "jq 未安装，请运行：apt install jq 或 brew install jq"
+    error "jq 未安装"
   fi
   
-  # 使用 jq 安全构造 JSON
   local temp_json
-  trap 'rm -f "$temp_json"' EXIT
   temp_json=$(mktemp)
-  chmod 600 "$temp_json"  # P1-4 修复：保护临时 JSON 文件权限
+  chmod 600 "$temp_json"
+  trap 'rm -f "$temp_json"' EXIT
   
   jq -n \
     --arg input "$input" \
@@ -303,9 +265,7 @@ run_chat() {
 # ============ 主流程 ============
 
 main() {
-  # M-2 修复：检查 jq 依赖
-  command -v jq &>/dev/null || error "jq 未安装，请运行：apt install jq 或 brew install jq"
-
+  command -v jq &>/dev/null || error "jq 未安装"
   load_api_key || error "无法加载 API Key"
   
   local user_input="${1:-}"
@@ -326,14 +286,11 @@ main() {
     video)
       run_video "$user_input" "$target"
       ;;
+    inpaint)
+      run_inpaint "$user_input" "$target"
+      ;;
     selfie-reference)
       run_selfie_reference "$user_input" "$target"
-      ;;
-    selfie-scene)
-      run_selfie_scene "$user_input" "$target"
-      ;;
-    selfie)
-      run_selfie_scene "$user_input" "$target"
       ;;
     chat)
       run_chat "$user_input" "$target"
@@ -343,20 +300,37 @@ main() {
 
 # 支持直接调用特定模式
 case "${1:-}" in
-  --selfie-scene|--selfie-reference|--voice|--video|--chat)
+  --selfie-reference|--voice|--video|--inpaint|--chat)
     mode="${1#--}"
     shift
-    # 强制模式：直接调用对应函数，不经过 detect_mode
     target="${2:-${AEVIA_TARGET:-}}"
-    user_input=$(printf '%s' "$*"|tr -d '\x00-\x1f\x7f-\x9f`$\\|;&<>()')
-  [ ${#user_input} -gt "$AEVIA_MAX_INPUT_LENGTH" ] && user_input="${user_input:0:$AEVIA_MAX_INPUT_LENGTH}"
+    load_api_key || error "无法加载 API Key"
     case "$mode" in
-      selfie-scene) run_selfie_scene "$user_input" "$target" ;;
-      selfie-reference) run_selfie_reference "$user_input" "$target" ;;
-      voice) run_voice "$user_input" "$target" ;;
-      video) run_video "$user_input" "$target" ;;
-      chat) run_chat "$user_input" "$target" ;;
+      voice) run_voice "${1:-}" "$target" ;;
+      video) run_video "${1:-}" "$target" ;;
+      inpaint) run_inpaint "${1:-}" "$target" ;;
+      selfie-reference) run_selfie_reference "${1:-}" "$target" ;;
+      chat) run_chat "${1:-}" "$target" ;;
     esac
+    ;;
+  --help|-h)
+    echo "小柔 AI - 统一入口脚本"
+    echo ""
+    echo "用法："
+    echo "  $0 <消息> [target]           # 自动检测模式"
+    echo "  $0 --voice <消息> [target]   # 强制语音模式"
+    echo "  $0 --video <消息> [target]   # 强制视频模式"
+    echo "  $0 --inpaint <消息> [target] # 强制修图模式"
+    echo "  $0 --selfie-reference <消息> [target]  # 强制参考生图"
+    echo "  $0 --chat <消息> [target]    # 强制聊天模式"
+    echo ""
+    echo "五种能力："
+    echo "  1. 小柔生图   - 参考图生图（发送图片 + '小柔生图'）"
+    echo "  2. 小柔修图   - 图像编辑（发送图片 + '小柔修图：把衣服换成...'）"
+    echo "  3. 小柔生视频 - 视频生成（发送图片 + '小柔生视频：...'）"
+    echo "  4. 小柔发语音 - TTS 语音（'小柔发语音：...'）"
+    echo "  5. 小柔聊天   - 情感对话（任意对话）"
+    exit 0
     ;;
   *)
     main "$@"
