@@ -247,10 +247,10 @@ def build_role_swap_prompt(reference_description: str = "") -> str:
 - 八十五毫米人像镜头虚化,微颗粒噪点,电影级色彩分级
 - 柔和光照,体积光,轮廓光,照片级真实感
 
-【质量标签】8K 超高清,绝对无水印,最高画质,杰作,画面纯净
+【质量标签】8K 超高清，绝对无水印，最高画质，杰作，画面纯净
 
 【反向提示词】
-权重 6.0:水印、文字、logo、平台水印、角落水印、右下角水印、边缘水印、透明水印、半透明水印
+权重 10.0:水印、文字、logo、平台水印、角落水印、右下角水印、边缘水印、透明水印、半透明水印、底部水印、顶部水印、签名、署名、网站地址、URL、@符号、社交媒体标识、抖音水印、快手水印、微博水印、小红书水印、B 站水印、YouTube 水印、TikTok 水印、Instagram 水印、Facebook 水印、任何形式的水印、任何文字标记、任何 logo 标识
 权重 5.0:面部角度与原图不一致、面部与身体光影不一致、面部与身体色温不匹配、面部与身体肤色断层、头身比例失调、**头部过大/过小**、**脸部比例与原图不一致**、**面部光影与原图不一致**、**面部肤色亮度与原图不一致**、塑料皮肤、蜡质感、过度磨皮、娃娃脸、视线方向错误、**面部过白/惨白/死白**、**拼贴感/合成感/贴上去的感觉**
 权重 4.0:对比度异常、锐度不足、景深错误、透视失真、CG 渲染感、卡通化、油光满面、死白肤色、面部过亮/过暗、面部色偏、面部扭曲变形、低画质、畸形、解剖错误、过曝、欠曝、色偏、**肤色突兀不协调**、**人物与场景分离感**"""
     return full_prompt
@@ -276,7 +276,7 @@ def generate_role_swap_image(reference_image_path: Path, character_image_path: P
         try:
             reference_base64 = get_image_base64(reference_image_path)
             character_base64 = get_image_base64(character_image_path)
-            logger.info(f"🖼️ 双图输入模式：参考图 + 图二 (尝试 {attempt + 1}/{max_retries + 1})")
+            logger.info(f"🖼️ 双图输入模式:参考图 + 图二 (尝试 {attempt + 1}/{max_retries + 1})")
 
             # Prompt 长度校验
             if len(prompt) > MAX_PROMPT_LENGTH:
