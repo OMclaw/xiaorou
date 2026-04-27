@@ -215,7 +215,64 @@ class Config:
          # 从配置文件读取
         config = self._load_config_file()
         return config.get('skills', {}).get('entries', {}).get('xiaorou', {}).get('config', {}).get('feishu_target', '')
+    
+    @staticmethod
+    def normalize_feishu_target(target: str) -> Tuple[str, str]:
+        """
+        标准化飞书目标用户 ID，支持所有格式
+        
+        支持的输入格式：
+        - ou_xxx（open_id）
+        - user:ou_xxx（带前缀的 open_id）
+        - on_xxx（union_id）
+        - user:on_xxx（带前缀的 union_id）
+        - user_xxx（user_id）
+        - user:user_xxx（带前缀的 user_id）
+        
+        Returns:
+            Tuple[str, str]: (清理后的用户 ID, receive_id_type)
+            receive_id_type 为 'open_id' | 'union_id' | 'user_id'
+        
+        Raises:
+            ValueError: 不支持的格式
+        """
+        if not target:
+            raise ValueError("目标用户 ID 不能为空")
+        
+        # 移除常见的 "user:" 前缀
+        if target.startswith('user:'):
+            target = target[5:]
+        
+        if not target:
+            raise ValueError("目标用户 ID 不能为空")
+        
+        # 根据前缀判断类型（同时验证最小长度）
+        if target.startswith('ou_') and len(target) > 3:
+            return (target, 'open_id')
+        elif target.startswith('on_') and len(target) > 3:
+            return (target, 'union_id')
+        elif target.startswith('user_') and len(target) > 5:
+            return (target, 'user_id')
+        else:
+            raise ValueError(
+                f"不支持的飞书用户 ID 格式：{target}\n"
+                f"支持的格式：ou_xxx, on_xxx, user_xxx（可带 'user:' 前缀）"
+            )
 
 
 # 全局实例
 config = Config()
+
+
+# ========== 工具函数（模块级，方便其他脚本导入） ==========
+
+def normalize_feishu_target(target: str) -> Tuple[str, str]:
+    """
+    标准化飞书目标用户 ID（模块级函数，方便其他脚本导入）
+    
+    用法：
+        from config import normalize_feishu_target
+        user_id, id_type = normalize_feishu_target("user:ou_123")
+        # 返回：("ou_123", "open_id")
+    """
+    return Config.normalize_feishu_target(target)

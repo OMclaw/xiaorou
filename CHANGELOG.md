@@ -2,6 +2,40 @@
 All notable changes to this project will be documented in this file.
 
 
+## [8.0.1] - 2026-04-27
+
+### 🐛 Bug 修复
+
+**飞书用户 ID 格式全面兼容**
+
+#### 问题描述
+- 小柔 skills 只接受 `ou_xxx` 格式
+- 不支持 `user:ou_xxx` 等常见格式
+- 导致图片生成成功后无法自动发送
+
+#### 修复内容
+- ✅ 新增 `normalize_feishu_target()` 统一函数（`scripts/config.py`）
+- ✅ 支持 6 种飞书用户 ID 格式：
+  - `ou_xxx`（open_id，推荐）
+  - `user:ou_xxx`（带前缀的 open_id）
+  - `on_xxx`（union_id）
+  - `user:on_xxx`（带前缀的 union_id）
+  - `user_xxx`（user_id）
+  - `user:user_xxx`（带前缀的 user_id）
+- ✅ 更新所有相关模块：
+  - `scripts/selfie_v2.py` - 参考生图
+  - `scripts/selfie_bbox.py` - BBOX 局部重绘
+  - `scripts/selfie_inpaint.py` - 服饰修图
+- ✅ 新增兼容性测试脚本（10 个测试用例，100% 通过）
+- ✅ 新增文档：`docs/飞书用户 ID 格式兼容性.md`
+
+#### 影响
+- ✅ 修复后兼容所有飞书机器人场景
+- ✅ 自动处理 `user:` 前缀
+- ✅ 验证格式有效性并给出明确错误提示
+
+---
+
 ## [8.0.0] - 2026-04-26
 
 ### ✨ 重大架构重构

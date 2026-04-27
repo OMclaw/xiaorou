@@ -516,16 +516,19 @@ def upload_feishu_image(image_file: str) -> Optional[str]:
 
 def send_feishu_image_message(image_key: str, caption: str, receive_id: str, receive_id_type: Optional[str] = None) -> bool:
     """发送飞书原生图片消息"""
+    from config import normalize_feishu_target
+    
     access_token = get_feishu_access_token()
     if not access_token:
         return False
-    if receive_id_type is None:
-        if receive_id.startswith('ou_'):
-            receive_id_type = 'open_id'
-        elif receive_id.startswith('on_'):
-            receive_id_type = 'union_id'
-        else:
-            return False
+    
+    # 标准化用户 ID（支持所有格式）
+    try:
+        if receive_id_type is None:
+            receive_id, receive_id_type = normalize_feishu_target(receive_id)
+    except ValueError as e:
+        logger.error(f"用户 ID 格式错误：{e}")
+        return False
     message_url = f"https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type={receive_id_type}"
     content = json.dumps({"image_key": image_key, "text": caption})
     message_data = {"receive_id": receive_id, "msg_type": "image", "content": content}

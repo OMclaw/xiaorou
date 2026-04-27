@@ -279,15 +279,23 @@ def send_to_feishu(image_url: str, caption: str, target: str) -> bool:
         
         logger.info(f"✅ 飞书图片上传成功:{image_key}")
         
+        # 标准化用户 ID（支持所有格式）
+        from config import normalize_feishu_target
+        try:
+            receive_id, receive_id_type = normalize_feishu_target(target)
+        except ValueError as e:
+            logger.error(f"用户 ID 格式错误：{e}")
+            return False
+        
         # 发送消息
         message_data = {
-            "receive_id": target,
+            "receive_id": receive_id,
             "msg_type": "image",
             "content": json.dumps({"image_key": image_key})
         }
         
         response = requests.post(
-            f'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id',
+            f'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type={receive_id_type}',
             headers={
                 "Authorization": f"Bearer {access_token}",
                 "Content-Type": "application/json"
