@@ -29,6 +29,53 @@ load_api_key() {
   return 1
 }
 
+load_feishu_target() {
+  # 从配置文件读取当前会话用户 ID（飞书 open_id）
+  local config_file="$HOME/.openclaw/openclaw.json"
+  if [ -f "$config_file" ]; then
+    # 尝试从 inbound 上下文读取当前用户 ID
+    local target
+    target=$(jq -r '.inbound?.chat_id // empty' "$config_file" 2>/dev/null | grep -o 'ou_[a-zA-Z0-9]*' | head -1)
+    if [ -n "$target" ]; then
+      echo "$target"
+      return 0
+    fi
+    # 尝试从 last_inbound 读取
+    target=$(jq -r '.last_inbound?.chat_id // empty' "$config_file" 2>/dev/null | grep -o 'ou_[a-zA-Z0-9]*' | head -1)
+    if [ -n "$target" ]; then
+      echo "$target"
+      return 0
+    fi
+  fi
+  return 1
+}
+
+resolve_target() {
+  local explicit_target="${1:-}"
+  local channel="${2:-feishu}"
+  
+  # 优先级：显式参数 > 环境变量 > 配置文件
+  if [ -n "$explicit_target" ] && [ "$explicit_target" != "" ]; then
+    echo "$explicit_target"
+    return 0
+  fi
+  
+  if [ -n "${AEVIA_TARGET:-}" ]; then
+    echo "$AEVIA_TARGET"
+    return 0
+  fi
+  
+  if [ "$channel" = "feishu" ]; then
+    local config_target
+    if config_target=$(load_feishu_target); then
+      echo "user:$config_target"
+      return 0
+    fi
+  fi
+  
+  return 1
+}
+
 sanitize_input() {
   local input="$1"
   [ ${#input} -gt "$AEVIA_MAX_INPUT_LENGTH" ] && input="${input:0:$AEVIA_MAX_INPUT_LENGTH}"
@@ -225,10 +272,6 @@ run_chat() {
   local input="$1"
   local target="$2"
   
-  if [ -z "$target" ]; then
-    error "未指定目标用户（target）"
-  fi
-  
   info "💬 聊天模式"
   
   if ! command -v jq &>/dev/null; then
@@ -259,7 +302,12 @@ run_chat() {
   [ -z "$reply" ] && error "回复生成失败"
   
   echo "$reply"
-  openclaw message send --channel "$AEVIA_CHANNEL" --target "$target" --message "$reply"
+  if [ -n "$target" ]; then
+    openclaw message send --channel "$AEVIA_CHANNEL" --target "$target" --message "$reply"
+  else
+    # 没有 target 时使用 openclaw 默认路由（当前会话）
+    openclaw message send --channel "$AEVIA_CHANNEL" --message "$reply"
+  fi
 }
 
 # ============ 主流程 ============
@@ -269,11 +317,18 @@ main() {
   load_api_key || error "无法加载 API Key"
   
   local user_input="${1:-}"
-  local target="${2:-${AEVIA_TARGET:-}}"
+  local explicit_target="${2:-}"
   
   [ -z "$user_input" ] && { echo "用法：$0 <消息> [target]"; exit 0; }
   
   user_input=$(sanitize_input "$user_input")
+  
+  # 解析 target：显式参数 > 环境变量 > 配置文件
+  local target
+  if ! target=$(resolve_target "$explicit_target" "$AEVIA_CHANNEL"); then
+    warn "⚠️ 未指定 target，将尝试使用 openclaw CLI 默认路由"
+    target=""
+  fi
   
   # 自动检测模式
   local mode
